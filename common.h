@@ -34,6 +34,8 @@ using namespace Microsoft::WRL;
 
 #include "vmath.h"
 
+// TODO: split to private an public part
+
 inline constexpr int DeferredBuffers = 3;
 
 enum class WINDOW_MESSAGE;

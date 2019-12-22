@@ -3,7 +3,7 @@
 #include "dx12render.h"
 #include "dx12vertexbuffer.h"
 #include "dx12shader.h"
-#include "dx12commandlist.h"
+#include "dx12context.h"
 
 const int rectSize = 10;
 const int rectPadding = 7;

@@ -1,7 +1,7 @@
 #pragma once
 #include "common.h"
 #include "icorerender.h"
-#include "uploadheap.h"
+#include "dx12uploadheap.h"
 
 struct Dx12UniformBuffer
 {

@@ -1,6 +1,6 @@
 #pragma once
 #include "common.h"
-#include "descriptorheap.h"
+#include "dx12descriptorheap.h"
 
 
 namespace FastFrameAllocator

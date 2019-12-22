@@ -3,10 +3,10 @@
 #include "dx12render.h"
 #include "dx12shader.h"
 #include "dx12uniformbuffer.h"
-#include "dx12commandlist.h"
+#include "dx12context.h"
 #include "dx12vertexbuffer.h"
-#include "descriptorheap.h"
-#include "uploadheap.h"
+#include "dx12descriptorheap.h"
+#include "dx12uploadheap.h"
 #include "gpuprofiler.h"
 #include <d3dcompiler.h>
 #include <algorithm>
