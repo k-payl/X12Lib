@@ -1,0 +1,84 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClInclude Include="core.h" />
+    <ClInclude Include="input.h" />
+    <ClInclude Include="vmath.h" />
+    <ClInclude Include="mainwindow.h" />
+    <ClInclude Include="d3dx12.h">
+      <Filter>dx12corerender</Filter>
+    </ClInclude>
+    <ClInclude Include="dx12shader.h">
+      <Filter>dx12corerender</Filter>
+    </ClInclude>
+    <ClInclude Include="dx12render.h">
+      <Filter>dx12corerender</Filter>
+    </ClInclude>
+    <ClInclude Include="console.h" />
+    <ClInclude Include="dx11.h" />
+    <ClInclude Include="camera.h" />
+    <ClInclude Include="dx12uniformbuffer.h">
+      <Filter>dx12corerender</Filter>
+    </ClInclude>
+    <ClInclude Include="common.h" />
+    <ClInclude Include="icorerender.h" />
+    <ClInclude Include="dx12commandlist.h">
+      <Filter>dx12corerender</Filter>
+    </ClInclude>
+    <ClInclude Include="pch.h" />
+    <ClInclude Include="dx12vertexbuffer.h">
+      <Filter>dx12corerender</Filter>
+    </ClInclude>
+    <ClInclude Include="descriptorheap.h">
+      <Filter>dx12corerender</Filter>
+    </ClInclude>
+    <ClInclude Include="uploadheap.h">
+      <Filter>dx12corerender</Filter>
+    </ClInclude>
+    <ClInclude Include="intrusiveptr.h">
+      <Filter>dx12corerender</Filter>
+    </ClInclude>
+    <ClInclude Include="gpuprofiler.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="core.cpp" />
+    <ClCompile Include="input.cpp" />
+    <ClCompile Include="mainwindow.cpp" />
+    <ClCompile Include="dx12shader.cpp">
+      <Filter>dx12corerender</Filter>
+    </ClCompile>
+    <ClCompile Include="dx12render.cpp">
+      <Filter>dx12corerender</Filter>
+    </ClCompile>
+    <ClCompile Include="console.cpp" />
+    <ClCompile Include="dx11.cpp" />
+    <ClCompile Include="camera.cpp" />
+    <ClCompile Include="dx12uniformbuffer.cpp">
+      <Filter>dx12corerender</Filter>
+    </ClCompile>
+    <ClCompile Include="dx12commandlist.cpp">
+      <Filter>dx12corerender</Filter>
+    </ClCompile>
+    <ClCompile Include="pch.cpp" />
+    <ClCompile Include="dx12vertexbuffer.cpp">
+      <Filter>dx12corerender</Filter>
+    </ClCompile>
+    <ClCompile Include="descriptorheap.cpp">
+      <Filter>dx12corerender</Filter>
+    </ClCompile>
+    <ClCompile Include="uploadheap.cpp">
+      <Filter>dx12corerender</Filter>
+    </ClCompile>
+    <ClCompile Include="gpuprofiler.cpp" />
+    <ClCompile Include="common.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="mesh.shader" />
+    <None Include="gpuprofiler.shader" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="dx12corerender">
+      <UniqueIdentifier>{f9e91744-f179-4542-a887-fde8eb0e4efa}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>
