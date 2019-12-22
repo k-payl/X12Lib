@@ -5,72 +5,40 @@
     <ClInclude Include="input.h" />
     <ClInclude Include="vmath.h" />
     <ClInclude Include="mainwindow.h" />
-    <ClInclude Include="d3dx12.h">
-      <Filter>dx12corerender</Filter>
-    </ClInclude>
-    <ClInclude Include="dx12shader.h">
-      <Filter>dx12corerender</Filter>
-    </ClInclude>
-    <ClInclude Include="dx12render.h">
-      <Filter>dx12corerender</Filter>
-    </ClInclude>
     <ClInclude Include="console.h" />
-    <ClInclude Include="dx11.h" />
     <ClInclude Include="camera.h" />
-    <ClInclude Include="dx12uniformbuffer.h">
-      <Filter>dx12corerender</Filter>
-    </ClInclude>
     <ClInclude Include="common.h" />
-    <ClInclude Include="icorerender.h" />
-    <ClInclude Include="dx12commandlist.h">
-      <Filter>dx12corerender</Filter>
-    </ClInclude>
     <ClInclude Include="pch.h" />
-    <ClInclude Include="dx12vertexbuffer.h">
-      <Filter>dx12corerender</Filter>
-    </ClInclude>
-    <ClInclude Include="descriptorheap.h">
-      <Filter>dx12corerender</Filter>
-    </ClInclude>
-    <ClInclude Include="uploadheap.h">
-      <Filter>dx12corerender</Filter>
-    </ClInclude>
-    <ClInclude Include="intrusiveptr.h">
-      <Filter>dx12corerender</Filter>
-    </ClInclude>
     <ClInclude Include="gpuprofiler.h" />
+    <ClInclude Include="corerender/dx12/d3dx12.h" />
+    <ClInclude Include="corerender/dx12/descriptorheap.h" />
+    <ClInclude Include="dx11/dx11.h" />
+    <ClInclude Include="corerender/dx12/dx12commandlist.h" />
+    <ClInclude Include="corerender/dx12/dx12uniformbuffer.h" />
+    <ClInclude Include="corerender/dx12/dx12shader.h" />
+    <ClInclude Include="corerender/dx12/dx12vertexbuffer.h" />
+    <ClInclude Include="corerender/icorerender.h" />
+    <ClInclude Include="corerender/dx12/intrusiveptr.h" />
+    <ClInclude Include="corerender/dx12/uploadheap.h" />
+    <ClInclude Include="corerender/dx12/dx12render.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="core.cpp" />
     <ClCompile Include="input.cpp" />
     <ClCompile Include="mainwindow.cpp" />
-    <ClCompile Include="dx12shader.cpp">
-      <Filter>dx12corerender</Filter>
-    </ClCompile>
-    <ClCompile Include="dx12render.cpp">
-      <Filter>dx12corerender</Filter>
-    </ClCompile>
     <ClCompile Include="console.cpp" />
-    <ClCompile Include="dx11.cpp" />
     <ClCompile Include="camera.cpp" />
-    <ClCompile Include="dx12uniformbuffer.cpp">
-      <Filter>dx12corerender</Filter>
-    </ClCompile>
-    <ClCompile Include="dx12commandlist.cpp">
-      <Filter>dx12corerender</Filter>
-    </ClCompile>
     <ClCompile Include="pch.cpp" />
-    <ClCompile Include="dx12vertexbuffer.cpp">
-      <Filter>dx12corerender</Filter>
-    </ClCompile>
-    <ClCompile Include="descriptorheap.cpp">
-      <Filter>dx12corerender</Filter>
-    </ClCompile>
-    <ClCompile Include="uploadheap.cpp">
-      <Filter>dx12corerender</Filter>
-    </ClCompile>
     <ClCompile Include="gpuprofiler.cpp" />
     <ClCompile Include="common.cpp" />
+    <ClCompile Include="corerender/dx12/descriptorheap.cpp" />
+    <ClCompile Include="dx11/dx11.cpp" />
+    <ClCompile Include="corerender/dx12/dx12commandlist.cpp" />
+    <ClCompile Include="corerender/dx12/dx12uniformbuffer.cpp" />
+    <ClCompile Include="corerender/dx12/dx12shader.cpp" />
+    <ClCompile Include="corerender/dx12/dx12vertexbuffer.cpp" />
+    <ClCompile Include="corerender/dx12/uploadheap.cpp" />
+    <ClCompile Include="corerender/dx12/dx12render.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="mesh.shader" />
