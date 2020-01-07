@@ -2,28 +2,9 @@
 #include "common.h"
 #include "icorerender.h"
 
-
 struct Dx12CoreVertexBuffer : public ICoreVertexBuffer
 {
-	Dx12CoreVertexBuffer(
-		uint32_t vertexCount_,
-		ComPtr<ID3D12Resource> vertexBufer_,
-		D3D12_VERTEX_BUFFER_VIEW vertexBufferView_,
-		uint32_t indexCount_,
-		ComPtr<ID3D12Resource> indexBuffer_,
-		D3D12_INDEX_BUFFER_VIEW indexBufferView_,
-		std::vector<D3D12_INPUT_ELEMENT_DESC>&& inputLayout_) :
-
-		vertexCount(vertexCount_),
-		vertexBuffer(vertexBufer_),
-		vertexBufferView(vertexBufferView_),
-		indexCount(indexCount_),
-		indexBuffer(indexBuffer_),
-		indexBufferView(indexBufferView_),
-		inputLayout(std::move(inputLayout_))
-	{
-		id = idGen.getId();
-	}
+	void Init(const void* vbData, const VeretxBufferDesc* vbDesc, const void* idxData = nullptr, const IndexBufferDesc* idxDesc = nullptr);
 
 	inline void AddRef() override { refs++; }
 	inline int GetRefs() override { return refs; }

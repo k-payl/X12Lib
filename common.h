@@ -45,10 +45,12 @@ class Core;
 struct Dx12CoreShader;
 struct Dx12WindowSurface;
 struct Dx12CoreVertexBuffer;
+struct Dx12CoreStructuredBuffer;
 class Dx12BaseCommandList;
 class Dx12GraphicCommandContext;
 class Dx12CopyCommandContext;
 struct Dx12UniformBuffer;
+struct Dx12CoreTexture;
 class RingBuffer;
 class Input;
 class Console;
@@ -157,9 +159,9 @@ static void compositeTransform(mat4& transform, const vec3& t, const quat& r, co
 	transform = T * R * S;
 }
 
-static mat4 perspectiveRH_ZO(float fov, float aspect, float zNear, float zFar)
+static mat4 perspectiveRH_ZO(float fovRad, float aspect, float zNear, float zFar)
 {
-	float const tanHalfFovy = tan(fov / 2);
+	float const tanHalfFovy = tan(fovRad / 2);
 
 	mat4 Result;
 

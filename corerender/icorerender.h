@@ -1,6 +1,9 @@
 #pragma once
 #include "common.h"
 
+inline constexpr size_t MaxBindedResourcesPerFrame = 100'000;
+inline constexpr unsigned MaxResourcesPerShader = 8;
+
 enum class VERTEX_BUFFER_FORMAT
 {
 	FLOAT4,
@@ -59,6 +62,14 @@ struct ICoreVertexBuffer : public IResourceUnknown
 {
 };
 
+struct ICoreTexture : public IResourceUnknown
+{
+};
+
+struct ICoreStructuredBuffer : public IResourceUnknown
+{
+};
+
 struct PipelineState
 {
 	ICoreShader* shader;
@@ -71,3 +82,33 @@ enum class SHADER_TYPE
 	SHADER_FRAGMENT,
 	NUM
 };
+
+enum RESOURCE_BIND_FLAGS
+{
+	NONE = 0,
+	UNIFORM_BUFFER = 1 << 1,
+	TEXTURE_SRV = 1 << 2,
+	STRUCTURED_BUFFER_SRV = 1 << 3,
+};
+
+static UINT formatInBytes(VERTEX_BUFFER_FORMAT format)
+{
+	switch (format)
+	{
+		case VERTEX_BUFFER_FORMAT::FLOAT4: return 16;
+		default: assert(0);
+	}
+	return 0;
+}
+static UINT formatInBytes(INDEX_BUFFER_FORMAT format)
+{
+	switch (format)
+	{
+		case INDEX_BUFFER_FORMAT::UNSIGNED_16: return 2;
+		case INDEX_BUFFER_FORMAT::UNSIGNED_32: return 4;
+		default: assert(0);
+	}
+	return 0;
+}
+
+

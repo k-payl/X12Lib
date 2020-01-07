@@ -1,5 +1,4 @@
 #include "pch.h"
-
 #include "camera.h"
 #include "common.h"
 #include "core.h"
@@ -63,7 +62,7 @@ void Camera::Update(float dt)
 
 void Camera::GetPerspectiveMat(mat4& p, float aspect)
 {
-	p = perspectiveRH_ZO(fov * DEGTORAD, aspect, znear, zfar);
+	p = perspectiveRH_ZO(fovDeg * DEGTORAD, aspect, znear, zfar);
 }
 
 void Camera::GetViewMat(mat4& m)

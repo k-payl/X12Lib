@@ -5,31 +5,147 @@
 #include <d3dcompiler.h>
 #include <algorithm>
 
+#define HLSL_VER "5_1"
+
 IdGenerator<uint16_t> Dx12CoreShader::idGen;
 
-Dx12CoreShader::Dx12CoreShader(ComPtr<ID3DBlob> vertex_, ComPtr<ID3DBlob> frag_, const ConstantBuffersDesc* buffersDesc, uint32_t descNum) :
-	vs(vertex_),
-	ps(frag_)
+struct ShaderReflectionResource
 {
-	using DxShaderReflectionResource = Dx12CoreShader::ShaderReflectionResource;
+	std::string name;
+	int slot;
+	SHADER_TYPE shader;
+	D3D_SHADER_INPUT_TYPE resourceType;
+};
+
+static D3D12_DESCRIPTOR_RANGE_TYPE ResourceToView(D3D_SHADER_INPUT_TYPE resource)
+{
+	switch (resource)
+	{
+		case D3D_SIT_CBUFFER: return D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
+		case D3D_SIT_TEXTURE: return D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+		case D3D_SIT_STRUCTURED: return D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+		default:
+			assert(0 && "Not impl");
+			return D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+			break;
+	}
+}
+
+static RESOURCE_BIND_FLAGS ResourceToBindFlag(D3D_SHADER_INPUT_TYPE resource)
+{
+	switch (resource)
+	{
+		case D3D_SIT_CBUFFER: return RESOURCE_BIND_FLAGS::UNIFORM_BUFFER;
+		case D3D_SIT_TEXTURE: return RESOURCE_BIND_FLAGS::TEXTURE_SRV;
+		case D3D_SIT_STRUCTURED: return RESOURCE_BIND_FLAGS::STRUCTURED_BUFFER_SRV;
+		default:
+			assert(0 && "Not impl");
+			return RESOURCE_BIND_FLAGS::NONE;
+			break;
+	}
+}
+
+static std::vector<ShaderReflectionResource> fetchShaderReources(ComPtr<ID3DBlob> shader, SHADER_TYPE shaderType)
+{
+	std::vector<ShaderReflectionResource> resources;
+
+	ID3D12ShaderReflection* reflection;
+	ThrowIfFailed(D3DReflect(shader->GetBufferPointer(), shader->GetBufferSize(), IID_ID3D12ShaderReflection, (void**)& reflection));
+
+	D3D12_SHADER_DESC desc;
+	reflection->GetDesc(&desc);
 	
+	// Each resource
+	for (unsigned int i = 0; i < desc.BoundResources; ++i)
+	{
+		D3D12_SHADER_INPUT_BIND_DESC ibdesc;
+		reflection->GetResourceBindingDesc(i, &ibdesc);
+
+		resources.push_back({std::string(ibdesc.Name), (int)ibdesc.BindPoint, shaderType, ibdesc.Type});
+	}
+
+	return resources;
+}
+
+static const char* getShaderProfileName(SHADER_TYPE type)
+{
+	switch (type)
+	{
+		case SHADER_TYPE::SHADER_VERTEX: return "vs_" HLSL_VER;
+		case SHADER_TYPE::SHADER_FRAGMENT: return "ps_" HLSL_VER;
+	}
+	assert(false);
+	return nullptr;
+}
+static D3D_SHADER_MACRO* getShaderMacro(SHADER_TYPE type)
+{
+	static D3D_SHADER_MACRO vertDefines[] =
+	{
+		"VERTEX", "1",
+		nullptr, nullptr
+	};
+	static D3D_SHADER_MACRO fragmentDefins[] =
+	{
+		"FRAGMENT", "1",
+		nullptr, nullptr
+	};
+
+	switch (type)
+	{
+		case SHADER_TYPE::SHADER_VERTEX: return vertDefines;
+		case SHADER_TYPE::SHADER_FRAGMENT: return fragmentDefins;
+	}
+	return nullptr;
+}
+
+static ComPtr<ID3DBlob> compileShader(const char* src, SHADER_TYPE type)
+{
+	ComPtr<ID3DBlob> shader;
+	ComPtr<ID3DBlob> errorBlob;
+
+	if (!src)
+		return shader;
+
+	constexpr UINT flags = D3DCOMPILE_ENABLE_STRICTNESS | D3DCOMPILE_PACK_MATRIX_ROW_MAJOR
+	#if _DEBUG
+		| D3DCOMPILE_DEBUG
+		| D3DCOMPILE_SKIP_OPTIMIZATION;
+	#else
+		| D3DCOMPILE_OPTIMIZATION_LEVEL3;
+	#endif
+
+	if (FAILED(D3DCompile(src, strlen(src), "", getShaderMacro(type), NULL, "main", getShaderProfileName(type),
+						  flags, 0, shader.GetAddressOf(), errorBlob.GetAddressOf())))
+	{
+		if (errorBlob)
+		{
+			unsigned char* error = (unsigned char*)errorBlob->GetBufferPointer();
+			printf("%s\n", error);
+			assert(0);
+		}
+	}
+	return shader;
+}
+
+void Dx12CoreShader::Init(const char* vertText, const char* fragText, const ConstantBuffersDesc* buffersDesc, uint32_t descNum)
+{
+	vs = compileShader(vertText, SHADER_TYPE::SHADER_VERTEX);
+	ps = compileShader(fragText, SHADER_TYPE::SHADER_FRAGMENT);
+
 	id = idGen.getId();
 
 	std::vector<ShaderReflectionResource> perDrawResources;
 	std::vector<D3D12_ROOT_PARAMETER> d3dRootParameters;
 
 	auto processShader = [this, descNum, buffersDesc, &d3dRootParameters, &perDrawResources]
-	(
-		ComPtr<ID3DBlob> shader,
-		D3D12_SHADER_VISIBILITY visibility,
-		std::vector<D3D12_DESCRIPTOR_RANGE>& ranges,
-		SHADER_TYPE type) -> bool
+	(std::vector<D3D12_DESCRIPTOR_RANGE>& d3dRangesOut, ComPtr<ID3DBlob> shaderIn,
+	 D3D12_SHADER_VISIBILITY visibilityIn, SHADER_TYPE shaderTypeIn) -> bool
 	{
-		auto resources = fetchShaderReources(shader, type);
+		auto resources = fetchShaderReources(shaderIn, shaderTypeIn);
 		if (resources.empty())
 			return false;
 
-		auto it = std::stable_partition(resources.begin(), resources.end(), [descNum, buffersDesc](const Dx12CoreShader::ShaderReflectionResource& r)
+		auto it = std::stable_partition(resources.begin(), resources.end(), [descNum, buffersDesc](const ShaderReflectionResource& r)
 		{
 			for (uint32_t i = 0; i < descNum; i++)
 			{
@@ -44,29 +160,34 @@ Dx12CoreShader::Dx12CoreShader(ComPtr<ID3DBlob> vertex_, ComPtr<ID3DBlob> frag_,
 
 		if (!tableResources.empty())
 		{
-			ranges.resize(tableResources.size());
+			d3dRangesOut.resize(tableResources.size());
+			std::vector<RootSignatueResource> resourcesForTable;
 
 			for (auto i = 0; i < tableResources.size(); i++)
 			{
-				const ShaderReflectionResource& buf = tableResources[i];
+				const ShaderReflectionResource& shaderResource = tableResources[i];
 
-				ranges[i].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
-				ranges[i].NumDescriptors = 1;
-				ranges[i].BaseShaderRegister = buf.slot;
-				ranges[i].RegisterSpace = 0;
-				ranges[i].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+				d3dRangesOut[i].RangeType = ResourceToView(shaderResource.resourceType);
+				d3dRangesOut[i].NumDescriptors = 1; // TODO: group
+				d3dRangesOut[i].BaseShaderRegister = shaderResource.slot;
+				d3dRangesOut[i].RegisterSpace = 0;
+				d3dRangesOut[i].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+				resourcesForTable.push_back({ shaderResource.slot, ResourceToBindFlag(shaderResource.resourceType) });
 			}
 
-			D3D12_ROOT_DESCRIPTOR_TABLE vertexDescriptorTable;
-			vertexDescriptorTable.NumDescriptorRanges = (UINT)ranges.size();
-			vertexDescriptorTable.pDescriptorRanges = &ranges[0];
+			rootSignatureParameters.push_back({ PARAMETER_TYPE::TABLE, shaderTypeIn, (int)resourcesForTable.size(), resourcesForTable, {-1} });
 
-			D3D12_ROOT_PARAMETER param;
-			param.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-			param.DescriptorTable = vertexDescriptorTable;
-			param.ShaderVisibility = visibility;
+			D3D12_ROOT_DESCRIPTOR_TABLE d3dTable;
+			d3dTable.NumDescriptorRanges = (UINT)d3dRangesOut.size();
+			d3dTable.pDescriptorRanges = &d3dRangesOut[0];
 
-			d3dRootParameters.push_back(param);
+			D3D12_ROOT_PARAMETER d3dParam;
+			d3dParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+			d3dParam.DescriptorTable = d3dTable;
+			d3dParam.ShaderVisibility = visibilityIn;
+
+			d3dRootParameters.push_back(d3dParam);
 		}
 		return true;
 	};
@@ -80,37 +201,34 @@ Dx12CoreShader::Dx12CoreShader(ComPtr<ID3DBlob> vertex_, ComPtr<ID3DBlob> frag_,
 	std::vector<D3D12_DESCRIPTOR_RANGE> d3dRangesVS;
 	std::vector<D3D12_DESCRIPTOR_RANGE> d3dRangesPS;
 
-	if (!processShader(vs, D3D12_SHADER_VISIBILITY_VERTEX, d3dRangesVS, SHADER_TYPE::SHADER_VERTEX))
+	if (!processShader(d3dRangesVS, vs, D3D12_SHADER_VISIBILITY_VERTEX, SHADER_TYPE::SHADER_VERTEX))
 		flags |= D3D12_ROOT_SIGNATURE_FLAG_DENY_VERTEX_SHADER_ROOT_ACCESS;
 
-	std::vector<int> ranges;
-	for (int i = 0; i < d3dRangesVS.size(); ++i)
-	{
-		for(int j = 0; j < d3dRangesVS[i].NumDescriptors; ++j)
-			ranges.push_back({ (int)d3dRangesVS[i].BaseShaderRegister + j });
-	}
-	if (!d3dRangesVS.empty())
-		rootSignatureParameters.push_back({ PARAMETER_TYPE::TABLE, -1, SHADER_TYPE::SHADER_VERTEX, (int)ranges.size(), ranges});
-
-	if (!processShader(ps, D3D12_SHADER_VISIBILITY_PIXEL, d3dRangesPS, SHADER_TYPE::SHADER_FRAGMENT))
+	if (!processShader(d3dRangesPS, ps, D3D12_SHADER_VISIBILITY_PIXEL, SHADER_TYPE::SHADER_FRAGMENT))
 		flags |= D3D12_ROOT_SIGNATURE_FLAG_DENY_PIXEL_SHADER_ROOT_ACCESS;
-	
-	ranges.clear();
-	for (int i = 0; i < d3dRangesPS.size(); ++i)
-	{
-		for (int j = 0; j < d3dRangesPS[i].NumDescriptors; ++j)
-			ranges.push_back({ (int)d3dRangesPS[i].BaseShaderRegister + j });
-	}
-	if (!d3dRangesPS.empty())
-		rootSignatureParameters.push_back({ PARAMETER_TYPE::TABLE, -1, SHADER_TYPE::SHADER_FRAGMENT, (int)ranges.size(), ranges });
 
-	// TODO: other
-	
-	// inline descriptors...
+	// TODO: other shaders
+
+	// Inline descriptors
 	for (int i = 0; i < perDrawResources.size(); ++i)
 	{
 		D3D12_ROOT_PARAMETER d3dParam{};
-		d3dParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV; //TODO: other
+
+		switch (perDrawResources[i].resourceType)
+		{
+			case D3D_SIT_CBUFFER:
+				d3dParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+				break;
+
+			case D3D_SIT_TEXTURE:
+				d3dParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
+				break;
+
+			default:
+				assert(0 && "Not impl");
+				break;
+		}
+
 		d3dParam.Descriptor.RegisterSpace = 0;
 		d3dParam.Descriptor.ShaderRegister = perDrawResources[i].slot;
 
@@ -122,12 +240,18 @@ Dx12CoreShader::Dx12CoreShader(ComPtr<ID3DBlob> vertex_, ComPtr<ID3DBlob> frag_,
 			case SHADER_TYPE::SHADER_FRAGMENT:
 				d3dParam.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 				break;
-		}// TODO: other
+			default:
+				assert(false);
+				break;
+		}
 
 		d3dRootParameters.push_back(d3dParam);
 
-		//
-		rootSignatureParameters.push_back({ PARAMETER_TYPE::INLINE_DESCRIPTOR, perDrawResources[i].slot, perDrawResources[i].shader, {} });
+		RootSignatueResource r;
+		r.slot = perDrawResources[i].slot;
+		r.resources = ResourceToBindFlag(perDrawResources[i].resourceType);
+
+		rootSignatureParameters.push_back({ PARAMETER_TYPE::INLINE_DESCRIPTOR, perDrawResources[i].shader, {}, {}, r });
 	}
 
 
@@ -147,45 +271,9 @@ Dx12CoreShader::Dx12CoreShader(ComPtr<ID3DBlob> vertex_, ComPtr<ID3DBlob> frag_,
 		ID3DBlob* signature;
 		ThrowIfFailed(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, nullptr));
 
-		ThrowIfFailed(CR_GetDevice()->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&resourcesRootSignature)));
-	}
-}
-
-std::vector<Dx12CoreShader::ShaderReflectionResource> Dx12CoreShader::fetchShaderReources(ComPtr<ID3DBlob> shader, SHADER_TYPE type)
-{
-	std::vector<Dx12CoreShader::ShaderReflectionResource> ret;
-
-	ID3D12ShaderReflection* reflection;
-	ThrowIfFailed(D3DReflect(shader->GetBufferPointer(), shader->GetBufferSize(), IID_ID3D12ShaderReflection, (void**)& reflection));
-
-	D3D12_SHADER_DESC desc;
-	reflection->GetDesc(&desc);
-
-	// each constant buffer
-	for (unsigned int i = 0; i < desc.ConstantBuffers; ++i)
-	{
-		ID3D12ShaderReflectionConstantBuffer* buffer = reflection->GetConstantBufferByIndex(i);
-
-		D3D12_SHADER_BUFFER_DESC bufferDesc;
-		buffer->GetDesc(&bufferDesc);
-
-		UINT registerIndex = 0;
-		for (unsigned int k = 0; k < desc.BoundResources; ++k)
-		{
-			D3D12_SHADER_INPUT_BIND_DESC ibdesc;
-			reflection->GetResourceBindingDesc(k, &ibdesc);
-		
-			if (!strcmp(ibdesc.Name, bufferDesc.Name))
-			{
-				registerIndex = ibdesc.BindPoint;
-				break;
-			}
-		}
-
-		ret.push_back({std::string(bufferDesc.Name), (int)registerIndex, type});
+		ThrowIfFailed(CR_GetD3DDevice()->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&resourcesRootSignature)));
 	}
 
-	return ret;
 }
 
 void Dx12CoreShader::Release()

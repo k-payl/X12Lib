@@ -15,5 +15,6 @@ std::shared_ptr<char[]> loadShader(const char* path)
 	file.read((char*)ptr.get(), size);
 	ptr[size] = '\0';
 
+	file.close();
 	return ptr;
 }

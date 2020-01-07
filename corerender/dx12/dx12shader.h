@@ -5,7 +5,7 @@
 
 struct Dx12CoreShader : public ICoreShader
 {
-	Dx12CoreShader(ComPtr<ID3DBlob> vertex_, ComPtr<ID3DBlob> frag_, const ConstantBuffersDesc* variabledesc, uint32_t varNum);
+	void Init(const char* vertText, const char* fragText, const ConstantBuffersDesc* variabledesc, uint32_t varNum);
 	~Dx12CoreShader() override = default;
 
 	enum class PARAMETER_TYPE
@@ -13,22 +13,22 @@ struct Dx12CoreShader : public ICoreShader
 		NONE,
 		TABLE,
 		INLINE_DESCRIPTOR,
-		//INLINE_CONSTANT
+		//INLINE_CONSTANT // TODO
 	};
 
-	//struct Range
-	//{
-	//	int slot{-1};
-	//	int num{0};
-	//};
+	struct RootSignatueResource
+	{
+		int slot;
+		RESOURCE_BIND_FLAGS resources;
+	};
 
 	struct RootSignatureParameter
 	{
 		PARAMETER_TYPE type;
-		int slot{-1};
 		SHADER_TYPE shaderType;
-		int buffersNum;
-		std::vector<int> buffers;
+		int tableResourcesNum;
+		std::vector<RootSignatueResource> tableResources;
+		RootSignatueResource inlineResource;
 	};
 
 	std::vector<RootSignatureParameter> rootSignatureParameters;
@@ -46,14 +46,6 @@ struct Dx12CoreShader : public ICoreShader
 	void Release() override;
 
 private:
-
-	struct ShaderReflectionResource
-	{
-		std::string name;
-		int slot;
-		SHADER_TYPE shader;
-	};
-	std::vector<ShaderReflectionResource> fetchShaderReources(ComPtr<ID3DBlob> shader, SHADER_TYPE type);
 
 	bool hasResources{false};
 

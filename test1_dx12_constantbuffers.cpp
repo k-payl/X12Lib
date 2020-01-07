@@ -94,10 +94,10 @@ void Render()
 
 	mvpcb.MVP = P * V;
 
-	context->BindUniformBuffer(SHADER_TYPE::SHADER_VERTEX, 0, res->mvpCB);
-	context->BindUniformBuffer(SHADER_TYPE::SHADER_VERTEX, 3, res->transformCB);
+	context->BindUniformBuffer(0, res->mvpCB, SHADER_TYPE::SHADER_VERTEX);
+	context->BindUniformBuffer(3, res->transformCB, SHADER_TYPE::SHADER_VERTEX);
 
-	context->UpdateUnifromBuffer(res->mvpCB, &mvpcb, 0, sizeof(MVPcb));
+	context->UpdateUniformBuffer(res->mvpCB, &mvpcb, 0, sizeof(MVPcb));
 
 	for (int i = 0; i < numCubesX; i++)
 	{
@@ -107,13 +107,13 @@ void Render()
 			transformCB.color_out = cubeColor(i, j);
 			transformCB.transform = cubePosition(i, j);
 
-			context->UpdateUnifromBuffer(res->transformCB, &transformCB, 0, sizeof(ColorCB));
+			context->UpdateUniformBuffer(res->transformCB, &transformCB, 0, sizeof(ColorCB));
 
 			context->Draw(res->vertexBuffer);
 		}
 	}
 
-	//renderer->GPUProfileRender();
+	renderer->RenderGPUProfile();
 	
 	context->TimerEnd(0);
 

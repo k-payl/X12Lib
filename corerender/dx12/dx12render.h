@@ -6,7 +6,7 @@
 typedef std::map<uint64_t, ComPtr<ID3D12PipelineState>> psomap_t;
 typedef std::vector<Dx12UniformBuffer*> uniformbuffers_t;
 
-class gpuProfiler;
+class GpuProfiler;
 
 // Resources associated with window
 struct Dx12WindowSurface
@@ -32,7 +32,7 @@ class Dx12CoreRenderer
 	adapter_t *adapter;
 	Dx12WindowSurface *surface;
 
-	gpuProfiler* gpuprofiler;
+	GpuProfiler* gpuprofiler;
 
 	Dx12GraphicCommandContext* graphicCommandContext;
 	Dx12CopyCommandContext* copyCommandContext;
@@ -40,10 +40,9 @@ class Dx12CoreRenderer
 	std::vector<intrusive_ptr<IResourceUnknown>> resources;					// All resources
 	uniformbuffers_t uniformBufferVec;										// All uniform buffers
 	psomap_t psoMap;														// All Pipeline State Objects. checksum -> PSO
-	std::map<UINT, FastFrameAllocator::PagePool*> fastAllocatorPagePools;	// Page pools for dynamic upload resources. allocation size -> pool
+	std::map<UINT, FastFrameAllocator::PagePool*> fastAllocatorPagePools;	// Page pools for uniform buffers. allocation size -> pool
 	DescriptorHeap::Allocator* descriptorAllocator;							// Descriptors for static long-lived resources
-
-	ComPtr<ID3D12RootSignature> defaultRootSignature;						// Root signature for shaders "without input resources"
+	ComPtr<ID3D12RootSignature> defaultRootSignature;						// Root signature for shaders without input resources
 
 	bool Vsync{false};
 	bool tearingSupported;
@@ -68,9 +67,9 @@ public:
 
 	auto RecreateBuffers(UINT w, UINT h) -> void;
 	auto GetFastFrameAllocatorPool(UINT bufferSize) -> FastFrameAllocator::PagePool*;
-	auto GetDevice() -> device_t* { return device; }
-	auto IsTearingSupport() -> bool { return tearingSupported; }
-	auto IsVSync() -> bool { return Vsync; }
+	inline auto GetDevice() -> device_t* { return device; }
+	inline auto IsTearingSupport() -> bool { return tearingSupported; }
+	inline auto IsVSync() -> bool { return Vsync; }
 	ID3D12RootSignature*		GetDefaultRootSignature();
 	psomap_t&					GetGloablPSOMap() { return psoMap; }
 	uniformbuffers_t&			GetGlobalUnifromBuffers() { return uniformBufferVec; }
@@ -82,32 +81,38 @@ public:
 
 	void ReleaseResource(int& refs, IResourceUnknown* ptr);
 
-	void GPUProfileRender();
+	void RenderGPUProfile();
 
 	// API
-	auto GetMainCommmandContext() const -> Dx12GraphicCommandContext* { return graphicCommandContext; };
+	Dx12GraphicCommandContext*	GetMainCommmandContext() const { return graphicCommandContext; };
+	Dx12CopyCommandContext*		GetCopyCommandContext() const { return copyCommandContext; }
+
 	auto CreateShader(const char* vertText, const char* fragText, const ConstantBuffersDesc *variabledesc, uint32_t varNum) -> Dx12CoreShader*;
-	auto CreateVertexBuffer(const void* vbData, const VeretxBufferDesc* vbDesc, const void* idxData, const IndexBufferDesc* idxDesc) -> Dx12CoreVertexBuffer*;
+	auto CreateVertexBuffer(const void* vbData, const VeretxBufferDesc* vbDesc, const void* idxData = nullptr, const IndexBufferDesc* idxDesc = nullptr) -> Dx12CoreVertexBuffer*;
 	auto CreateUniformBuffer(size_t size) -> Dx12UniformBuffer*;
+	auto CreateStructuredBuffer(size_t structureSize, size_t num, const void* data) -> Dx12CoreStructuredBuffer*;
+	auto CreateTexture(std::unique_ptr<uint8_t[]> ddsData, std::vector<D3D12_SUBRESOURCE_DATA> subresources, ID3D12Resource* d3dtexture) ->Dx12CoreTexture*;
+	// TODO
+	//auto CreateTexture(const void* data, int width, int height, TEXTURE_TYPE type, TEXTURE_FORMAT format, TEXTURE_CREATE_FLAGS flags, bool mipmapsPresented);
 };
 
 
 // helpers
 
-extern Dx12CoreRenderer*	_coreRender;
-inline Dx12CoreRenderer*	GetCoreRender() { return _coreRender; }
+extern Dx12CoreRenderer*			_coreRender;
+inline Dx12CoreRenderer*			GetCoreRender() { return _coreRender; }
 
-inline device_t*			CR_GetDevice() { return GetCoreRender()->GetDevice(); }
-inline psomap_t&			CR_GetGlobalPSOMap() { return GetCoreRender()->GetGloablPSOMap(); }
-inline uniformbuffers_t&	CR_GetGlobalUniformBuffers() { return GetCoreRender()->GetGlobalUnifromBuffers(); }
-inline DescriptorHeap::Allocator* CR_GetDescriptorAllocator() { return GetCoreRender()->GetDescriptorAllocator(); }
+inline device_t*					CR_GetD3DDevice() { return GetCoreRender()->GetDevice(); }
+inline psomap_t&					CR_GetGlobalPSOMap() { return GetCoreRender()->GetGloablPSOMap(); }
+inline uniformbuffers_t&			CR_GetGlobalUniformBuffers() { return GetCoreRender()->GetGlobalUnifromBuffers(); }
+inline DescriptorHeap::Allocator*	CR_GetDescriptorAllocator() { return GetCoreRender()->GetDescriptorAllocator(); }
 
-inline bool					CR_IsTearingSupport() { return GetCoreRender()->IsTearingSupport(); }
-inline bool					CR_IsVSync() { return GetCoreRender()->IsVSync(); }
+inline bool							CR_IsTearingSupport() { return GetCoreRender()->IsTearingSupport(); }
+inline bool							CR_IsVSync() { return GetCoreRender()->IsVSync(); }
 
-inline void					CR_ReleaseResource(int& refs, IResourceUnknown* ptr) { GetCoreRender()->ReleaseResource(refs, ptr); }
+inline void							CR_ReleaseResource(int& refs, IResourceUnknown* ptr) { GetCoreRender()->ReleaseResource(refs, ptr); }
 
-inline UINT					CR_CBSRV_DescriptorsSize() { return GetCoreRender()->CBSRV_DescriptorsSize(); }
-inline UINT					CR_RTV_DescriptorsSize() { return GetCoreRender()->RTV_DescriptorsSize(); }
-inline UINT					CR_DSV_DescriptorsSize() { return GetCoreRender()->DSV_DescriptorsSize(); }
+inline UINT							CR_CBSRV_DescriptorsSize() { return GetCoreRender()->CBSRV_DescriptorsSize(); }
+inline UINT							CR_RTV_DescriptorsSize() { return GetCoreRender()->RTV_DescriptorsSize(); }
+inline UINT							CR_DSV_DescriptorsSize() { return GetCoreRender()->DSV_DescriptorsSize(); }
 

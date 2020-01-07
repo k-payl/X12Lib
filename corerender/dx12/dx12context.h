@@ -1,20 +1,15 @@
 #pragma once
 #include "common.h"
+#include "dx12common.h"
 #include "icorerender.h"
-
-inline constexpr size_t MaxBindedResourcesPerFrame = 100'000;
-inline constexpr unsigned MaxResourcesPerShader = 32;
-
-inline constexpr unsigned D3D12MaxRootParameters = 16;
-
 
 class Dx12GraphicCommandContext
 {
-	ID3D12CommandQueue* d3dCommandQueue{};
+	ID3D12CommandQueue *d3dCommandQueue{};
 	ID3D12Fence* d3dFence{};
 	HANDLE fenceEvent{};
 	uint64_t fenceValue{1}; // fence value ready to signal
-	Dx12WindowSurface* surface;
+	Dx12WindowSurface *surface;
 
 	UINT descriptorSizeCBSRV;
 	UINT descriptorSizeRTV;
@@ -24,22 +19,33 @@ class Dx12GraphicCommandContext
 	{
 		Dx12CoreShader *shader;
 		Dx12CoreVertexBuffer *vb;
-		ID3D12DescriptorHeap* d3dDescriptorHeap{};
+		ID3D12DescriptorHeap *d3dDescriptorHeap{};
+		uint64_t psoChecksum;
 
-		struct Binding
+		struct SlotResource
 		{
-			Dx12UniformBuffer* buffer;
-			int dirty;
+			RESOURCE_BIND_FLAGS dirtyFlags; // resources to set before draw call
+
+			// TODO:
+			// CBV register b
+			// SRV register t
+			// UAV register u
+			Dx12UniformBuffer *CBV;
+
+			union
+			{
+				Dx12CoreTexture* texture;
+				Dx12CoreStructuredBuffer* structuredBuffer;
+			} SRV;
 		};
 
-		struct ShaderBindings
+		struct ShaderResources
 		{
-			Binding resources[MaxResourcesPerShader];
+			SlotResource resources[MaxResourcesPerShader];
 			int dirty{0};
-			int maxSlotBinded{-1};
 		};
 
-		ShaderBindings bind[(int)SHADER_TYPE::NUM];
+		ShaderResources bind[(int)SHADER_TYPE::NUM];
 	} 
 	state;
 	void resetState();
@@ -49,6 +55,7 @@ class Dx12GraphicCommandContext
 		uint64_t drawCalls{0};
 		uint64_t triangles{0};
 		uint64_t uniformBufferUpdates{0};
+		uint64_t stateChanges{0};
 	}
 	statistic;
 	void resetStatistic();
@@ -103,7 +110,7 @@ class Dx12GraphicCommandContext
 
 	FinishFrameBroadcast finishFrameBroadcast;
 
-	void _BindResources();
+	void bindResources();
 
 public:
 	Dx12GraphicCommandContext(Dx12WindowSurface* surface_, FinishFrameBroadcast finishFrameCallback_);
@@ -134,8 +141,11 @@ public:
 	void SetScissor(unsigned x, unsigned y, unsigned width, unsigned heigth);
 	void Draw(Dx12CoreVertexBuffer* vb);
 
-	void BindUniformBuffer(SHADER_TYPE shader, int slot, Dx12UniformBuffer* buffer);
-	void UpdateUnifromBuffer(Dx12UniformBuffer* buffer, const void* data, size_t offset, size_t size);
+	void BindUniformBuffer(int slot, Dx12UniformBuffer* buffer, SHADER_TYPE shaderType);
+	void BindTexture(int slot, Dx12CoreTexture* buffer, SHADER_TYPE shaderType);
+	void BindStructuredBuffer(int slot, Dx12CoreStructuredBuffer* buffer, SHADER_TYPE shaderType);
+
+	void UpdateUniformBuffer(Dx12UniformBuffer* buffer, const void* data, size_t offset, size_t size);
 
 	void TimerBegin(uint32_t timerID);
 	void TimerEnd(uint32_t timerID);

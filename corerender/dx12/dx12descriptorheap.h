@@ -30,12 +30,11 @@ namespace DescriptorHeap
 		void Free();
 	};
 
-	/*
-	* Free-list allocator of descriptors.
-	* Use for long lived static resources: textures, meshes, structured buffers
-	*
-	* Details: Allocator::Free() don't return the descriptors to the free list until the frame has completed
-	*/
+	//
+	// Free-list allocator of descriptors.
+	// Use for long lived static resources: textures, meshes, structured buffers
+	//
+	// Details: Allocator::Free() don't return the descriptors to the free list until the frame has completed
 	class Allocator
 	{	
 		friend class Page;

@@ -35,6 +35,8 @@
 
 #else
 
+	//Texture2D texture_font : register(t0);
+
 	struct PixelShaderInput
 	{
 		float4 Color : COLOR;
@@ -42,7 +44,8 @@
 
 	float4 main(PixelShaderInput IN) : SV_Target
 	{
-		return IN.Color;
+		//float4 tex = texture_font.Load(int3(screenPos.xy, 0));
+		return IN.Color;// *tex;
 	}
 
 #endif

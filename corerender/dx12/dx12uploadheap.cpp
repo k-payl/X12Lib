@@ -32,7 +32,7 @@ FastFrameAllocator::Page* FastFrameAllocator::PagePool::getPage()
 
 	// Upload heap for dynamic resources
 	// For upload heap no need to put a fence to make sure the data is uploaded before you make a draw call
-	ThrowIfFailed(CR_GetDevice()->CreateCommittedResource(
+	ThrowIfFailed(CR_GetD3DDevice()->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
 		D3D12_HEAP_FLAG_NONE,
 		&CD3DX12_RESOURCE_DESC::Buffer(pageSize),
@@ -61,7 +61,7 @@ FastFrameAllocator::Page* FastFrameAllocator::PagePool::getPage()
 		desc.BufferLocation = page->gpuPtr + i * 256;
 		D3D12_CPU_DESCRIPTOR_HANDLE handle{ ptrStart + i * descriptorIncrementSize };
 
-		CR_GetDevice()->CreateConstantBufferView(&desc, handle);
+		CR_GetD3DDevice()->CreateConstantBufferView(&desc, handle);
 	}
 
 	return page;

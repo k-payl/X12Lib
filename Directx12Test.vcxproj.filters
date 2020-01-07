@@ -10,36 +10,50 @@
     <ClInclude Include="common.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="gpuprofiler.h" />
-    <ClInclude Include="corerender/icorerender.h" />
     <ClInclude Include="corerender/dx12/dx12render.h">
-      <Filter>dx12</Filter>
+      <Filter>corerender\dx12</Filter>
     </ClInclude>
     <ClInclude Include="corerender/dx12/dx12shader.h">
-      <Filter>dx12</Filter>
+      <Filter>corerender\dx12</Filter>
     </ClInclude>
     <ClInclude Include="corerender/dx12/dx12uniformbuffer.h">
-      <Filter>dx12</Filter>
+      <Filter>corerender\dx12</Filter>
     </ClInclude>
     <ClInclude Include="corerender/dx12/dx12vertexbuffer.h">
-      <Filter>dx12</Filter>
+      <Filter>corerender\dx12</Filter>
     </ClInclude>
     <ClInclude Include="corerender/dx12/d3dx12.h">
-      <Filter>dx12</Filter>
-    </ClInclude>
-    <ClInclude Include="corerender/dx12/intrusiveptr.h">
-      <Filter>dx12</Filter>
+      <Filter>corerender\dx12</Filter>
     </ClInclude>
     <ClInclude Include="dx11/dx11.h">
-      <Filter>dx11</Filter>
+      <Filter>_dx11</Filter>
     </ClInclude>
     <ClInclude Include="corerender\dx12\dx12descriptorheap.h">
-      <Filter>dx12</Filter>
+      <Filter>corerender\dx12</Filter>
     </ClInclude>
     <ClInclude Include="corerender\dx12\dx12uploadheap.h">
-      <Filter>dx12</Filter>
+      <Filter>corerender\dx12</Filter>
     </ClInclude>
     <ClInclude Include="corerender\dx12\dx12context.h">
-      <Filter>dx12</Filter>
+      <Filter>corerender\dx12</Filter>
+    </ClInclude>
+    <ClInclude Include="corerender/intrusiveptr.h">
+      <Filter>corerender</Filter>
+    </ClInclude>
+    <ClInclude Include="corerender/icorerender.h">
+      <Filter>corerender</Filter>
+    </ClInclude>
+    <ClInclude Include="3rdparty\DirectXTex\DDSTextureLoader12.h">
+      <Filter>3rdparty\DirectXTex</Filter>
+    </ClInclude>
+    <ClInclude Include="dx12texture.h">
+      <Filter>corerender\dx12</Filter>
+    </ClInclude>
+    <ClInclude Include="corerender\dx12\dx12structuredbuffer.h">
+      <Filter>corerender\dx12</Filter>
+    </ClInclude>
+    <ClInclude Include="dx12common.h">
+      <Filter>corerender\dx12</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -52,28 +66,40 @@
     <ClCompile Include="gpuprofiler.cpp" />
     <ClCompile Include="common.cpp" />
     <ClCompile Include="corerender/dx12/dx12render.cpp">
-      <Filter>dx12</Filter>
+      <Filter>corerender\dx12</Filter>
     </ClCompile>
     <ClCompile Include="corerender/dx12/dx12shader.cpp">
-      <Filter>dx12</Filter>
+      <Filter>corerender\dx12</Filter>
     </ClCompile>
     <ClCompile Include="corerender/dx12/dx12uniformbuffer.cpp">
-      <Filter>dx12</Filter>
+      <Filter>corerender\dx12</Filter>
     </ClCompile>
     <ClCompile Include="corerender/dx12/dx12vertexbuffer.cpp">
-      <Filter>dx12</Filter>
+      <Filter>corerender\dx12</Filter>
     </ClCompile>
     <ClCompile Include="dx11/dx11.cpp">
-      <Filter>dx11</Filter>
+      <Filter>_dx11</Filter>
     </ClCompile>
     <ClCompile Include="corerender\dx12\dx12descriptorheap.cpp">
-      <Filter>dx12</Filter>
+      <Filter>corerender\dx12</Filter>
     </ClCompile>
     <ClCompile Include="corerender\dx12\dx12uploadheap.cpp">
-      <Filter>dx12</Filter>
+      <Filter>corerender\dx12</Filter>
     </ClCompile>
     <ClCompile Include="corerender\dx12\dx12context.cpp">
-      <Filter>dx12</Filter>
+      <Filter>corerender\dx12</Filter>
+    </ClCompile>
+    <ClCompile Include="3rdparty\DirectXTex\DDSTextureLoader12.cpp">
+      <Filter>3rdparty\DirectXTex</Filter>
+    </ClCompile>
+    <ClCompile Include="dx12texture.cpp">
+      <Filter>corerender\dx12</Filter>
+    </ClCompile>
+    <ClCompile Include="corerender\dx12\dx12structuredbuffer.cpp">
+      <Filter>corerender\dx12</Filter>
+    </ClCompile>
+    <ClCompile Include="dx12common.cpp">
+      <Filter>corerender\dx12</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -81,11 +107,20 @@
     <None Include="gpuprofiler.shader" />
   </ItemGroup>
   <ItemGroup>
-    <Filter Include="dx11">
-      <UniqueIdentifier>{ce0cfea0-3791-4947-91a9-e8876a7b91d3}</UniqueIdentifier>
+    <Filter Include="3rdparty">
+      <UniqueIdentifier>{44d481ae-1679-420e-9b4b-b2171aebccb5}</UniqueIdentifier>
     </Filter>
-    <Filter Include="dx12">
+    <Filter Include="3rdparty\DirectXTex">
+      <UniqueIdentifier>{c8cff5e9-3fd5-4601-a92c-6ee82e89429e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="corerender">
+      <UniqueIdentifier>{2dd8c45f-f507-4230-b1e4-51d6bc1894af}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="corerender\dx12">
       <UniqueIdentifier>{f9e91744-f179-4542-a887-fde8eb0e4efa}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="_dx11">
+      <UniqueIdentifier>{ce0cfea0-3791-4947-91a9-e8876a7b91d3}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>
