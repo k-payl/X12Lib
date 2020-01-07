@@ -51,9 +51,6 @@ class Dx12CoreRenderer
 	UINT descriptorSizeRTV;
 	UINT descriptorSizeDSV;
 
-	void UpdateBufferResource(ID3D12Resource** dest, ID3D12Resource** intermediate,	UINT64 size,
-		const void* data, D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE);
-
 	void ReleaseFrame(uint64_t fenceID);
 	static void sReleaseFrame(uint64_t fenceID);
 
