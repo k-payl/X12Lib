@@ -46,13 +46,13 @@
     <ClInclude Include="3rdparty\DirectXTex\DDSTextureLoader12.h">
       <Filter>3rdparty\DirectXTex</Filter>
     </ClInclude>
-    <ClInclude Include="dx12texture.h">
-      <Filter>corerender\dx12</Filter>
-    </ClInclude>
     <ClInclude Include="corerender\dx12\dx12structuredbuffer.h">
       <Filter>corerender\dx12</Filter>
     </ClInclude>
-    <ClInclude Include="dx12common.h">
+    <ClInclude Include="corerender\dx12\dx12common.h">
+      <Filter>corerender\dx12</Filter>
+    </ClInclude>
+    <ClInclude Include="corerender\dx12\dx12texture.h">
       <Filter>corerender\dx12</Filter>
     </ClInclude>
   </ItemGroup>
@@ -92,13 +92,13 @@
     <ClCompile Include="3rdparty\DirectXTex\DDSTextureLoader12.cpp">
       <Filter>3rdparty\DirectXTex</Filter>
     </ClCompile>
-    <ClCompile Include="dx12texture.cpp">
-      <Filter>corerender\dx12</Filter>
-    </ClCompile>
     <ClCompile Include="corerender\dx12\dx12structuredbuffer.cpp">
       <Filter>corerender\dx12</Filter>
     </ClCompile>
-    <ClCompile Include="dx12common.cpp">
+    <ClCompile Include="corerender\dx12\dx12common.cpp">
+      <Filter>corerender\dx12</Filter>
+    </ClCompile>
+    <ClCompile Include="corerender\dx12\dx12texture.cpp">
       <Filter>corerender\dx12</Filter>
     </ClCompile>
   </ItemGroup>
