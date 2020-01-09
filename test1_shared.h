@@ -16,7 +16,7 @@ static vec4 colors[] = { vec4(1,0,0,1),vec4(0,1,0,1),vec4(0,0,1,1),vec4(1,1,1,1)
 
 inline vec4 cubePosition(int i, int j)
 {
-	return vec4(0.5f, 0.5f, 0.5f * (numCubesX % 2 == 0) + i - numCubesX / 2, j);
+	return vec4(0.5f, 0.5f, 0.5f * (numCubesX % 2 == 0) + i - numCubesX / 2, (float)j);
 }
 
 inline vec4 cubeColor(int i, int j)
