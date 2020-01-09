@@ -35,6 +35,7 @@
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>Test1Dx11ConstantBuffers</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <ProjectName>Test1_dx11_constantbuffers</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">

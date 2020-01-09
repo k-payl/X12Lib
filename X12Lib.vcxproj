@@ -22,7 +22,7 @@
     <VCProjectVersion>16.0</VCProjectVersion>
     <ProjectGuid>{F6418C00-CD6F-4821-A072-CDF89BF53B0B}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
-    <RootNamespace>Directx12Test</RootNamespace>
+    <RootNamespace>X12Lib</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
