@@ -4,7 +4,10 @@
 
 struct Dx12CoreVertexBuffer : public ICoreVertexBuffer
 {
-	void Init(const void* vbData, const VeretxBufferDesc* vbDesc, const void* idxData = nullptr, const IndexBufferDesc* idxDesc = nullptr);
+	void Init(const void* vbData, const VeretxBufferDesc* vbDesc, const void* idxData, const IndexBufferDesc* idxDesc, BUFFER_USAGE usage = BUFFER_USAGE::GPU_READ);
+	void SetData(const void* vbData, size_t vbSize, size_t vbOffset, const void* idxData, size_t idxSize, size_t idxOffset);
+
+	~Dx12CoreVertexBuffer();
 
 	inline void AddRef() override { refs++; }
 	inline int GetRefs() override { return refs; }
@@ -23,10 +26,10 @@ struct Dx12CoreVertexBuffer : public ICoreVertexBuffer
 	uint16_t ID() { return id; }
 
 private:
-	~Dx12CoreVertexBuffer() override = default;
 
 	int refs{};
 
 	static IdGenerator<uint16_t> idGen;
 	uint16_t id;
+	BUFFER_USAGE usage;
 };

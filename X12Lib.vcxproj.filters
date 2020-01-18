@@ -104,7 +104,8 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="mesh.shader" />
-    <None Include="gpuprofiler.shader" />
+    <None Include="gpuprofiler_font.shader" />
+    <None Include="gpuprofiler_graph.shader" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="3rdparty">

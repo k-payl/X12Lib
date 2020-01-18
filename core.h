@@ -4,6 +4,15 @@
 extern Core* core__;
 #define CORE core__
 
+enum class INIT_FLAGS
+{
+	NONE = 0,
+	SHOW_CONSOLE = 1 << 1,
+};
+inline bool operator &(INIT_FLAGS a, INIT_FLAGS b)
+{
+    return (static_cast<int>(a) & static_cast<int>(b));
+}
 
 class Core
 {
@@ -32,7 +41,7 @@ public:
 	int fps{};
 	int64_t frame{};
 
-	void Init();
+	void Init(INIT_FLAGS flags = INIT_FLAGS::NONE);
 	void Free();
 	void Start();
 	void AddRenderProcedure(RenderProcedure fn);

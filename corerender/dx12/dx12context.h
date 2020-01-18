@@ -19,8 +19,9 @@ class Dx12GraphicCommandContext
 	{
 		Dx12CoreShader *shader;
 		Dx12CoreVertexBuffer *vb;
-		ID3D12DescriptorHeap *d3dDescriptorHeap{};
-		uint64_t psoChecksum;
+
+		uint64_t psoChecksum; // 0 not set
+		PRIMITIVE_TOPOLOGY primitiveTopology;
 
 		struct SlotResource
 		{
@@ -139,7 +140,7 @@ public:
 	void GetBufferSize(unsigned& width, unsigned& heigth);
 	void SetViewport(unsigned width, unsigned heigth);
 	void SetScissor(unsigned x, unsigned y, unsigned width, unsigned heigth);
-	void Draw(Dx12CoreVertexBuffer* vb);
+	void Draw(Dx12CoreVertexBuffer* vb, uint32_t vertexCount = 0, uint32_t vertexOffset = 0);
 
 	void BindUniformBuffer(int slot, Dx12UniformBuffer* buffer, SHADER_TYPE shaderType);
 	void BindTexture(int slot, Dx12CoreTexture* buffer, SHADER_TYPE shaderType);

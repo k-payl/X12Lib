@@ -1,4 +1,4 @@
-﻿//#include "pch.h"
+//#include "pch.h"
 
 #include "common.h"
 #include "core.h"
@@ -79,6 +79,7 @@ void Render()
 	PipelineState pso;
 	pso.shader = res->shader;
 	pso.vb = res->vertexBuffer;
+	pso.primitiveTopology = PRIMITIVE_TOPOLOGY::TRIANGLE;
 
 	context->SetPipelineState(pso);
 	
@@ -112,8 +113,6 @@ void Render()
 			context->Draw(res->vertexBuffer);
 		}
 	}
-
-	renderer->RenderGPUProfile();
 	
 	context->TimerEnd(0);
 
@@ -121,6 +120,8 @@ void Render()
 	auto micrs = duration_cast<microseconds>(duration).count();
 	float frameCPU = micrs * 1e-3f;
 	float frameGPU = context->TimerGetTimeInMs(0);
+
+	renderer->RenderGPUProfile(frameCPU, frameGPU);
 
 #ifdef USE_PROFILER_REALTIME
 	static float accum;
@@ -207,14 +208,14 @@ void Init()
 
 	res->vertexBuffer = renderer->CreateVertexBuffer(vertexData, &desc, indexData, &idxDesc);
 
-	auto text = loadShader("mesh.shader");
+	auto text = loadShader("..//mesh.shader");
 
 	const ConstantBuffersDesc buffersdesc[] =
 	{
 		"TransformCB",	CONSTANT_BUFFER_UPDATE_FRIQUENCY::PER_DRAW
 	};
 
-	res->shader = renderer->CreateShader(text.get(), text.get(), buffersdesc, 
+	res->shader = renderer->CreateShader(text.get(), text.get(), buffersdesc,
 										 _countof(buffersdesc));
 
 	res->mvpCB = renderer->CreateUniformBuffer(sizeof(MVPcb));

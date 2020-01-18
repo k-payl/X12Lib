@@ -78,14 +78,14 @@ public:
 
 	void ReleaseResource(int& refs, IResourceUnknown* ptr);
 
-	void RenderGPUProfile();
+	void RenderGPUProfile(float cpu_, float gpu_);
 
 	// API
 	Dx12GraphicCommandContext*	GetMainCommmandContext() const { return graphicCommandContext; };
 	Dx12CopyCommandContext*		GetCopyCommandContext() const { return copyCommandContext; }
 
-	auto CreateShader(const char* vertText, const char* fragText, const ConstantBuffersDesc *variabledesc, uint32_t varNum) -> Dx12CoreShader*;
-	auto CreateVertexBuffer(const void* vbData, const VeretxBufferDesc* vbDesc, const void* idxData = nullptr, const IndexBufferDesc* idxDesc = nullptr) -> Dx12CoreVertexBuffer*;
+	auto CreateShader(const char* vertText, const char* fragText, const ConstantBuffersDesc *variabledesc = nullptr, uint32_t varNum = 0) -> Dx12CoreShader*;
+	auto CreateVertexBuffer(const void* vbData, const VeretxBufferDesc* vbDesc, const void* idxData, const IndexBufferDesc* idxDesc, BUFFER_USAGE usage = BUFFER_USAGE::GPU_READ) -> Dx12CoreVertexBuffer*;
 	auto CreateUniformBuffer(size_t size) -> Dx12UniformBuffer*;
 	auto CreateStructuredBuffer(size_t structureSize, size_t num, const void* data) -> Dx12CoreStructuredBuffer*;
 	auto CreateTexture(std::unique_ptr<uint8_t[]> ddsData, std::vector<D3D12_SUBRESOURCE_DATA> subresources, ID3D12Resource* d3dtexture) ->Dx12CoreTexture*;

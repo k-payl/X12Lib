@@ -211,6 +211,11 @@ LRESULT CALLBACK MainWindow::sWndProc(HWND hWnd, UINT message, WPARAM wParam, LP
 	return thisPtr->wndProc(hWnd, message, wParam, lParam);
 }
 
+void MainWindow::SendCloseMesage()
+{
+	::PostMessage(hwnd, WM_CLOSE, 0, 0);
+}
+
 void MainWindow::Create()
 {
 	WNDCLASSEXW wcex = {};

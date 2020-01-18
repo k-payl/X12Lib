@@ -245,10 +245,10 @@ Dx12CoreShader* Dx12CoreRenderer::CreateShader(const char* vertText, const char*
 }
 
 Dx12CoreVertexBuffer* Dx12CoreRenderer::CreateVertexBuffer(const void* vbData, const VeretxBufferDesc* vbDesc,
-	const void* idxData, const IndexBufferDesc* idxDesc)
+	const void* idxData, const IndexBufferDesc* idxDesc, BUFFER_USAGE usage)
 {
 	auto* ptr = new Dx12CoreVertexBuffer{};
-	ptr->Init(vbData, vbDesc, idxData, idxDesc);
+	ptr->Init(vbData, vbDesc, idxData, idxDesc, usage);
 	ptr->AddRef();
 
 	resources.push_back(ptr);
@@ -448,7 +448,7 @@ void Dx12CoreRenderer::ReleaseResource(int& refs, IResourceUnknown *ptr)
 	}
 }
 
-void Dx12CoreRenderer::RenderGPUProfile()
+void Dx12CoreRenderer::RenderGPUProfile(float cpu_, float gpu_)
 {
-	gpuprofiler->Render();
+	gpuprofiler->Render(cpu_, gpu_);
 }

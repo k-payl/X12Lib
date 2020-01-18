@@ -31,8 +31,14 @@ void WaitForFenceValue(ID3D12Fence *d3dFence, uint64_t fenceValue, HANDLE fenceE
 uint64_t CalculateChecksum(const PipelineState& pso)
 {
 	uint64_t checksum = 0;
+	// 16 - vb ID
+	// 16 - shader ID
+	// 3 - PRIMITIVE_TOPOLOGY
+
 	checksum |= static_cast<Dx12CoreVertexBuffer*>(pso.vb)->ID();
 	checksum |= static_cast<Dx12CoreShader*>(pso.shader)->ID() << 16;
+	uint64_t topology = static_cast<uint64_t>(pso.primitiveTopology);
+	checksum |= topology << 32;
 	return checksum;
 }
 
@@ -55,6 +61,7 @@ void Dx12GraphicCommandContext::SetPipelineState(const PipelineState& pso)
 
 		this->state.shader = dx12Shader;
 		this->state.psoChecksum = checksum;
+		this->state.primitiveTopology = pso.primitiveTopology;
 
 		cmdList->d3dCmdList->SetPipelineState(state);
 		++this->statistic.stateChanges;
@@ -86,8 +93,10 @@ void Dx12GraphicCommandContext::SetPipelineState(const PipelineState& pso)
 	desc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
 	desc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
 	desc.DepthStencilState.StencilEnable = FALSE;
+	desc.PrimitiveTopologyType = static_cast<D3D12_PRIMITIVE_TOPOLOGY_TYPE>(pso.primitiveTopology);
+	assert(desc.PrimitiveTopologyType <= D3D12_PRIMITIVE_TOPOLOGY_TYPE::D3D12_PRIMITIVE_TOPOLOGY_TYPE_PATCH);
+	assert(desc.PrimitiveTopologyType > D3D12_PRIMITIVE_TOPOLOGY_TYPE::D3D12_PRIMITIVE_TOPOLOGY_TYPE_UNDEFINED);
 	desc.SampleMask = UINT_MAX;
-	desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 	desc.NumRenderTargets = 1;
 	desc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
 	desc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
@@ -103,8 +112,19 @@ void Dx12GraphicCommandContext::SetPipelineState(const PipelineState& pso)
 
 void Dx12GraphicCommandContext::SetVertexBuffer(Dx12CoreVertexBuffer* vb)// TODO add vb to tracked resources
 {
+	assert(state.psoChecksum > 0 && "PSO is not set");
 	state.vb = vb;
-	cmdList->d3dCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	D3D12_PRIMITIVE_TOPOLOGY d3dtopology;
+	switch (state.primitiveTopology)
+	{
+		case PRIMITIVE_TOPOLOGY::LINE: d3dtopology = D3D_PRIMITIVE_TOPOLOGY_LINELIST; break;
+		case PRIMITIVE_TOPOLOGY::POINT: d3dtopology = D3D_PRIMITIVE_TOPOLOGY_POINTLIST; break;
+		case PRIMITIVE_TOPOLOGY::TRIANGLE: d3dtopology = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST; break;
+		default: throw new std::exception("Not impl");
+	}
+
+	cmdList->d3dCmdList->IASetPrimitiveTopology(d3dtopology);
 	cmdList->d3dCmdList->IASetVertexBuffers(0, 1, &vb->vertexBufferView);
 	cmdList->d3dCmdList->IASetIndexBuffer(&vb->indexBufferView);
 }
@@ -188,9 +208,12 @@ void Dx12GraphicCommandContext::bindResources()
 				int slot = rootParam.tableResources[i].slot;
 				
 				if (shaderResources.resources[slot].dirtyFlags & RESOURCE_BIND_FLAGS::UNIFORM_BUFFER)
+					changed = true;
+				else
 				{
 					Dx12UniformBuffer* buffer = shaderResources.resources[slot].CBV;
-					changed = changed || buffer->dirty;
+					if (buffer)
+						changed = changed || buffer->dirty;
 				}
 
 				if (shaderResources.resources[slot].dirtyFlags & RESOURCE_BIND_FLAGS::TEXTURE_SRV)
@@ -277,13 +300,13 @@ void Dx12GraphicCommandContext::bindResources()
 	}
 }
 
-void Dx12GraphicCommandContext::Draw(Dx12CoreVertexBuffer* vb)
+void Dx12GraphicCommandContext::Draw(Dx12CoreVertexBuffer* vb, uint32_t vertexCount, uint32_t vertexOffset)
 {
-	if (state.d3dDescriptorHeap != cmdList->gpuDescriptorHeap)
-	{
-		state.d3dDescriptorHeap = cmdList->gpuDescriptorHeap;
-		cmdList->d3dCmdList->SetDescriptorHeaps(1, &state.d3dDescriptorHeap);
-	}
+	//if (cmdList->d3dDescriptorHeap != cmdList->gpuDescriptorHeap)
+	//{
+	//	d3dDescriptorHeap = cmdList->gpuDescriptorHeap;
+	//	cmdList->d3dCmdList->SetDescriptorHeaps(1, &d3dDescriptorHeap);
+	//}
 
 	bindResources();
 
@@ -292,12 +315,12 @@ void Dx12GraphicCommandContext::Draw(Dx12CoreVertexBuffer* vb)
 
 	if (vb->indexBuffer)
 	{
-		cmdList->d3dCmdList->DrawIndexedInstanced(vb->indexCount, 1, 0, 0, 0);
+		cmdList->d3dCmdList->DrawIndexedInstanced(vertexCount > 0 ? vertexCount : vb->indexCount, 1, vertexOffset, 0, 0);
 		statistic.triangles += vb->indexCount / 3;
 	}
 	else
 	{
-		cmdList->d3dCmdList->DrawInstanced(vb->vertexCount, 1, 0, 0);
+		cmdList->d3dCmdList->DrawInstanced(vertexCount > 0 ? vertexCount : vb->vertexCount, 1, vertexOffset, 0);
 		statistic.triangles += vb->vertexCount / 3;
 	}
 
@@ -407,8 +430,10 @@ void Dx12GraphicCommandContext::CommandList::CompleteGPUFrame(uint64_t nextFence
 	gpuDescriptorsOffset = 0;
 	fenceOldValue = nextFenceID;
 }
+
 void Dx12GraphicCommandContext::CommandList::Begin()
 {
+	d3dCmdList->SetDescriptorHeaps(1, &gpuDescriptorHeap);
 }
 
 Dx12GraphicCommandContext::Dx12GraphicCommandContext(Dx12WindowSurface* surface_, FinishFrameBroadcast finishFrameCallback_) :
@@ -533,9 +558,9 @@ void Dx12GraphicCommandContext::SetBuiltinRenderTarget()
 void Dx12GraphicCommandContext::Begin()
 {
 	assert(surface);
-	cmdList->Begin();
 	cmdList->d3dCommandAllocator->Reset();
 	cmdList->d3dCmdList->Reset(cmdList->d3dCommandAllocator, nullptr);
+	cmdList->Begin();
 
 	ID3D12Resource *backBuffer = surface->colorBuffers[frameIndex].Get();
 
@@ -606,7 +631,6 @@ void Dx12GraphicCommandContext::resetState()
 {
 	state.vb = nullptr;
 	state.shader = nullptr;
-	state.d3dDescriptorHeap = nullptr;
 
 	// TODO: GPU reset
 	memset(&state, 0, sizeof(state.bind));

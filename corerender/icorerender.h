@@ -37,6 +37,7 @@ struct IndexBufferDesc
 
 enum class CONSTANT_BUFFER_UPDATE_FRIQUENCY
 {
+	PER_FRAME = 0,
 	PER_DRAW
 };
 
@@ -70,10 +71,26 @@ struct ICoreStructuredBuffer : public IResourceUnknown
 {
 };
 
+enum class PRIMITIVE_TOPOLOGY
+{
+	UNDEFINED = 0,
+	POINT = 1,
+	LINE = 2,
+	TRIANGLE = 3,
+	PATCH = 4
+};
+
 struct PipelineState
 {
 	ICoreShader* shader;
 	ICoreVertexBuffer* vb;
+	PRIMITIVE_TOPOLOGY primitiveTopology;
+};
+
+enum BUFFER_USAGE
+{
+	CPU_WRITE,
+	GPU_READ
 };
 
 enum class SHADER_TYPE

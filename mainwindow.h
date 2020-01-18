@@ -22,6 +22,7 @@ public:
 
 	HWND handle() { return hwnd; }
 
+	void SendCloseMesage();
 	void Create();
 	void StartMainLoop();
 	void Destroy();

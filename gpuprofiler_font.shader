@@ -12,8 +12,7 @@ struct VertexShaderOutput
 	};
 	cbuffer TransformCB : register(b1)
 	{
-		float4 transform; // x offset, y offset, width, height (in pixels)
-		int id;
+		float4 transform; // y offset (in pixels), 0, 0, 0
 	};
 
 	float2 pixelToNDC(float2 pos)
@@ -23,7 +22,7 @@ struct VertexShaderOutput
 
 	struct VertexPosColor
 	{
-		float4 Position : POSITION;
+		float4 Position : POSITION; // x, y, id, offset x
 	};
 
 	struct FontChar
@@ -38,10 +37,12 @@ struct VertexShaderOutput
 
 	VertexShaderOutput main(VertexPosColor IN)
 	{
-		FontChar item = character_buffer[int(id) + 48];
+		FontChar item = character_buffer[int(IN.Position.z)];
+
+		float2 pos = IN.Position.xy * float2(item.w, item.h);
+		pos += float2(IN.Position.w, transform.x + item.yoffset);
 
 		VertexShaderOutput OUT;
-		float2 pos = IN.Position.xy * transform.zw + transform.xy;
 		OUT.Position = float4(pixelToNDC(pos), 0, 1);
 
 		OUT.Rect.x = item.x + IN.Position.x * item.w;

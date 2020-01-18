@@ -26,10 +26,14 @@ void Core::mainLoop()
 
 void Core::messageCallback(WINDOW_MESSAGE type, uint32_t param1, uint32_t param2, void* pData)
 {
-	if (type != WINDOW_MESSAGE::SIZE)
-		return;
-
-	renderer->RecreateBuffers(param1, param2);
+	if (type == WINDOW_MESSAGE::SIZE)
+		renderer->RecreateBuffers(param1, param2);
+	else if (type == WINDOW_MESSAGE::KEY_UP)
+	{
+		KEYBOARD_KEY_CODES key = static_cast<KEYBOARD_KEY_CODES>(param1);
+		if (key == KEYBOARD_KEY_CODES::KEY_ESCAPE)
+			window->SendCloseMesage();
+	}
 }
 
 void Core::sMainLoop()
@@ -44,14 +48,18 @@ void Core::sMessageCallback(WINDOW_MESSAGE type, uint32_t param1, uint32_t param
 
 Core::Core()
 {
-	SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
 	core__ = this;
 }
 
-void Core::Init()
+void Core::Init(INIT_FLAGS flags)
 {
-	console = new Console;
-	console->Create();
+	SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+
+	if (flags & INIT_FLAGS::SHOW_CONSOLE)
+	{
+		console = new Console;
+		console->Create();
+	}
 
 	window = new MainWindow(&Core::sMainLoop);
 	window->Create();
@@ -74,9 +82,11 @@ void Core::Free()
 	renderer->Free();
 	delete renderer;
 
-	console->Destroy();
-	delete console;
-
+	if (console)
+	{
+		console->Destroy();
+		delete console;
+	}
 	window->Destroy();
 	delete window;
 

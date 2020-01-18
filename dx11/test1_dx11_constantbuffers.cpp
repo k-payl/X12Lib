@@ -254,7 +254,7 @@ void Render()
 
 void Init()
 {
-	auto text = loadShader("mesh.shader");
+	auto text = loadShader("..//mesh.shader");
 
 	CreateVertexShader(device, text, res->vertexShader);
 	CreatePixelShader(device, text, res->pixelShader);
