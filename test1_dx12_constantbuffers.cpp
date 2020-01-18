@@ -43,7 +43,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPWSTR, _In_ int)
 	core->AddInitProcedure(Init);
 	
 	res = new Resources;
-	core->Init();
+	core->Init(INIT_FLAGS::SHOW_CONSOLE);
 
 	core->Start();
 

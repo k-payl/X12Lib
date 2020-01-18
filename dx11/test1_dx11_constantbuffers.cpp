@@ -64,7 +64,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPWSTR, _In_ int)
 	core->AddRenderProcedure(Render);
 
 	res = new Resources;
-	core->Init();
+	core->Init(INIT_FLAGS::SHOW_CONSOLE);
 
 	HWND hwnd = core->GetWindow()->handle();
 	initDX11(&hwnd, device, context, swapChain);

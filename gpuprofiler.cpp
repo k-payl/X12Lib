@@ -305,7 +305,8 @@ void GpuProfiler::Free()
 	for (int i = 0; i < records.size(); ++i)
 	{
 		RenderProfilerRecord& r = records[i];
-		r.vertexBuffer->Release();
+		if (r.vertexBuffer)
+			r.vertexBuffer->Release();
 	}
 }
 
