@@ -10,6 +10,8 @@
 #include "3rdparty/DirectXTex/DDSTextureLoader12.h"
 #include <fstream>
 #include <string>
+#include <cstdio>
+#include <cinttypes>
 
 #define DIR "..//"
 #define LDIR L"..//"
@@ -29,7 +31,8 @@ struct RenderProfilerRecord
 	Dx12CoreVertexBuffer* vertexBuffer;
 };
 
-static std::vector<RenderProfilerRecord> records;
+constexpr int recordsNum = 7;
+static RenderProfilerRecord records[recordsNum];
 
 struct FontChar
 {
@@ -65,14 +68,29 @@ void GpuProfiler::Render(float cpu_, float gpu_)
 		context->UpdateUniformBuffer(viewportCB, viewport, 0, 16);
 	}
 
-	records[0].text = "=====Core Render Profiler====";
-	char float_buff[12];
-	sprintf_s(float_buff, "%0.2f ms.", cpu_);
-	records[1].text = std::string("CPU: ") + float_buff;
-	sprintf_s(float_buff, "%0.2f ms.", gpu_);
-	records[2].text = std::string("GPU: ") + float_buff;
+	records[0].text = "====Core Render Profiler====";
 
-	for (int i = 0; i < records.size(); ++i)
+	char float_buff[100];
+
+	sprintf_s(float_buff, "CPU: %0.2f ms.", cpu_);
+	records[1].text = float_buff;
+
+	sprintf_s(float_buff, "GPU: %0.2f ms.", gpu_);
+	records[2].text = float_buff;
+
+	sprintf_s(float_buff, "Uniform buffer updates: %" PRId64, GetCoreRender()->UniformBufferUpdates());
+	records[3].text = float_buff;
+
+	sprintf_s(float_buff, "State changes: %" PRId64, GetCoreRender()->StateChanges());
+	records[4].text = float_buff;
+
+	sprintf_s(float_buff, "Triangles: %" PRId64, GetCoreRender()->Triangles());
+	records[5].text = float_buff;
+
+	sprintf_s(float_buff, "Draw calls: %" PRId64, GetCoreRender()->DrawCalls());
+	records[6].text = float_buff;
+
+	for (int i = 0; i < recordsNum; ++i)
 	{
 		RenderProfilerRecord& r = records[i];
 		if (!r.vertexBuffer)
@@ -118,10 +136,12 @@ void GpuProfiler::Render(float cpu_, float gpu_)
 		}
 	}
 
-	PipelineState pso;
+	PipelineState pso{};
 	pso.primitiveTopology = PRIMITIVE_TOPOLOGY::TRIANGLE;
 	pso.shader = shaderFont;
 	pso.vb = records[0].vertexBuffer;
+	pso.src = BLEND_FACTOR::SRC_ALPHA;
+	pso.dst = BLEND_FACTOR::ONE_MINUS_SRC_ALPHA;
 	context->SetPipelineState(pso);
 	
 	context->BindUniformBuffer(0, viewportCB, SHADER_TYPE::SHADER_VERTEX);
@@ -130,7 +150,7 @@ void GpuProfiler::Render(float cpu_, float gpu_)
 	context->BindStructuredBuffer(0, fontDataStructuredBuffer, SHADER_TYPE::SHADER_VERTEX);
 
 	float t = 0;
-	for (int i = 0; i < records.size(); ++i)
+	for (int i = 0; i < recordsNum; ++i)
 	{
 		context->SetVertexBuffer(records[i].vertexBuffer);
 		t += fntLineHeight;
@@ -290,8 +310,6 @@ void GpuProfiler::Init()
 	file.close();
 
 	fontDataStructuredBuffer = GetCoreRender()->CreateStructuredBuffer(sizeof(FontChar), fontData.size(), &fontData[0]);
-
-	records.resize(3);
 }
 
 void GpuProfiler::Free()
@@ -302,7 +320,7 @@ void GpuProfiler::Free()
 	graphVertexBuffer->Release();
 	graphShader->Release();
 
-	for (int i = 0; i < records.size(); ++i)
+	for (int i = 0; i < recordsNum; ++i)
 	{
 		RenderProfilerRecord& r = records[i];
 		if (r.vertexBuffer)

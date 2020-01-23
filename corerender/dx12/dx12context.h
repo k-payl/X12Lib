@@ -3,6 +3,14 @@
 #include "dx12common.h"
 #include "icorerender.h"
 
+struct Statistic
+{
+	uint64_t drawCalls{ 0 };
+	uint64_t triangles{ 0 };
+	uint64_t uniformBufferUpdates{ 0 };
+	uint64_t stateChanges{ 0 };
+};
+
 class Dx12GraphicCommandContext
 {
 	ID3D12CommandQueue *d3dCommandQueue{};
@@ -10,6 +18,7 @@ class Dx12GraphicCommandContext
 	HANDLE fenceEvent{};
 	uint64_t fenceValue{1}; // fence value ready to signal
 	Dx12WindowSurface *surface;
+	device_t* device;
 
 	UINT descriptorSizeCBSRV;
 	UINT descriptorSizeRTV;
@@ -51,14 +60,7 @@ class Dx12GraphicCommandContext
 	state;
 	void resetState();
 
-	struct Statistic
-	{
-		uint64_t drawCalls{0};
-		uint64_t triangles{0};
-		uint64_t uniformBufferUpdates{0};
-		uint64_t stateChanges{0};
-	}
-	statistic;
+	Statistic statistic;
 	void resetStatistic();
 
 	struct CommandList
@@ -73,6 +75,7 @@ class Dx12GraphicCommandContext
 		CommandList& operator=(CommandList&&) = delete;
 
 		Dx12GraphicCommandContext *parent;
+		device_t* device;
 
 		ID3D12CommandAllocator* d3dCommandAllocator{};
 		ID3D12GraphicsCommandList* d3dCmdList{};
@@ -124,6 +127,8 @@ public:
 
 	inline uint64_t CurentFrame() const { return fenceValue; }
 
+	Statistic& getStat() { return statistic; }
+
 public:
 	// API
 
@@ -166,6 +171,7 @@ class Dx12CopyCommandContext
 	ID3D12Fence* d3dFence{};
 	HANDLE fenceEvent{};
 	uint64_t fenceValue{1}; // fence value ready to signal
+	device_t* device;
 
 public:
 	Dx12CopyCommandContext();

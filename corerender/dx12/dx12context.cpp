@@ -30,15 +30,25 @@ void WaitForFenceValue(ID3D12Fence *d3dFence, uint64_t fenceValue, HANDLE fenceE
 
 uint64_t CalculateChecksum(const PipelineState& pso)
 {
-	uint64_t checksum = 0;
-	// 16 - vb ID
-	// 16 - shader ID
-	// 3 - PRIMITIVE_TOPOLOGY
+	// 0: 15 (16)  vb ID
+	// 16:31 (16)  shader ID
+	// 32:34 (3)   PRIMITIVE_TOPOLOGY
+	// 35:38 (4)   src blend
+	// 39:42 (4)   dst blend
 
-	checksum |= static_cast<Dx12CoreVertexBuffer*>(pso.vb)->ID();
-	checksum |= static_cast<Dx12CoreShader*>(pso.shader)->ID() << 16;
-	uint64_t topology = static_cast<uint64_t>(pso.primitiveTopology);
-	checksum |= topology << 32;
+	constexpr auto blends = static_cast<int>(BLEND_FACTOR::NUM);
+	static_assert(blends == 11);
+
+	auto *dx12buffer = static_cast<Dx12CoreVertexBuffer*>(pso.vb);
+	auto* dx12shader = static_cast<Dx12CoreShader*>(pso.shader);
+
+	uint64_t checksum = 0;
+	checksum |= uint64_t(dx12buffer->ID() << 0);
+	checksum |= uint64_t(dx12shader->ID() << 16);
+	checksum |= uint64_t(pso.primitiveTopology) << 32;
+	checksum |= uint64_t(pso.src) << 35;
+	checksum |= uint64_t(pso.dst) << 39;
+
 	return checksum;
 }
 
@@ -88,7 +98,24 @@ void Dx12GraphicCommandContext::SetPipelineState(const PipelineState& pso)
 	desc.VS = CD3DX12_SHADER_BYTECODE(dx12Shader->vs.Get());
 	desc.PS = CD3DX12_SHADER_BYTECODE(dx12Shader->ps.Get());
 	desc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+
+	auto setRTBlending = [&pso](D3D12_RENDER_TARGET_BLEND_DESC& out) -> void
+	{
+		out.BlendEnable = pso.src != BLEND_FACTOR::NONE || pso.dst != BLEND_FACTOR::NONE;
+		out.LogicOpEnable = FALSE;
+		out.SrcBlend = static_cast<D3D12_BLEND>(pso.src);
+		out.DestBlend = static_cast<D3D12_BLEND>(pso.dst);
+		out.BlendOp = D3D12_BLEND_OP_ADD;
+		out.SrcBlendAlpha = D3D12_BLEND_ZERO;
+		out.DestBlendAlpha = D3D12_BLEND_ONE;
+		out.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+		out.LogicOp = D3D12_LOGIC_OP_NOOP;
+		out.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+	};
+
 	desc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+	setRTBlending(desc.BlendState.RenderTarget[0]);
+
 	desc.DepthStencilState.DepthEnable = TRUE;
 	desc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
 	desc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
@@ -103,7 +130,7 @@ void Dx12GraphicCommandContext::SetPipelineState(const PipelineState& pso)
 	desc.SampleDesc.Count = 1;
 
 	ComPtr<ID3D12PipelineState> d3dPipelineState;
-	ThrowIfFailed(CR_GetD3DDevice()->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(d3dPipelineState.GetAddressOf())));
+	ThrowIfFailed(device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(d3dPipelineState.GetAddressOf())));
 
 	CR_GetGlobalPSOMap()[checksum] = d3dPipelineState;
 
@@ -246,7 +273,7 @@ void Dx12GraphicCommandContext::bindResources()
 						memcpy(alloc.ptr, buffer->cache, buffer->dataSize);
 						buffer->dirty = false;
 
-						CR_GetD3DDevice()->CopyDescriptorsSimple(1, cpuHandleGPUVisible, cpuHandleCPUVisible, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+						device->CopyDescriptorsSimple(1, cpuHandleGPUVisible, cpuHandleCPUVisible, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
 						shaderResources.resources[slot].dirtyFlags = static_cast<RESOURCE_BIND_FLAGS>(shaderResources.resources[slot].dirtyFlags & ~RESOURCE_BIND_FLAGS::UNIFORM_BUFFER);
 					}
@@ -263,7 +290,7 @@ void Dx12GraphicCommandContext::bindResources()
 
 						auto cpuHandleCPUVisible = texture->GetHandle();
 
-						CR_GetD3DDevice()->CopyDescriptorsSimple(1, cpuHandleGPUVisible, cpuHandleCPUVisible, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+						device->CopyDescriptorsSimple(1, cpuHandleGPUVisible, cpuHandleCPUVisible, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
 						shaderResources.resources[slot].dirtyFlags = static_cast<RESOURCE_BIND_FLAGS>(shaderResources.resources[slot].dirtyFlags & ~RESOURCE_BIND_FLAGS::TEXTURE_SRV);
 
@@ -281,7 +308,7 @@ void Dx12GraphicCommandContext::bindResources()
 
 						auto cpuHandleCPUVisible = buffer->GetHandle();
 
-						CR_GetD3DDevice()->CopyDescriptorsSimple(1, cpuHandleGPUVisible, cpuHandleCPUVisible, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+						device->CopyDescriptorsSimple(1, cpuHandleGPUVisible, cpuHandleCPUVisible, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
 						shaderResources.resources[slot].dirtyFlags = static_cast<RESOURCE_BIND_FLAGS>(shaderResources.resources[slot].dirtyFlags & ~RESOURCE_BIND_FLAGS::STRUCTURED_BUFFER_SRV);
 
@@ -440,7 +467,9 @@ Dx12GraphicCommandContext::Dx12GraphicCommandContext(Dx12WindowSurface* surface_
 	surface(surface_),
 	finishFrameBroadcast(finishFrameCallback_)
 {
-	ThrowIfFailed(CR_GetD3DDevice()->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&d3dFence)));
+	device = CR_GetD3DDevice();
+
+	ThrowIfFailed(device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&d3dFence)));
 
 	fenceEvent = ::CreateEvent(NULL, FALSE, FALSE, NULL);
 	assert(fenceEvent && "Failed to create fence event.");
@@ -449,7 +478,7 @@ Dx12GraphicCommandContext::Dx12GraphicCommandContext(Dx12WindowSurface* surface_
 	D3D12_COMMAND_QUEUE_DESC queueDesc = {};
 	queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
 	queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
-	ThrowIfFailed(CR_GetD3DDevice()->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&d3dCommandQueue)));
+	ThrowIfFailed(device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&d3dCommandQueue)));
 
 	for (int i = 0; i < DeferredBuffers; ++i)
 		cmdLists[i].Init(this);
@@ -467,7 +496,7 @@ Dx12GraphicCommandContext::Dx12GraphicCommandContext(Dx12WindowSurface* surface_
 	QueryHeapDesc.Count = maxNumQuerySlots;
 	QueryHeapDesc.NodeMask = 1;
 	QueryHeapDesc.Type = D3D12_QUERY_HEAP_TYPE_TIMESTAMP;
-	ThrowIfFailed(CR_GetD3DDevice()->CreateQueryHeap(&QueryHeapDesc, IID_PPV_ARGS(&queryHeap)));
+	ThrowIfFailed(device->CreateQueryHeap(&QueryHeapDesc, IID_PPV_ARGS(&queryHeap)));
 	queryHeap->SetName(L"Dx12commanbuffer query timers query heap");
 
 	// We allocate MaxFrames + 1 instances as an instance is guaranteed to be written to if maxPresentFrameCount frames
@@ -475,7 +504,7 @@ Dx12GraphicCommandContext::Dx12GraphicCommandContext(Dx12WindowSurface* surface_
 	size_t FramesInstances = DeferredBuffers + 1;
 
 	auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(FramesInstances * maxNumQuerySlots * sizeof(UINT64));
-	ThrowIfFailed(CR_GetD3DDevice()->CreateCommittedResource(
+	ThrowIfFailed(device->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_READBACK),
 		D3D12_HEAP_FLAG_NONE,
 		&bufferDesc,
@@ -493,12 +522,13 @@ Dx12GraphicCommandContext::Dx12GraphicCommandContext(Dx12WindowSurface* surface_
 void Dx12GraphicCommandContext::CommandList::Init(Dx12GraphicCommandContext* parent_)
 {
 	parent = parent_;
+	device = CR_GetD3DDevice();
 
-	ThrowIfFailed(CR_GetD3DDevice()->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&d3dCommandAllocator)));
-	ThrowIfFailed(CR_GetD3DDevice()->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, d3dCommandAllocator, nullptr, IID_PPV_ARGS(&d3dCmdList)));
+	ThrowIfFailed(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&d3dCommandAllocator)));
+	ThrowIfFailed(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, d3dCommandAllocator, nullptr, IID_PPV_ARGS(&d3dCmdList)));
 	ThrowIfFailed(d3dCmdList->Close());
 
-	gpuDescriptorHeap = CreateDescriptorHeap(CR_GetD3DDevice(), MaxBindedResourcesPerFrame, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
+	gpuDescriptorHeap = CreateDescriptorHeap(device, MaxBindedResourcesPerFrame, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
 	gpuDescriptorHeapStart = gpuDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
 	gpuDescriptorHeapStartGPU = gpuDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
 
@@ -692,11 +722,13 @@ void Dx12GraphicCommandContext::WaitGPUAll()
 //
 Dx12CopyCommandContext::Dx12CopyCommandContext()
 {
-	ThrowIfFailed(CR_GetD3DDevice()->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_COPY, IID_PPV_ARGS(&d3dCommandAllocator)));
-	ThrowIfFailed(CR_GetD3DDevice()->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_COPY, d3dCommandAllocator, nullptr, IID_PPV_ARGS(&d3dCommandList)));
+	device = CR_GetD3DDevice();
+
+	ThrowIfFailed(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_COPY, IID_PPV_ARGS(&d3dCommandAllocator)));
+	ThrowIfFailed(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_COPY, d3dCommandAllocator, nullptr, IID_PPV_ARGS(&d3dCommandList)));
 	ThrowIfFailed(d3dCommandList->Close());
 
-	ThrowIfFailed(CR_GetD3DDevice()->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&d3dFence)));
+	ThrowIfFailed(device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&d3dFence)));
 
 	fenceEvent = ::CreateEvent(NULL, FALSE, FALSE, NULL);
 	assert(fenceEvent && "Failed to create fence event.");
@@ -705,7 +737,7 @@ Dx12CopyCommandContext::Dx12CopyCommandContext()
 	D3D12_COMMAND_QUEUE_DESC queueDesc = {};
 	queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
 	queueDesc.Type = D3D12_COMMAND_LIST_TYPE_COPY;
-	ThrowIfFailed(CR_GetD3DDevice()->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&d3dCommandQueue)));
+	ThrowIfFailed(device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&d3dCommandQueue)));
 }
 
 Dx12CopyCommandContext::~Dx12CopyCommandContext()

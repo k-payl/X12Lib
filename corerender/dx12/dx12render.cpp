@@ -452,3 +452,23 @@ void Dx12CoreRenderer::RenderGPUProfile(float cpu_, float gpu_)
 {
 	gpuprofiler->Render(cpu_, gpu_);
 }
+
+uint64_t Dx12CoreRenderer::UniformBufferUpdates()
+{
+	return graphicCommandContext->getStat().uniformBufferUpdates;
+}
+
+uint64_t Dx12CoreRenderer::StateChanges()
+{
+	return graphicCommandContext->getStat().stateChanges;
+}
+
+uint64_t Dx12CoreRenderer::Triangles()
+{
+	return graphicCommandContext->getStat().triangles;
+}
+
+uint64_t Dx12CoreRenderer::DrawCalls()
+{
+	return graphicCommandContext->getStat().drawCalls;
+}

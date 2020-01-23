@@ -80,6 +80,11 @@ public:
 
 	void RenderGPUProfile(float cpu_, float gpu_);
 
+	uint64_t UniformBufferUpdates();
+	uint64_t StateChanges();
+	uint64_t Triangles();
+	uint64_t DrawCalls();
+
 	// API
 	Dx12GraphicCommandContext*	GetMainCommmandContext() const { return graphicCommandContext; };
 	Dx12CopyCommandContext*		GetCopyCommandContext() const { return copyCommandContext; }

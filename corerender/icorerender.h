@@ -80,11 +80,29 @@ enum class PRIMITIVE_TOPOLOGY
 	PATCH = 4
 };
 
+enum class BLEND_FACTOR
+{
+	NONE = 0,
+	ZERO,
+	ONE,
+	SRC_COLOR,
+	ONE_MINUS_SRC_COLOR,
+	SRC_ALPHA,
+	ONE_MINUS_SRC_ALPHA,
+	DEST_ALPHA,
+	ONE_MINUS_DEST_ALPHA,
+	DEST_COLOR,
+	ONE_MINUS_DEST_COLOR,
+	NUM
+};
+
 struct PipelineState
 {
 	ICoreShader* shader;
 	ICoreVertexBuffer* vb;
 	PRIMITIVE_TOPOLOGY primitiveTopology;
+	BLEND_FACTOR src;
+	BLEND_FACTOR dst;
 };
 
 enum BUFFER_USAGE

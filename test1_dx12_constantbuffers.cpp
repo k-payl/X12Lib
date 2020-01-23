@@ -76,7 +76,7 @@ void Render()
 
 	context->SetScissor(0, 0, w, h);
 
-	PipelineState pso;
+	PipelineState pso{};
 	pso.shader = res->shader;
 	pso.vb = res->vertexBuffer;
 	pso.primitiveTopology = PRIMITIVE_TOPOLOGY::TRIANGLE;

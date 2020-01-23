@@ -58,7 +58,7 @@ struct VertexShaderOutput
 	float4 main(VertexShaderOutput IN) : SV_Target
 	{
 		float4 tex = texture_font.Load(int3(IN.Rect, 0));
-		return float4(tex.rrr * 0.6, 1);
+		return float4(float3(1,1,1)*0.6, tex.r);
 	}
 
 #endif
