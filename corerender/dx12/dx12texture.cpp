@@ -22,5 +22,9 @@ void Dx12CoreTexture::InitFromExistingResource(ID3D12Resource* resource_)
 
 void Dx12CoreTexture::Release()
 {
-	CR_ReleaseResource(refs, this);
+	--refs;
+	assert(refs > 0);
+
+	if (refs == 1)
+		CR_ReleaseResource(refs, this);
 }

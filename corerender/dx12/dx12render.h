@@ -32,8 +32,6 @@ class Dx12CoreRenderer
 	adapter_t *adapter;
 	Dx12WindowSurface *surface;
 
-	GpuProfiler* gpuprofiler;
-
 	Dx12GraphicCommandContext* graphicCommandContext;
 	Dx12CopyCommandContext* copyCommandContext;
 
@@ -78,8 +76,6 @@ public:
 
 	void ReleaseResource(int& refs, IResourceUnknown* ptr);
 
-	void RenderGPUProfile(float cpu_, float gpu_);
-
 	uint64_t UniformBufferUpdates();
 	uint64_t StateChanges();
 	uint64_t Triangles();
@@ -89,13 +85,14 @@ public:
 	Dx12GraphicCommandContext*	GetMainCommmandContext() const { return graphicCommandContext; };
 	Dx12CopyCommandContext*		GetCopyCommandContext() const { return copyCommandContext; }
 
-	auto CreateShader(const char* vertText, const char* fragText, const ConstantBuffersDesc *variabledesc = nullptr, uint32_t varNum = 0) -> Dx12CoreShader*;
-	auto CreateVertexBuffer(const void* vbData, const VeretxBufferDesc* vbDesc, const void* idxData, const IndexBufferDesc* idxDesc, BUFFER_USAGE usage = BUFFER_USAGE::GPU_READ) -> Dx12CoreVertexBuffer*;
-	auto CreateUniformBuffer(size_t size) -> Dx12UniformBuffer*;
-	auto CreateStructuredBuffer(size_t structureSize, size_t num, const void* data) -> Dx12CoreStructuredBuffer*;
-	auto CreateTexture(std::unique_ptr<uint8_t[]> ddsData, std::vector<D3D12_SUBRESOURCE_DATA> subresources, ID3D12Resource* d3dtexture) ->Dx12CoreTexture*;
-	// TODO
-	//auto CreateTexture(const void* data, int width, int height, TEXTURE_TYPE type, TEXTURE_FORMAT format, TEXTURE_CREATE_FLAGS flags, bool mipmapsPresented);
+	bool CreateShader(Dx12CoreShader **out, const char* vertText, const char* fragText,
+					  const ConstantBuffersDesc *variabledesc = nullptr, uint32_t varNum = 0);
+	bool CreateVertexBuffer(Dx12CoreVertexBuffer** out, const void* vbData, const VeretxBufferDesc* vbDesc,
+							const void* idxData, const IndexBufferDesc* idxDesc, BUFFER_USAGE usage = BUFFER_USAGE::GPU_READ);
+	bool CreateUniformBuffer(Dx12UniformBuffer** out, size_t size);
+	bool CreateStructuredBuffer(Dx12CoreStructuredBuffer **out, size_t structureSize, size_t num, const void* data);
+	bool CreateTexture(Dx12CoreTexture **out, std::unique_ptr<uint8_t[]> ddsData,
+					   std::vector<D3D12_SUBRESOURCE_DATA> subresources, ID3D12Resource* d3dtexture);
 };
 
 
@@ -108,12 +105,9 @@ inline device_t*					CR_GetD3DDevice() { return GetCoreRender()->GetDevice(); }
 inline psomap_t&					CR_GetGlobalPSOMap() { return GetCoreRender()->GetGloablPSOMap(); }
 inline uniformbuffers_t&			CR_GetGlobalUniformBuffers() { return GetCoreRender()->GetGlobalUnifromBuffers(); }
 inline DescriptorHeap::Allocator*	CR_GetDescriptorAllocator() { return GetCoreRender()->GetDescriptorAllocator(); }
-
 inline bool							CR_IsTearingSupport() { return GetCoreRender()->IsTearingSupport(); }
 inline bool							CR_IsVSync() { return GetCoreRender()->IsVSync(); }
-
 inline void							CR_ReleaseResource(int& refs, IResourceUnknown* ptr) { GetCoreRender()->ReleaseResource(refs, ptr); }
-
 inline UINT							CR_CBSRV_DescriptorsSize() { return GetCoreRender()->CBSRV_DescriptorsSize(); }
 inline UINT							CR_RTV_DescriptorsSize() { return GetCoreRender()->RTV_DescriptorsSize(); }
 inline UINT							CR_DSV_DescriptorsSize() { return GetCoreRender()->DSV_DescriptorsSize(); }

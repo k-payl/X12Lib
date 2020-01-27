@@ -117,7 +117,11 @@ void Dx12CoreVertexBuffer::Init(const void* vbData, const VeretxBufferDesc* vbDe
 
 void Dx12CoreVertexBuffer::Release()
 {
-	CR_ReleaseResource(refs, this);
+	--refs;
+	assert(refs > 0);
+
+	if (refs == 1)
+		CR_ReleaseResource(refs, this);
 }
 
 void Dx12CoreVertexBuffer::SetData(const void* vbData, size_t vbSize, size_t vbOffset, const void* idxData, size_t idxSize, size_t idxOffset)

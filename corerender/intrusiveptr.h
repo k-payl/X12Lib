@@ -189,6 +189,11 @@ public:
 		return mpObject;
 	}
 
+	T** getAdressOf()
+	{
+		return &mpObject;
+	}
+
 	/// reset
 	/// Releases the owned object and clears our reference to it.
 	void Reset()
@@ -255,12 +260,9 @@ public:
 	/// Note that below we do not use operator bool(). The reason for this
 	/// is that booleans automatically convert up to short, int, float, etc.
 	/// The result is that this: if(intrusivePtr == 1) would yield true (bad).
-	typedef T* (this_type::* bool_)() const;
-	operator bool_() const
+	operator bool() const
 	{
-		if (mpObject)
-			return &this_type::Get;
-		return nullptr;
+		return mpObject != nullptr;
 	}
 
 	/// operator!

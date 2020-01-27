@@ -7,7 +7,11 @@ IdGenerator<uint16_t> Dx12CoreStructuredBuffer::idGen;
 
 void Dx12CoreStructuredBuffer::Release()
 {
-	CR_ReleaseResource(refs, this);
+	--refs;
+	assert(refs > 0);
+
+	if (refs == 1)
+		CR_ReleaseResource(refs, this);
 }
 
 void Dx12CoreStructuredBuffer::Init(size_t structureSize, size_t num, const void* data)

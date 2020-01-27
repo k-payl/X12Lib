@@ -278,5 +278,9 @@ void Dx12CoreShader::Init(const char* vertText, const char* fragText, const Cons
 
 void Dx12CoreShader::Release()
 {
-	CR_ReleaseResource(refs, this);
+	--refs;
+	assert(refs > 0);
+
+	if (refs == 1)
+		CR_ReleaseResource(refs, this);
 }

@@ -13,8 +13,8 @@ using namespace std::chrono;
 
 struct Resources
 {
-	Dx12CoreShader* shader;
-	Dx12CoreVertexBuffer *vertexBuffer;
+	intrusive_ptr<Dx12CoreShader> shader;
+	intrusive_ptr<Dx12CoreVertexBuffer> vertexBuffer;
 	std::unique_ptr<Camera> cam;
 	Dx12UniformBuffer* mvpCB;
 	Dx12UniformBuffer* transformCB;
@@ -22,12 +22,6 @@ struct Resources
 	Resources()
 	{
 		cam = std::make_unique<Camera>();
-	}
-
-	~Resources()
-	{
-		shader->Release();
-		vertexBuffer->Release();
 	}
 } *res;
 
@@ -77,13 +71,13 @@ void Render()
 	context->SetScissor(0, 0, w, h);
 
 	PipelineState pso{};
-	pso.shader = res->shader;
-	pso.vb = res->vertexBuffer;
+	pso.shader = res->shader.get();
+	pso.vb = res->vertexBuffer.get();
 	pso.primitiveTopology = PRIMITIVE_TOPOLOGY::TRIANGLE;
 
 	context->SetPipelineState(pso);
 	
-	context->SetVertexBuffer(res->vertexBuffer);
+	context->SetVertexBuffer(res->vertexBuffer.get());
 
 	mat4 P;
 	res->cam->GetPerspectiveMat(P, static_cast<float>(w) / h);
@@ -110,74 +104,16 @@ void Render()
 
 			context->UpdateUniformBuffer(res->transformCB, &transformCB, 0, sizeof(ColorCB));
 
-			context->Draw(res->vertexBuffer);
+			context->Draw(res->vertexBuffer.get());
 		}
 	}
 	
 	context->TimerEnd(0);
-
-	auto duration = high_resolution_clock::now() - start;
-	auto micrs = duration_cast<microseconds>(duration).count();
-	float frameCPU = micrs * 1e-3f;
 	float frameGPU = context->TimerGetTimeInMs(0);
 
-	renderer->RenderGPUProfile(frameCPU, frameGPU);
+	auto frameCPU = duration_cast<microseconds>(high_resolution_clock::now() - start).count() * 1e-3f;
 
-#ifdef USE_PROFILER_REALTIME
-	static float accum;
-	if (accum > UPD_INTERVAL)
-	{
-		accum = 0;
-		CORE->LogProfiler("Render GPU (in ms)", frameGPU);
-		CORE->LogProfiler("Render CPU (in ms)", frameCPU);
-		CORE->LogProfiler("Frame CPU (in ms)", CORE->dt * 1e3f);
-		CORE->LogProfiler("FPS", CORE->fps);
-	}
-
-	accum += CORE->dt;
-#endif
-
-#ifdef USE_PROFILE_TO_CSV
-	// stat
-	if (CORE->frame > StartFrame && CORE->frame % SkipFrames == 0 && curFrame < Frames)
-	{
-		data[curFrame].f = CORE->frame;
-		data[curFrame].CPU = frameCPU;
-		data[curFrame].GPU = frameGPU;
-		curFrame++;
-	}
-	if (curFrame == Frames)
-	{
-		CORE->Log("Statistic compltetd");
-		{
-			std::ofstream file("dx12.csv", std::ios::out);
-			for (size_t i = 0; i < Frames; ++i)
-			{
-				file << data[i].f << ", " << data[i].CPU << ", " << data[i].GPU << "\n";
-			}
-			file.close();
-		}
-
-		std::sort(data.begin(), data.end(), [](const Stat& l, const Stat& r) -> int
-		{
-			return l.CPU < r.CPU;
-		});
-
-		char buf[50];
-		sprintf_s(buf, "Median CPU: %f", data[Frames / 2].CPU);
-		CORE->Log(buf);
-
-		std::sort(data.begin(), data.end(), [](const Stat& l, const Stat& r) -> int
-		{
-			return l.GPU < r.GPU;
-		});
-
-		sprintf_s(buf, "Median GPU: %f", data[Frames / 2].GPU);
-		CORE->Log(buf);
-
-		curFrame = Frames + 1;
-	}
-#endif
+	CORE->RenderProfiler(frameGPU, frameCPU);
 
 	context->End();
 	context->Submit();
@@ -206,7 +142,7 @@ void Init()
 	idxDesc.format = INDEX_BUFFER_FORMAT::UNSIGNED_16;
 	idxDesc.vertexCount = idxCount;
 
-	res->vertexBuffer = renderer->CreateVertexBuffer(vertexData, &desc, indexData, &idxDesc);
+	renderer->CreateVertexBuffer(res->vertexBuffer.getAdressOf(), vertexData, &desc, indexData, &idxDesc);
 
 	auto text = loadShader("..//mesh.shader");
 
@@ -215,15 +151,11 @@ void Init()
 		"TransformCB",	CONSTANT_BUFFER_UPDATE_FRIQUENCY::PER_DRAW
 	};
 
-	res->shader = renderer->CreateShader(text.get(), text.get(), buffersdesc,
+	renderer->CreateShader(res->shader.getAdressOf(), text.get(), text.get(), buffersdesc,
 										 _countof(buffersdesc));
 
-	res->mvpCB = renderer->CreateUniformBuffer(sizeof(MVPcb));
-	res->transformCB = renderer->CreateUniformBuffer(sizeof(ColorCB));
-
-#ifdef USE_PROFILE_TO_CSV
-	data.resize(Frames);
-#endif
+	renderer->CreateUniformBuffer(&res->mvpCB, sizeof(MVPcb));
+	renderer->CreateUniformBuffer(&res->transformCB, sizeof(ColorCB));
 }
 
 

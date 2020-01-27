@@ -1,10 +1,10 @@
 #include "pch.h"
-
 #include "core.h"
 #include "mainwindow.h"
 #include "input.h"
 #include "dx12render.h"
 #include "console.h"
+#include "gpuprofiler.h"
 #include <chrono>
 #include <string>
 
@@ -71,12 +71,18 @@ void Core::Init(INIT_FLAGS flags)
 
 	renderer = new Dx12CoreRenderer;
 	renderer->Init(window->handle());
+
+	gpuprofiler = new GpuProfiler;
+	gpuprofiler->Init();
 	
 	onInit.Invoke();
 }
 
 void Core::Free()
 {
+	gpuprofiler->Free();
+	delete gpuprofiler;
+
 	onFree.Invoke();
 
 	renderer->Free();
@@ -137,6 +143,15 @@ void Core::engineUpdate()
 void Core::Start()
 {
 	window->StartMainLoop();
+}
+
+void Core::RenderProfiler(float gpu_, float cpu_)
+{
+	RenderContext ctx;
+	ctx.cpu_ = cpu_;
+	ctx.gpu_ = gpu_;
+
+	gpuprofiler->Render(ctx);
 }
 
 void Core::AddRenderProcedure(RenderProcedure fn)

@@ -9,7 +9,6 @@
 #include "dx12texture.h"
 #include "dx12descriptorheap.h"
 #include "dx12uploadheap.h"
-#include "gpuprofiler.h"
 #include <d3dcompiler.h>
 #include <algorithm>
 
@@ -164,16 +163,10 @@ void Dx12CoreRenderer::Init(HWND hwnd)
 
 	auto frameFn = std::bind(&Dx12GraphicCommandContext::CurentFrame, graphicCommandContext);
 	descriptorAllocator = new DescriptorHeap::Allocator(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, frameFn);
-
-	gpuprofiler = new GpuProfiler();
-	gpuprofiler->Init();
 }
 
 void Dx12CoreRenderer::Free()
 {
-	gpuprofiler->Free();
-	delete gpuprofiler;
-
 	graphicCommandContext->Free();
 	copyCommandContext->Free();
 
@@ -210,6 +203,12 @@ void Dx12CoreRenderer::Free()
 	delete descriptorAllocator;
 	descriptorAllocator = nullptr;
 
+	// WTF?
+	adapter->Release();
+	adapter->Release();
+
+	Release(adapter);
+
 #ifdef _DEBUG
 	{
 		ComPtr<IDXGIDebug1> pDebug;
@@ -218,7 +217,6 @@ void Dx12CoreRenderer::Free()
 	}
 #endif
 
-	Release(adapter);
 	Release(device);
 }
 
@@ -232,7 +230,7 @@ void Dx12CoreRenderer::RecreateBuffers(UINT w, UINT h)
 	graphicCommandContext->frameIndex = 0; // TODO: make frameIndex private
 }
 
-Dx12CoreShader* Dx12CoreRenderer::CreateShader(const char* vertText, const char* fragText,
+bool Dx12CoreRenderer::CreateShader(Dx12CoreShader** out, const char* vertText, const char* fragText,
 											const ConstantBuffersDesc* variabledesc, uint32_t varNum)
 {
 	auto* ptr = new Dx12CoreShader{};
@@ -241,10 +239,12 @@ Dx12CoreShader* Dx12CoreRenderer::CreateShader(const char* vertText, const char*
 
 	resources.push_back(ptr);
 
-	return ptr;
+	*out = ptr;
+
+	return ptr != nullptr;
 }
 
-Dx12CoreVertexBuffer* Dx12CoreRenderer::CreateVertexBuffer(const void* vbData, const VeretxBufferDesc* vbDesc,
+bool Dx12CoreRenderer::CreateVertexBuffer(Dx12CoreVertexBuffer** out, const void* vbData, const VeretxBufferDesc* vbDesc,
 	const void* idxData, const IndexBufferDesc* idxDesc, BUFFER_USAGE usage)
 {
 	auto* ptr = new Dx12CoreVertexBuffer{};
@@ -253,30 +253,34 @@ Dx12CoreVertexBuffer* Dx12CoreRenderer::CreateVertexBuffer(const void* vbData, c
 
 	resources.push_back(ptr);
 
-	return ptr;
+	*out = ptr;
+
+	return ptr != nullptr;
 }
 
-auto Dx12CoreRenderer::CreateUniformBuffer(size_t size) -> Dx12UniformBuffer*
+bool Dx12CoreRenderer::CreateUniformBuffer(Dx12UniformBuffer **out, size_t size)
 {
 	auto ptr = new Dx12UniformBuffer((UINT)size);
 	uniformBufferVec.emplace_back(ptr);
 
-	return ptr;
+	*out = ptr;
+	return ptr != nullptr;
 }
 
-auto Dx12CoreRenderer::CreateStructuredBuffer(size_t structureSize, size_t num, const void* data) -> Dx12CoreStructuredBuffer*
+bool Dx12CoreRenderer::CreateStructuredBuffer(Dx12CoreStructuredBuffer** out, size_t structureSize, size_t num, const void* data)
 {
 	auto* ptr = new Dx12CoreStructuredBuffer;
 	ptr->Init(structureSize, num, data);
 	ptr->AddRef();
 
 	resources.push_back(ptr);
+	*out = ptr;
 
-	return ptr;
+	return ptr != nullptr;
 }
 
-auto Dx12CoreRenderer::CreateTexture(std::unique_ptr<uint8_t[]> ddsData, std::vector<D3D12_SUBRESOURCE_DATA> subresources,
-									 ID3D12Resource* d3dtexture) -> Dx12CoreTexture*
+bool Dx12CoreRenderer::CreateTexture(Dx12CoreTexture** out, std::unique_ptr<uint8_t[]> ddsData, std::vector<D3D12_SUBRESOURCE_DATA> subresources,
+									 ID3D12Resource* d3dtexture)
 {
 	assert(subresources.size() == 1); // Not impl
 
@@ -312,7 +316,9 @@ auto Dx12CoreRenderer::CreateTexture(std::unique_ptr<uint8_t[]> ddsData, std::ve
 
 	resources.push_back(ptr);
 
-	return ptr;
+	*out = ptr;
+
+	return ptr != nullptr;
 }
 
 ID3D12RootSignature* Dx12CoreRenderer::GetDefaultRootSignature()
@@ -428,29 +434,19 @@ void Dx12WindowSurface::ResizeBuffers(unsigned width_, unsigned height_)
 
 void Dx12CoreRenderer::ReleaseResource(int& refs, IResourceUnknown *ptr)
 {
-	--refs;
+	assert(refs == 1);
 
-	assert(refs > 0);
-
-	if (refs == 1)
+	auto it = std::find_if(resources.begin(), resources.end(), [ptr](const intrusive_ptr<IResourceUnknown>& r) -> bool
 	{
-		auto it = std::find_if(resources.begin(), resources.end(), [ptr](const intrusive_ptr<IResourceUnknown>& r) -> bool
-		{
-			return r.get() == ptr;
-		});
+		return r.get() == ptr;
+	});
 
-		assert(it != resources.end());
+	assert(it != resources.end());
 
-		refs = 10; // hack to avoid recursion because ~intrusive_ptr calls Release()
-		resources.erase(it);
-		refs = 0;
-		delete ptr;
-	}
-}
-
-void Dx12CoreRenderer::RenderGPUProfile(float cpu_, float gpu_)
-{
-	gpuprofiler->Render(cpu_, gpu_);
+	refs = 10; // hack to avoid recursion because ~intrusive_ptr calls Release()
+	resources.erase(it);
+	refs = 0;
+	delete ptr;
 }
 
 uint64_t Dx12CoreRenderer::UniformBufferUpdates()

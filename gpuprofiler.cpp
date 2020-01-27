@@ -13,22 +13,34 @@
 #include <cstdio>
 #include <cinttypes>
 
-#define DIR "..//"
-#define LDIR L"..//"
-const int rectSize = 100;
-const int rectPadding = 1;
-const int fontMarginInPixels = 5;
-const auto fontDataPath = DIR"font//1.fnt";
-const auto fontTexturePath = LDIR"font//1_0.dds";
+#define GPU_PROFILER_DIR "..//"
+#define GPU_PROFILER_LDIR L"..//"
+const auto fontDataPath = GPU_PROFILER_DIR"font//1.fnt";
+const auto fontTexturePath = GPU_PROFILER_LDIR"font//1_0.dds";
 static vec4 graphData[4096];
-float fntLineHeight = 20;
+
+
+struct GpuProfiler::Impl
+{
+	intrusive_ptr<Dx12CoreVertexBuffer> graphVertexBuffer;
+	intrusive_ptr<Dx12CoreShader> fontShader;
+	intrusive_ptr<Dx12CoreShader> graphShader;
+
+	intrusive_ptr<Dx12CoreStructuredBuffer> fontDataStructuredBuffer;
+
+	intrusive_ptr<Dx12CoreTexture> fontTexture;
+
+	Dx12UniformBuffer *viewportUniformBuffer;
+	Dx12UniformBuffer *transformUniformBuffer;
+	Dx12UniformBuffer *graphOffsetUniformBuffer;
+};
 
 struct RenderProfilerRecord
 {
 	std::string text;
 	size_t textChecksum;
 	uint32_t size;
-	Dx12CoreVertexBuffer* vertexBuffer;
+	Dx12CoreVertexBuffer *vertexBuffer;
 };
 
 constexpr int recordsNum = 7;
@@ -43,7 +55,7 @@ struct FontChar
 	int _align;
 };
 
-struct TransformCB
+struct TransformConstantBuffer
 {
 	float y;
 	float _align[3];
@@ -51,7 +63,7 @@ struct TransformCB
 
 static std::vector<FontChar> fontData;
 
-void GpuProfiler::Render(float cpu_, float gpu_)
+void GpuProfiler::Render(const RenderContext& ctx)
 {
 	Dx12GraphicCommandContext* context = GetCoreRender()->GetMainCommmandContext();
 
@@ -65,17 +77,17 @@ void GpuProfiler::Render(float cpu_, float gpu_)
 		viewport[2] = 1.0f / w;
 		viewport[3] = 1.0f / h;
 
-		context->UpdateUniformBuffer(viewportCB, viewport, 0, 16);
+		context->UpdateUniformBuffer(impl->viewportUniformBuffer, viewport, 0, 16);
 	}
 
 	records[0].text = "====Core Render Profiler====";
 
 	char float_buff[100];
 
-	sprintf_s(float_buff, "CPU: %0.2f ms.", cpu_);
+	sprintf_s(float_buff, "CPU: %0.2f ms.", ctx.cpu_);
 	records[1].text = float_buff;
 
-	sprintf_s(float_buff, "GPU: %0.2f ms.", gpu_);
+	sprintf_s(float_buff, "GPU: %0.2f ms.", ctx.gpu_);
 	records[2].text = float_buff;
 
 	sprintf_s(float_buff, "Uniform buffer updates: %" PRId64, GetCoreRender()->UniformBufferUpdates());
@@ -105,7 +117,7 @@ void GpuProfiler::Render(float cpu_, float gpu_)
 			desc.attributes = attr;
 			desc.vertexCount = 6 * (uint32_t)r.text.size();
 
-			r.vertexBuffer = GetCoreRender()->CreateVertexBuffer(nullptr, &desc, nullptr, nullptr, BUFFER_USAGE::CPU_WRITE);
+			GetCoreRender()->CreateVertexBuffer(&r.vertexBuffer, nullptr, &desc, nullptr, nullptr, BUFFER_USAGE::CPU_WRITE);
 		}
 
 		float offsetInPixels = fontMarginInPixels;
@@ -138,23 +150,23 @@ void GpuProfiler::Render(float cpu_, float gpu_)
 
 	PipelineState pso{};
 	pso.primitiveTopology = PRIMITIVE_TOPOLOGY::TRIANGLE;
-	pso.shader = shaderFont;
+	pso.shader = impl->fontShader.get();
 	pso.vb = records[0].vertexBuffer;
 	pso.src = BLEND_FACTOR::SRC_ALPHA;
 	pso.dst = BLEND_FACTOR::ONE_MINUS_SRC_ALPHA;
 	context->SetPipelineState(pso);
 	
-	context->BindUniformBuffer(0, viewportCB, SHADER_TYPE::SHADER_VERTEX);
-	context->BindUniformBuffer(1, transformCB, SHADER_TYPE::SHADER_VERTEX);
-	context->BindTexture(0, fontTexture, SHADER_TYPE::SHADER_FRAGMENT);
-	context->BindStructuredBuffer(0, fontDataStructuredBuffer, SHADER_TYPE::SHADER_VERTEX);
+	context->BindUniformBuffer(0, impl->viewportUniformBuffer, SHADER_TYPE::SHADER_VERTEX);
+	context->BindUniformBuffer(1, impl->transformUniformBuffer, SHADER_TYPE::SHADER_VERTEX);
+	context->BindTexture(0, impl->fontTexture.get(), SHADER_TYPE::SHADER_FRAGMENT);
+	context->BindStructuredBuffer(0, impl->fontDataStructuredBuffer.get(), SHADER_TYPE::SHADER_VERTEX);
 
 	float t = 0;
 	for (int i = 0; i < recordsNum; ++i)
 	{
 		context->SetVertexBuffer(records[i].vertexBuffer);
 		t += fntLineHeight;
-		context->UpdateUniformBuffer(transformCB, &t, 0, 4);
+		context->UpdateUniformBuffer(impl->transformUniformBuffer, &t, 0, 4);
 		context->Draw(records[i].vertexBuffer, records[i].size);
 	}
 	
@@ -162,32 +174,32 @@ void GpuProfiler::Render(float cpu_, float gpu_)
 	// Graph.
 
 	pso.primitiveTopology = PRIMITIVE_TOPOLOGY::LINE;
-	pso.shader = graphShader;
-	pso.vb = graphVertexBuffer;
+	pso.shader = impl->graphShader.get();
+	pso.vb = impl->graphVertexBuffer.get();
 	context->SetPipelineState(pso);
 
 	if (w != lastWidth)
 		recreateGraphBuffer(w);
 
-	context->SetVertexBuffer(graphVertexBuffer);
+	context->SetVertexBuffer(impl->graphVertexBuffer.get());
 
-	context->BindUniformBuffer(0, viewportCB, SHADER_TYPE::SHADER_VERTEX);
-	context->BindUniformBuffer(1, graphOffsetUniformBuffer, SHADER_TYPE::SHADER_VERTEX);
+	context->BindUniformBuffer(0, impl->viewportUniformBuffer, SHADER_TYPE::SHADER_VERTEX);
+	context->BindUniformBuffer(1, impl->graphOffsetUniformBuffer, SHADER_TYPE::SHADER_VERTEX);
 
 	vec4 cpuv[2];
 	cpuv[0] = lastGraphValue;
-	cpuv[1] = vec4((float)graphRingBufferOffset, h - cpu_ * 30, 0, 0);
+	cpuv[1] = vec4((float)graphRingBufferOffset, h - ctx.cpu_ * 30, 0, 0);
 
-	graphVertexBuffer->SetData(&cpuv, sizeof(cpuv), graphRingBufferOffset * sizeof(cpuv), nullptr, 0, 0);
+	impl->graphVertexBuffer->SetData(&cpuv, sizeof(cpuv), graphRingBufferOffset * sizeof(cpuv), nullptr, 0, 0);
 
 	float transform = (float)graphRingBufferOffset;
-	context->UpdateUniformBuffer(graphOffsetUniformBuffer, &transform, 0, 4);
+	context->UpdateUniformBuffer(impl->graphOffsetUniformBuffer, &transform, 0, 4);
 	if (graphRingBufferOffset > 0)
-		context->Draw(graphVertexBuffer, graphRingBufferOffset * 2);
+		context->Draw(impl->graphVertexBuffer.get(), graphRingBufferOffset * 2);
 
 	transform = float(graphRingBufferOffset + w);
-	context->UpdateUniformBuffer(graphOffsetUniformBuffer, &transform, 0, 4);
-	context->Draw(graphVertexBuffer, (w - graphRingBufferOffset) * 2, graphRingBufferOffset * 2);
+	context->UpdateUniformBuffer(impl->graphOffsetUniformBuffer, &transform, 0, 4);
+	context->Draw(impl->graphVertexBuffer.get(), (w - graphRingBufferOffset) * 2, graphRingBufferOffset * 2);
 
 	lastGraphValue = cpuv[1];
 	graphRingBufferOffset++;
@@ -199,9 +211,7 @@ void GpuProfiler::Render(float cpu_, float gpu_)
 
 	lastWidth = w;
 	lastHeight = h;
-
 }
-
 
 void GpuProfiler::recreateGraphBuffer(int w)
 {
@@ -211,9 +221,6 @@ void GpuProfiler::recreateGraphBuffer(int w)
 	lastGraphValue = {};
 	lastGraphValue.y = (float)w;
 	graphRingBufferOffset = 0;
-
-	if (graphVertexBuffer)
-		graphVertexBuffer->Release();
 
 	// Vertex buffer
 	VertexAttributeDesc attr[1];
@@ -227,58 +234,26 @@ void GpuProfiler::recreateGraphBuffer(int w)
 	desc.vertexCount = w * 2;
 
 	for (uint32_t i = 0; i < desc.vertexCount; i++)
-	{
 		graphData[i] = vec4(float(i/2), 100, 0, 0);
-	}
 
-	graphVertexBuffer = GetCoreRender()->CreateVertexBuffer(graphData, &desc, nullptr, nullptr, BUFFER_USAGE::CPU_WRITE);
+	if (impl->graphVertexBuffer)
+		impl->graphVertexBuffer = nullptr;
+
+	GetCoreRender()->CreateVertexBuffer(impl->graphVertexBuffer.getAdressOf(), graphData , &desc, nullptr, nullptr, BUFFER_USAGE::CPU_WRITE);
 }
 
-void GpuProfiler::Init()
+GpuProfiler::GpuProfiler()
 {
-	
-	// Font shader
-	{
-		auto text = loadShader(DIR"gpuprofiler_font.shader");
-		const ConstantBuffersDesc buffersdesc[1] =
-		{
-			"TransformCB",	CONSTANT_BUFFER_UPDATE_FRIQUENCY::PER_DRAW
-		};
-		shaderFont = GetCoreRender()->CreateShader(text.get(), text.get(), &buffersdesc[0], _countof(buffersdesc));
-	}
+	impl = new Impl();
+}
 
-	// Graph
-	{
-		const ConstantBuffersDesc buffersdesc[1] =
-		{
-			"GraphTransform", CONSTANT_BUFFER_UPDATE_FRIQUENCY::PER_DRAW
-		};
+GpuProfiler::~GpuProfiler()
+{
+	delete impl;
+}
 
-		auto text = loadShader(DIR"gpuprofiler_graph.shader");
-		graphShader = GetCoreRender()->CreateShader(text.get(), text.get(), &buffersdesc[0], _countof(buffersdesc));
-
-		Dx12GraphicCommandContext* context = GetCoreRender()->GetMainCommmandContext();
-		unsigned w, h;
-		context->GetBufferSize(w, h);
-
-		recreateGraphBuffer(w);
-	}
-
-	viewportCB = GetCoreRender()->CreateUniformBuffer(16);
-	transformCB = GetCoreRender()->CreateUniformBuffer(sizeof(TransformCB));
-	graphOffsetUniformBuffer = GetCoreRender()->CreateUniformBuffer(16);
-
-	//
-	// Texture
-	std::unique_ptr<uint8_t[]> ddsData;
-	std::vector<D3D12_SUBRESOURCE_DATA> subresources;
-	ID3D12Resource* d3dtexture;
-	DirectX::LoadDDSTextureFromFile(CR_GetD3DDevice(), fontTexturePath, &d3dtexture, ddsData, subresources);
-
-	fontTexture = GetCoreRender()->CreateTexture(std::move(ddsData), subresources, d3dtexture);
-
-	//
-	// Font data
+void GpuProfiler::loadFont()
+{
 	std::fstream file(fontDataPath, std::ofstream::in);
 
 	char buffer[4096];
@@ -299,7 +274,7 @@ void GpuProfiler::Init()
 
 		int id;
 		sscanf_s(buffer, "char id=%d ", &id);
-		
+
 		if (id > 255)
 			continue;
 
@@ -308,18 +283,60 @@ void GpuProfiler::Init()
 	}
 
 	file.close();
+}
 
-	fontDataStructuredBuffer = GetCoreRender()->CreateStructuredBuffer(sizeof(FontChar), fontData.size(), &fontData[0]);
+void GpuProfiler::Init()
+{
+	
+	// Font shader
+	{
+		auto text = loadShader(GPU_PROFILER_DIR"gpuprofiler_font.shader");
+		const ConstantBuffersDesc buffersdesc[1] =
+		{
+			"TransformCB",	CONSTANT_BUFFER_UPDATE_FRIQUENCY::PER_DRAW
+		};
+		GetCoreRender()->CreateShader(impl->fontShader.getAdressOf(), text.get(), text.get(), &buffersdesc[0], _countof(buffersdesc));
+	}
+
+	// Graph
+	{
+		const ConstantBuffersDesc buffersdesc[1] =
+		{
+			"GraphTransform", CONSTANT_BUFFER_UPDATE_FRIQUENCY::PER_DRAW
+		};
+
+		auto text = loadShader(GPU_PROFILER_DIR"gpuprofiler_graph.shader");
+		GetCoreRender()->CreateShader(impl->graphShader.getAdressOf(), text.get(), text.get(), &buffersdesc[0], _countof(buffersdesc));
+
+		Dx12GraphicCommandContext* context = GetCoreRender()->GetMainCommmandContext();
+		unsigned w, h;
+		context->GetBufferSize(w, h);
+
+		recreateGraphBuffer(w);
+	}
+
+	GetCoreRender()->CreateUniformBuffer(&impl->viewportUniformBuffer, 16);
+	GetCoreRender()->CreateUniformBuffer(&impl->transformUniformBuffer, sizeof(TransformConstantBuffer));
+	GetCoreRender()->CreateUniformBuffer(&impl->graphOffsetUniformBuffer, 16);
+
+	//
+	// Texture
+	std::unique_ptr<uint8_t[]> ddsData;
+	std::vector<D3D12_SUBRESOURCE_DATA> subresources;
+	ID3D12Resource* d3dtexture;
+	DirectX::LoadDDSTextureFromFile(CR_GetD3DDevice(), fontTexturePath, &d3dtexture, ddsData, subresources);
+
+	GetCoreRender()->CreateTexture(impl->fontTexture.getAdressOf(), std::move(ddsData), subresources, d3dtexture);
+
+	//
+	// Font data
+	loadFont();
+
+	GetCoreRender()->CreateStructuredBuffer(impl->fontDataStructuredBuffer.getAdressOf(), sizeof(FontChar), fontData.size(), &fontData[0]);
 }
 
 void GpuProfiler::Free()
 {
-	shaderFont->Release();
-	fontTexture->Release();
-	fontDataStructuredBuffer->Release();
-	graphVertexBuffer->Release();
-	graphShader->Release();
-
 	for (int i = 0; i < recordsNum; ++i)
 	{
 		RenderProfilerRecord& r = records[i];

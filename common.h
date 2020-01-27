@@ -51,9 +51,9 @@ class Dx12GraphicCommandContext;
 class Dx12CopyCommandContext;
 struct Dx12UniformBuffer;
 struct Dx12CoreTexture;
-class RingBuffer;
 class Input;
 class Console;
+class GpuProfiler;
 
 namespace FastFrameAllocator
 {

@@ -1,33 +1,41 @@
 #pragma once
 #include "common.h"
+#include "intrusiveptr.h"
+
+struct RenderContext
+{
+	float cpu_;
+	float gpu_;
+};
 
 class GpuProfiler
 {
+	const int rectSize = 100;
+	const int rectPadding = 1;
+	const int fontMarginInPixels = 5;
+	const float fntLineHeight = 20;
+
 	// Common
 	float viewport[4];
 	unsigned lastWidth{ 0 };
 	unsigned lastHeight{ 0 };
-
-	// Font
-	Dx12CoreShader *shaderFont;
-	Dx12UniformBuffer *viewportCB;
-	Dx12UniformBuffer *transformCB;
-	Dx12CoreTexture *fontTexture;
-	Dx12CoreStructuredBuffer *fontDataStructuredBuffer;
-
-	// Graph
+	
 	uint32_t graphRingBufferOffset{0};
 	vec4 lastGraphValue;
-	Dx12CoreVertexBuffer* graphVertexBuffer;
-	Dx12CoreShader* graphShader;
-	Dx12UniformBuffer* graphOffsetUniformBuffer;
+
+	struct Impl;
+	Impl* impl{};
 
 	void recreateGraphBuffer(int width);
 
 public:
+	GpuProfiler();
+	~GpuProfiler();
+
+	void loadFont();
 
 	void Init();
 	void Free();
-	void Render(float cpu_, float gpu_);
+	void Render(const RenderContext& ctx);
 };
 

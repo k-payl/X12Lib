@@ -20,6 +20,7 @@ class Core
 	Dx12CoreRenderer* renderer{};
 	Input* input;
 	Console* console;
+	GpuProfiler* gpuprofiler;
 
 	Signal<> onRender;
 	Signal<> onInit;
@@ -44,6 +45,8 @@ public:
 	void Init(INIT_FLAGS flags = INIT_FLAGS::NONE);
 	void Free();
 	void Start();
+	void RenderProfiler(float gpu_, float cpu_);
+
 	void AddRenderProcedure(RenderProcedure fn);
 	void AddInitProcedure(InitProcedure fn);
 	void AddUpdateProcedure(UpdateProcedure fn);
