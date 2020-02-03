@@ -24,13 +24,22 @@ struct Dx12WindowSurface
 	ComPtr<ID3D12DescriptorHeap> descriptorHeapDSV;
 
 	void ResizeBuffers(unsigned width_, unsigned height_);
+	void Present();
 };
+
+using surface_ptr = std::shared_ptr<Dx12WindowSurface>;
+
+uint64_t CalculateChecksum(const PipelineState& pso);
 
 class Dx12CoreRenderer
 {
-	device_t *device;
-	adapter_t *adapter;
-	Dx12WindowSurface *surface;
+	device_t *device{nullptr};
+	adapter_t *adapter{nullptr};
+
+	std::map<HWND, surface_ptr> surfaces;
+	surface_ptr currentSurface;
+	unsigned currentSurfaceWidth{}, currentSurfaceHeight{};
+	std::vector<surface_ptr> surfacesForPresenting;
 
 	Dx12GraphicCommandContext* graphicCommandContext;
 	Dx12CopyCommandContext* copyCommandContext;
@@ -41,58 +50,58 @@ class Dx12CoreRenderer
 	std::map<UINT, FastFrameAllocator::PagePool*> fastAllocatorPagePools;	// Page pools for uniform buffers. allocation size -> pool
 	DescriptorHeap::Allocator* descriptorAllocator;							// Descriptors for static long-lived resources
 	ComPtr<ID3D12RootSignature> defaultRootSignature;						// Root signature for shaders without input resources
-
 	bool Vsync{false};
 	bool tearingSupported;
-
 	UINT descriptorSizeCBSRV;
 	UINT descriptorSizeRTV;
 	UINT descriptorSizeDSV;
 
 	void ReleaseFrame(uint64_t fenceID);
-	static void sReleaseFrame(uint64_t fenceID);
+	static void sReleaseFrameCallback(uint64_t fenceID);
 
 public:
 	Dx12CoreRenderer();
 	~Dx12CoreRenderer();
-
-	// Internal API
-	auto Init(HWND hwnd) -> void;
+	
+	auto Init() -> void;
 	auto Free() -> void;
 
-	auto RecreateBuffers(UINT w, UINT h) -> void;
-	auto GetFastFrameAllocatorPool(UINT bufferSize) -> FastFrameAllocator::PagePool*;
 	inline auto GetDevice() -> device_t* { return device; }
 	inline auto IsTearingSupport() -> bool { return tearingSupported; }
 	inline auto IsVSync() -> bool { return Vsync; }
-	ID3D12RootSignature*		GetDefaultRootSignature();
-	psomap_t&					GetGloablPSOMap() { return psoMap; }
-	uniformbuffers_t&			GetGlobalUnifromBuffers() { return uniformBufferVec; }
-	DescriptorHeap::Allocator*	GetDescriptorAllocator() { return descriptorAllocator; }
+	inline auto CBSRV_DescriptorsSize() -> UINT { return descriptorSizeCBSRV; }
+	inline auto RTV_DescriptorsSize() -> UINT { return descriptorSizeRTV; }
+	inline auto DSV_DescriptorsSize() -> UINT { return descriptorSizeDSV; }
+	auto GetFastFrameAllocatorPool(UINT bufferSize)->FastFrameAllocator::PagePool*;
+	auto GetDefaultRootSignature()->ID3D12RootSignature*;
+	auto getPSO(const PipelineState& pso)->ID3D12PipelineState*;
+	auto AllocateDescriptor(UINT num = 1)->DescriptorHeap::Alloc;
+	auto ReleaseResource(int& refs, IResourceUnknown* ptr) -> void;
+	auto GetGraphicCommmandContext() const -> Dx12GraphicCommandContext* { return graphicCommandContext; };
+	auto GetCopyCommandContext() const -> Dx12CopyCommandContext* { return copyCommandContext; }
 
-	UINT CBSRV_DescriptorsSize() { return descriptorSizeCBSRV; }
-	UINT RTV_DescriptorsSize() { return descriptorSizeRTV; }
-	UINT DSV_DescriptorsSize() { return descriptorSizeDSV; }
+	// Surfaces
+	auto fetchSurface(HWND hwnd)->surface_ptr;
+	auto RecreateBuffers(HWND hwnd, UINT newWidth, UINT newHeight) -> void;
+	auto MakeCurrent(HWND hwnd) -> surface_ptr;
+	auto GetSurfaceSize(unsigned& w, unsigned& h) -> void { w = currentSurfaceWidth; h = currentSurfaceHeight; }
+	auto PresentSurfaces() -> void;
 
-	void ReleaseResource(int& refs, IResourceUnknown* ptr);
+	// Statistic
+	auto UniformBufferUpdates()->uint64_t;
+	auto StateChanges()->uint64_t;
+	auto Triangles()->uint64_t;
+	auto DrawCalls()->uint64_t;
 
-	uint64_t UniformBufferUpdates();
-	uint64_t StateChanges();
-	uint64_t Triangles();
-	uint64_t DrawCalls();
-
-	// API
-	Dx12GraphicCommandContext*	GetMainCommmandContext() const { return graphicCommandContext; };
-	Dx12CopyCommandContext*		GetCopyCommandContext() const { return copyCommandContext; }
-
+	// Resurces creation
 	bool CreateShader(Dx12CoreShader **out, const char* vertText, const char* fragText,
-					  const ConstantBuffersDesc *variabledesc = nullptr, uint32_t varNum = 0);
+							const ConstantBuffersDesc *variabledesc = nullptr, uint32_t varNum = 0);
 	bool CreateVertexBuffer(Dx12CoreVertexBuffer** out, const void* vbData, const VeretxBufferDesc* vbDesc,
 							const void* idxData, const IndexBufferDesc* idxDesc, BUFFER_USAGE usage = BUFFER_USAGE::GPU_READ);
 	bool CreateUniformBuffer(Dx12UniformBuffer** out, size_t size);
 	bool CreateStructuredBuffer(Dx12CoreStructuredBuffer **out, size_t structureSize, size_t num, const void* data);
 	bool CreateTexture(Dx12CoreTexture **out, std::unique_ptr<uint8_t[]> ddsData,
-					   std::vector<D3D12_SUBRESOURCE_DATA> subresources, ID3D12Resource* d3dtexture);
+							std::vector<D3D12_SUBRESOURCE_DATA> subresources, ID3D12Resource* d3dtexture);
 };
 
 
@@ -102,9 +111,6 @@ extern Dx12CoreRenderer*			_coreRender;
 inline Dx12CoreRenderer*			GetCoreRender() { return _coreRender; }
 
 inline device_t*					CR_GetD3DDevice() { return GetCoreRender()->GetDevice(); }
-inline psomap_t&					CR_GetGlobalPSOMap() { return GetCoreRender()->GetGloablPSOMap(); }
-inline uniformbuffers_t&			CR_GetGlobalUniformBuffers() { return GetCoreRender()->GetGlobalUnifromBuffers(); }
-inline DescriptorHeap::Allocator*	CR_GetDescriptorAllocator() { return GetCoreRender()->GetDescriptorAllocator(); }
 inline bool							CR_IsTearingSupport() { return GetCoreRender()->IsTearingSupport(); }
 inline bool							CR_IsVSync() { return GetCoreRender()->IsVSync(); }
 inline void							CR_ReleaseResource(int& refs, IResourceUnknown* ptr) { GetCoreRender()->ReleaseResource(refs, ptr); }

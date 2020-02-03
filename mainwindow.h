@@ -7,7 +7,7 @@ class MainWindow
 
 	HWND hwnd;
 	void(*mainLoop)() {nullptr};
-	Signal<WINDOW_MESSAGE, uint32_t, uint32_t, void*> onWindowEvent;
+	Signal<HWND, WINDOW_MESSAGE, uint32_t, uint32_t, void*> onWindowEvent;
 	int passiveMainLoop{};
 
 	static LRESULT CALLBACK sWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
@@ -20,7 +20,7 @@ public:
 	MainWindow(void(*main_loop)());
 	~MainWindow();
 
-	HWND handle() { return hwnd; }
+	HWND *handle() { return &hwnd; }
 
 	void SendCloseMesage();
 	void Create();

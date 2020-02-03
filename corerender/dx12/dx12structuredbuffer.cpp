@@ -61,7 +61,7 @@ void Dx12CoreStructuredBuffer::Init(size_t structureSize, size_t num, const void
 	srvDesc.Buffer.StructureByteStride = (UINT)structureSize;
 	srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
 
-	descriptorAllocation = CR_GetDescriptorAllocator()->Allocate();
+	descriptorAllocation = GetCoreRender()->AllocateDescriptor();
 	D3D12_CPU_DESCRIPTOR_HANDLE handle = descriptorAllocation.descriptor;
 	
 	CR_GetD3DDevice()->CreateShaderResourceView(resource.Get(), &srvDesc, handle);	

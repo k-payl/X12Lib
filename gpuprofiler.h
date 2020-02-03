@@ -13,7 +13,7 @@ class GpuProfiler
 	const int rectSize = 100;
 	const int rectPadding = 1;
 	const int fontMarginInPixels = 5;
-	const float fntLineHeight = 20;
+	float fntLineHeight = 20;
 
 	// Common
 	float viewport[4];

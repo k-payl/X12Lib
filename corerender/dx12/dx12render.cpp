@@ -1,3 +1,4 @@
+#include "dx12render.h"
 #include "pch.h"
 #include "dx12render.h"
 #include "dx12render.h"
@@ -19,7 +20,7 @@ void Dx12CoreRenderer::ReleaseFrame(uint64_t fenceID)
 	descriptorAllocator->ReclaimMemory(fenceID);
 }
 
-void Dx12CoreRenderer::sReleaseFrame(uint64_t fenceID)
+void Dx12CoreRenderer::sReleaseFrameCallback(uint64_t fenceID)
 {
 	_coreRender->ReleaseFrame(fenceID);
 }
@@ -36,9 +37,8 @@ Dx12CoreRenderer::~Dx12CoreRenderer()
 
 FastFrameAllocator::PagePool* Dx12CoreRenderer::GetFastFrameAllocatorPool(UINT bufferSize)
 {
-	auto it = fastAllocatorPagePools.find(bufferSize);
-
-	if (it != fastAllocatorPagePools.end())
+	
+	if (auto it = fastAllocatorPagePools.find(bufferSize); it != fastAllocatorPagePools.end())
 		return it->second;
 
 	FastFrameAllocator::PagePool* pool = new FastFrameAllocator::PagePool(bufferSize);
@@ -74,7 +74,7 @@ static bool CheckTearingSupport()
 	return allowTearing == TRUE;
 }
 
-void Dx12CoreRenderer::Init(HWND hwnd)
+void Dx12CoreRenderer::Init()
 {
 #if defined(_DEBUG)
 	// Always enable the debug layer before doing anything DX12 related
@@ -152,12 +152,8 @@ void Dx12CoreRenderer::Init(HWND hwnd)
 	descriptorSizeRTV = CR_GetD3DDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 	descriptorSizeDSV = CR_GetD3DDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
 
-	surface = new Dx12WindowSurface();
-
-	graphicCommandContext = new Dx12GraphicCommandContext(surface, sReleaseFrame);
+	graphicCommandContext = new Dx12GraphicCommandContext(sReleaseFrameCallback);
 	copyCommandContext = new Dx12CopyCommandContext();
-	
-	surface->Init(hwnd, graphicCommandContext->GetD3D12CmdQueue());
 
 	tearingSupported = CheckTearingSupport();
 
@@ -167,6 +163,9 @@ void Dx12CoreRenderer::Init(HWND hwnd)
 
 void Dx12CoreRenderer::Free()
 {
+	PresentSurfaces();
+	surfaces.clear();
+
 	graphicCommandContext->Free();
 	copyCommandContext->Free();
 
@@ -197,9 +196,6 @@ void Dx12CoreRenderer::Free()
 	}
 	fastAllocatorPagePools.clear();
 
-	delete surface;
-	surface = nullptr;
-
 	delete descriptorAllocator;
 	descriptorAllocator = nullptr;
 
@@ -220,14 +216,51 @@ void Dx12CoreRenderer::Free()
 	Release(device);
 }
 
-void Dx12CoreRenderer::RecreateBuffers(UINT w, UINT h)
+auto Dx12CoreRenderer::fetchSurface(HWND hwnd) -> surface_ptr
+{
+	if (auto it = surfaces.find(hwnd); it == surfaces.end())
+	{
+		surface_ptr surface = std::make_shared<Dx12WindowSurface>();
+		surface->Init(hwnd, graphicCommandContext->GetD3D12CmdQueue());
+
+		surfaces[hwnd] = surface;
+
+		return std::move(surface);
+	}
+	else
+		return it->second;
+}
+
+void Dx12CoreRenderer::RecreateBuffers(HWND hwnd, UINT newWidth, UINT newHeight)
 {
 	graphicCommandContext->WaitGPUAll();
-	
-	surface->ResizeBuffers(w, h);
+
+	surface_ptr surf = fetchSurface(hwnd);
+	surf->ResizeBuffers(newWidth, newHeight);
 
 	// after recreating swapchain's buffers frameIndex should be 0??
 	graphicCommandContext->frameIndex = 0; // TODO: make frameIndex private
+}
+
+auto Dx12CoreRenderer::MakeCurrent(HWND hwnd) -> surface_ptr
+{
+	surface_ptr surf = fetchSurface(hwnd);
+
+	currentSurface = surf;
+	currentSurfaceWidth = surf->width;
+	currentSurfaceHeight = surf->height;
+
+	surfacesForPresenting.push_back(surf);
+
+	return surf;
+}
+
+auto Dx12CoreRenderer::PresentSurfaces() -> void
+{
+	for (const auto& s : surfacesForPresenting)
+		s->Present();
+	surfacesForPresenting.clear();
+	currentSurface = nullptr;
 }
 
 bool Dx12CoreRenderer::CreateShader(Dx12CoreShader** out, const char* vertText, const char* fragText,
@@ -337,6 +370,95 @@ ID3D12RootSignature* Dx12CoreRenderer::GetDefaultRootSignature()
 	return defaultRootSignature.Get();
 }
 
+uint64_t CalculateChecksum(const PipelineState& pso)
+{
+	// 0: 15 (16)  vb ID
+	// 16:31 (16)  shader ID
+	// 32:34 (3)   PRIMITIVE_TOPOLOGY
+	// 35:38 (4)   src blend
+	// 39:42 (4)   dst blend
+
+	constexpr auto blends = static_cast<int>(BLEND_FACTOR::NUM);
+	static_assert(blends == 11);
+
+	auto* dx12buffer = static_cast<Dx12CoreVertexBuffer*>(pso.vb);
+	auto* dx12shader = static_cast<Dx12CoreShader*>(pso.shader);
+
+	assert(dx12buffer != nullptr);
+	assert(dx12shader != nullptr);
+
+	uint64_t checksum = 0;
+	checksum |= uint64_t(dx12buffer->ID() << 0);
+	checksum |= uint64_t(dx12shader->ID() << 16);
+	checksum |= uint64_t(pso.primitiveTopology) << 32;
+	checksum |= uint64_t(pso.src) << 35;
+	checksum |= uint64_t(pso.dst) << 39;
+
+	return checksum;
+}
+
+ID3D12PipelineState* Dx12CoreRenderer::getPSO(const PipelineState& pso)
+{
+	uint64_t checksum = CalculateChecksum(pso);
+
+	if (auto it = psoMap.find(checksum); it != psoMap.end())
+		return it->second.Get();
+
+	Dx12CoreShader* dx12Shader = static_cast<Dx12CoreShader*>(pso.shader);
+	Dx12CoreVertexBuffer* dx12vb = static_cast<Dx12CoreVertexBuffer*>(pso.vb);
+
+	// Create PSO
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = {};
+	desc.InputLayout = { &dx12vb->inputLayout[0], (UINT)dx12vb->inputLayout.size() };
+	desc.pRootSignature = dx12Shader->HasResources() ? dx12Shader->resourcesRootSignature.Get() :
+		GetCoreRender()->GetDefaultRootSignature();
+	desc.VS = CD3DX12_SHADER_BYTECODE(dx12Shader->vs.Get());
+	desc.PS = CD3DX12_SHADER_BYTECODE(dx12Shader->ps.Get());
+	desc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+
+	auto setRTBlending = [&pso](D3D12_RENDER_TARGET_BLEND_DESC& out) -> void
+	{
+		out.BlendEnable = pso.src != BLEND_FACTOR::NONE || pso.dst != BLEND_FACTOR::NONE;
+		out.LogicOpEnable = FALSE;
+		out.SrcBlend = static_cast<D3D12_BLEND>(pso.src);
+		out.DestBlend = static_cast<D3D12_BLEND>(pso.dst);
+		out.BlendOp = D3D12_BLEND_OP_ADD;
+		out.SrcBlendAlpha = D3D12_BLEND_ZERO;
+		out.DestBlendAlpha = D3D12_BLEND_ONE;
+		out.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+		out.LogicOp = D3D12_LOGIC_OP_NOOP;
+		out.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+	};
+
+	desc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+	setRTBlending(desc.BlendState.RenderTarget[0]);
+
+	desc.DepthStencilState.DepthEnable = TRUE;
+	desc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+	desc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+	desc.DepthStencilState.StencilEnable = FALSE;
+	desc.PrimitiveTopologyType = static_cast<D3D12_PRIMITIVE_TOPOLOGY_TYPE>(pso.primitiveTopology);
+	assert(desc.PrimitiveTopologyType <= D3D12_PRIMITIVE_TOPOLOGY_TYPE::D3D12_PRIMITIVE_TOPOLOGY_TYPE_PATCH);
+	assert(desc.PrimitiveTopologyType > D3D12_PRIMITIVE_TOPOLOGY_TYPE::D3D12_PRIMITIVE_TOPOLOGY_TYPE_UNDEFINED);
+	desc.SampleMask = UINT_MAX;
+	desc.NumRenderTargets = 1;
+	desc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+	desc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
+	desc.SampleDesc.Count = 1;
+
+	ComPtr<ID3D12PipelineState> d3dPipelineState;
+	ThrowIfFailed(device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(d3dPipelineState.GetAddressOf())));
+
+	psoMap[checksum] = d3dPipelineState;
+
+	return d3dPipelineState.Get();
+}
+
+DescriptorHeap::Alloc Dx12CoreRenderer::AllocateDescriptor(UINT num)
+{
+	return descriptorAllocator->Allocate(num);
+}
+
 void Dx12WindowSurface::Init(HWND hwnd, ID3D12CommandQueue* queue)
 {
 	RECT r;
@@ -432,6 +554,14 @@ void Dx12WindowSurface::ResizeBuffers(unsigned width_, unsigned height_)
 	CR_GetD3DDevice()->CreateDepthStencilView(depthBuffer.Get(), &dsv, descriptorHeapDSV->GetCPUDescriptorHandleForHeapStart());
 }
 
+void Dx12WindowSurface::Present()
+{
+	UINT syncInterval = CR_IsVSync() ? 1 : 0;
+	UINT presentFlags = CR_IsTearingSupport() && !CR_IsVSync() ? DXGI_PRESENT_ALLOW_TEARING : 0;
+
+	ThrowIfFailed(swapChain->Present(syncInterval, presentFlags));
+}
+
 void Dx12CoreRenderer::ReleaseResource(int& refs, IResourceUnknown *ptr)
 {
 	assert(refs == 1);
@@ -451,20 +581,20 @@ void Dx12CoreRenderer::ReleaseResource(int& refs, IResourceUnknown *ptr)
 
 uint64_t Dx12CoreRenderer::UniformBufferUpdates()
 {
-	return graphicCommandContext->getStat().uniformBufferUpdates;
+	return graphicCommandContext->uniformBufferUpdates();
 }
 
 uint64_t Dx12CoreRenderer::StateChanges()
 {
-	return graphicCommandContext->getStat().stateChanges;
+	return graphicCommandContext->stateChanges();
 }
 
 uint64_t Dx12CoreRenderer::Triangles()
 {
-	return graphicCommandContext->getStat().triangles;
+	return graphicCommandContext->triangles();
 }
 
 uint64_t Dx12CoreRenderer::DrawCalls()
 {
-	return graphicCommandContext->getStat().drawCalls;
+	return graphicCommandContext->drawCalls();
 }

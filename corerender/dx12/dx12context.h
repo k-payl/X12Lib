@@ -3,13 +3,6 @@
 #include "dx12common.h"
 #include "icorerender.h"
 
-struct Statistic
-{
-	uint64_t drawCalls{ 0 };
-	uint64_t triangles{ 0 };
-	uint64_t uniformBufferUpdates{ 0 };
-	uint64_t stateChanges{ 0 };
-};
 
 class Dx12GraphicCommandContext
 {
@@ -17,7 +10,7 @@ class Dx12GraphicCommandContext
 	ID3D12Fence* d3dFence{};
 	HANDLE fenceEvent{};
 	uint64_t fenceValue{1}; // fence value ready to signal
-	Dx12WindowSurface *surface;
+	Dx12WindowSurface *surface{};
 	device_t* device;
 
 	UINT descriptorSizeCBSRV;
@@ -60,6 +53,13 @@ class Dx12GraphicCommandContext
 	state;
 	void resetState();
 
+	struct Statistic
+	{
+		uint64_t drawCalls{};
+		uint64_t triangles{};
+		uint64_t uniformBufferUpdates{};
+		uint64_t stateChanges{};
+	};
 	Statistic statistic;
 	void resetStatistic();
 
@@ -117,7 +117,7 @@ class Dx12GraphicCommandContext
 	void bindResources();
 
 public:
-	Dx12GraphicCommandContext(Dx12WindowSurface* surface_, FinishFrameBroadcast finishFrameCallback_);
+	Dx12GraphicCommandContext(FinishFrameBroadcast finishFrameCallback_);
 	~Dx12GraphicCommandContext();
 
 	UINT frameIndex{}; // 0, 1, 2
@@ -127,22 +127,24 @@ public:
 
 	inline uint64_t CurentFrame() const { return fenceValue; }
 
-	Statistic& getStat() { return statistic; }
+	uint64_t drawCalls() const { return statistic.drawCalls; }
+	uint64_t triangles() const { return statistic.triangles; }
+	uint64_t uniformBufferUpdates() const { return statistic.uniformBufferUpdates; }
+	uint64_t stateChanges() const { return statistic.stateChanges; }
 
 public:
 	// API
 
-	void Begin();
+	void Begin(Dx12WindowSurface* surface);
 	void End();
+
 	void Submit();
-	void Present();
 
 	void WaitGPUFrame();
 	void WaitGPUAll();
 
 	void SetPipelineState(const PipelineState& desc);
 	void SetVertexBuffer(Dx12CoreVertexBuffer* vb);
-	void GetBufferSize(unsigned& width, unsigned& heigth);
 	void SetViewport(unsigned width, unsigned heigth);
 	void SetScissor(unsigned x, unsigned y, unsigned width, unsigned heigth);
 	void Draw(Dx12CoreVertexBuffer* vb, uint32_t vertexCount = 0, uint32_t vertexOffset = 0);
@@ -156,11 +158,6 @@ public:
 	void TimerBegin(uint32_t timerID);
 	void TimerEnd(uint32_t timerID);
 	auto TimerGetTimeInMs(uint32_t timerID) -> float;
-
-	// TODO: do binding arbitary textures as RT
-	void SetBuiltinRenderTarget();
-	void ClearBuiltinRenderTarget(vec4 color);
-	void ClearBuiltinRenderDepthBuffer();
 };
 
 class Dx12CopyCommandContext

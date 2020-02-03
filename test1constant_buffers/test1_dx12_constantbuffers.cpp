@@ -7,6 +7,7 @@
 #include "dx12context.h"
 #include "dx12vertexbuffer.h"
 #include "camera.h"
+#include "mainwindow.h"
 #include "test1_shared.h"
 
 using namespace std::chrono;
@@ -18,6 +19,7 @@ struct Resources
 	std::unique_ptr<Camera> cam;
 	Dx12UniformBuffer* mvpCB;
 	Dx12UniformBuffer* transformCB;
+	HWND hwnd{};
 
 	Resources()
 	{
@@ -35,9 +37,10 @@ int APIENTRY wWinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPWSTR, _In_ int)
 	Core *core = new Core();
 	core->AddRenderProcedure(Render);
 	core->AddInitProcedure(Init);
-	
-	res = new Resources;
+
+	res = new Resources();
 	core->Init(INIT_FLAGS::SHOW_CONSOLE);
+	res->hwnd = *core->GetWindow()->handle();
 
 	core->Start();
 
@@ -52,22 +55,18 @@ int APIENTRY wWinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPWSTR, _In_ int)
 void Render()
 {
 	Dx12CoreRenderer* renderer = CORE->GetCoreRenderer();
+	surface_ptr surface = renderer->MakeCurrent(res->hwnd);
+	Dx12GraphicCommandContext* context = renderer->GetGraphicCommmandContext();
 
-	Dx12GraphicCommandContext* context = renderer->GetMainCommmandContext();
-	context->Begin();
+	context->Begin(surface.get());
 
 	context->TimerBegin(0);
 	start = high_resolution_clock::now();
 
-	context->ClearBuiltinRenderTarget(vec4(0, 0, 0, 0));
-	context->ClearBuiltinRenderDepthBuffer();
+	unsigned w = surface->width;
+	unsigned h = surface->height;
 
-	context->SetBuiltinRenderTarget();
-
-	unsigned w, h;
-	context->GetBufferSize(w, h);
 	context->SetViewport(w, h);
-
 	context->SetScissor(0, 0, w, h);
 
 	PipelineState pso{};
@@ -117,7 +116,7 @@ void Render()
 
 	context->End();
 	context->Submit();
-	context->Present();
+	renderer->PresentSurfaces();
 	context->WaitGPUFrame();
 }
 

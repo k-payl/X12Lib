@@ -52,7 +52,7 @@ struct Resources
 
 } *res;
 
-void Resize(WINDOW_MESSAGE type, uint32_t param1, uint32_t param2, void* data);
+void Resize(HWND hwnd, WINDOW_MESSAGE type, uint32_t param1, uint32_t param2, void* data);
 void Init();
 void Render();
 void CreateBuffers(UINT w, UINT h);
@@ -66,7 +66,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPWSTR, _In_ int)
 	res = new Resources;
 	core->Init(INIT_FLAGS::SHOW_CONSOLE);
 
-	HWND hwnd = core->GetWindow()->handle();
+	HWND hwnd = *core->GetWindow()->handle();
 	initDX11(&hwnd, device, context, swapChain);
 
 	RECT r;
@@ -293,7 +293,7 @@ void CreateBuffers(UINT w, UINT h)
 	_Resize();
 }
 
-void Resize(WINDOW_MESSAGE type, uint32_t param1, uint32_t param2, void* pData)
+void Resize(HWND hwnd, WINDOW_MESSAGE type, uint32_t param1, uint32_t param2, void* pData)
 {
 	if (type != WINDOW_MESSAGE::SIZE)
 		return;

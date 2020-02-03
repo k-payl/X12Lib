@@ -30,10 +30,10 @@ class Core
 	void setWindowCaption(int is_paused, int fps);
 	void engineUpdate();
 	void mainLoop();
-	void messageCallback(WINDOW_MESSAGE type, uint32_t param1, uint32_t param2, void* pData);
+	void messageCallback(HWND hwnd, WINDOW_MESSAGE type, uint32_t param1, uint32_t param2, void* pData);
 
 	static void sMainLoop();
-	static void sMessageCallback(WINDOW_MESSAGE type, uint32_t param1, uint32_t param2, void* pData);
+	static void sMessageCallback(HWND hwnd, WINDOW_MESSAGE type, uint32_t param1, uint32_t param2, void* pData);
 
 public:
 	Core();

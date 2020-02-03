@@ -24,10 +24,10 @@ void Core::mainLoop()
 	onRender.Invoke();
 }
 
-void Core::messageCallback(WINDOW_MESSAGE type, uint32_t param1, uint32_t param2, void* pData)
+void Core::messageCallback(HWND hwnd, WINDOW_MESSAGE type, uint32_t param1, uint32_t param2, void* pData)
 {
 	if (type == WINDOW_MESSAGE::SIZE)
-		renderer->RecreateBuffers(param1, param2);
+		renderer->RecreateBuffers(hwnd, param1, param2);
 	else if (type == WINDOW_MESSAGE::KEY_UP)
 	{
 		KEYBOARD_KEY_CODES key = static_cast<KEYBOARD_KEY_CODES>(param1);
@@ -41,9 +41,9 @@ void Core::sMainLoop()
 	core__->mainLoop();
 }
 
-void Core::sMessageCallback(WINDOW_MESSAGE type, uint32_t param1, uint32_t param2, void* pData)
+void Core::sMessageCallback(HWND hwnd, WINDOW_MESSAGE type, uint32_t param1, uint32_t param2, void* pData)
 {
-	core__->messageCallback(type, param1, param2, pData);
+	core__->messageCallback(hwnd, type, param1, param2, pData);
 }
 
 Core::Core()
@@ -70,7 +70,7 @@ void Core::Init(INIT_FLAGS flags)
 	input->Init();
 
 	renderer = new Dx12CoreRenderer;
-	renderer->Init(window->handle());
+	renderer->Init();
 
 	gpuprofiler = new GpuProfiler;
 	gpuprofiler->Init();

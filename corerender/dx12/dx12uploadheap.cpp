@@ -47,8 +47,7 @@ FastFrameAllocator::Page* FastFrameAllocator::PagePool::getPage()
 	page->gpuPtr = page->d3d12resource->GetGPUVirtualAddress();
 
 	// Prepare descriptors for page
-	DescriptorHeap::Allocator* descriptorAllocator = CR_GetDescriptorAllocator();
-	page->descriptors = descriptorAllocator->Allocate(descriptorsInPage);
+	page->descriptors = GetCoreRender()->AllocateDescriptor(descriptorsInPage);
 	SIZE_T ptrStart = page->descriptors.descriptor.ptr;
 
 	D3D12_CONSTANT_BUFFER_VIEW_DESC desc;

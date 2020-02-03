@@ -65,10 +65,10 @@ static std::vector<FontChar> fontData;
 
 void GpuProfiler::Render(const RenderContext& ctx)
 {
-	Dx12GraphicCommandContext* context = GetCoreRender()->GetMainCommmandContext();
+	Dx12GraphicCommandContext* context = GetCoreRender()->GetGraphicCommmandContext();
 
 	unsigned w, h;
-	context->GetBufferSize(w, h);
+	GetCoreRender()->GetSurfaceSize(w, h);
 
 	if (lastWidth != w || lastHeight != h)
 	{
@@ -120,7 +120,7 @@ void GpuProfiler::Render(const RenderContext& ctx)
 			GetCoreRender()->CreateVertexBuffer(&r.vertexBuffer, nullptr, &desc, nullptr, nullptr, BUFFER_USAGE::CPU_WRITE);
 		}
 
-		float offsetInPixels = fontMarginInPixels;
+		float offsetInPixels = float(fontMarginInPixels);
 
 		static std::hash<std::string> hashFn;
 		size_t newChecksum = hashFn(r.text);
@@ -173,13 +173,13 @@ void GpuProfiler::Render(const RenderContext& ctx)
 
 	// Graph.
 
+	if (w != lastWidth)
+		recreateGraphBuffer(w);
+
 	pso.primitiveTopology = PRIMITIVE_TOPOLOGY::LINE;
 	pso.shader = impl->graphShader.get();
 	pso.vb = impl->graphVertexBuffer.get();
 	context->SetPipelineState(pso);
-
-	if (w != lastWidth)
-		recreateGraphBuffer(w);
 
 	context->SetVertexBuffer(impl->graphVertexBuffer.get());
 
@@ -308,9 +308,9 @@ void GpuProfiler::Init()
 		auto text = loadShader(GPU_PROFILER_DIR"gpuprofiler_graph.shader");
 		GetCoreRender()->CreateShader(impl->graphShader.getAdressOf(), text.get(), text.get(), &buffersdesc[0], _countof(buffersdesc));
 
-		Dx12GraphicCommandContext* context = GetCoreRender()->GetMainCommmandContext();
+		Dx12GraphicCommandContext* context = GetCoreRender()->GetGraphicCommmandContext();
 		unsigned w, h;
-		context->GetBufferSize(w, h);
+		GetCoreRender()->GetSurfaceSize(w, h);
 
 		recreateGraphBuffer(w);
 	}

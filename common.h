@@ -30,7 +30,6 @@ using namespace Microsoft::WRL;
 #include <set>
 #include <functional>
 #include <map>
-#include <queue>
 
 #include "vmath.h"
 
@@ -75,7 +74,7 @@ typedef IDXGIAdapter4 adapter_t;
 typedef IDXGISwapChain4 swapchain_t;
 typedef IDXGIFactory4 dxgifactory_t;
 
-typedef void (*WindowCallback)(WINDOW_MESSAGE, uint32_t, uint32_t, void*);
+typedef void (*WindowCallback)(HWND, WINDOW_MESSAGE, uint32_t, uint32_t, void*);
 typedef void (*RenderProcedure)();
 typedef void (*InitProcedure)();
 typedef void (*UpdateProcedure)(float dt);

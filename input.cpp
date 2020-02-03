@@ -23,7 +23,7 @@ void Input::Update()
 	//LOG_FORMATTED("cursorX_=%i cursorY_=%i mouseDeltaPos_(%f, %f) oldPos_(%f, %f)", cursorX_, cursorY_, mouseDeltaPos_.x, mouseDeltaPos_.y, oldPos_.x, oldPos_.y);
 }
 
-void Input::messageCallback(WINDOW_MESSAGE type, uint32_t param1, uint32_t param2, void *pData)
+void Input::messageCallback(HWND hwnd, WINDOW_MESSAGE type, uint32_t param1, uint32_t param2, void *pData)
 {
 	switch (type)
 	{
@@ -66,9 +66,9 @@ void Input::messageCallback(WINDOW_MESSAGE type, uint32_t param1, uint32_t param
 	}
 }
 
-void Input::sMessageCallback(WINDOW_MESSAGE type, uint32_t param1, uint32_t param2, void * pData)
+void Input::sMessageCallback(HWND hwnd, WINDOW_MESSAGE type, uint32_t param1, uint32_t param2, void * pData)
 {
-	instance->messageCallback(type, param1, param2, pData);
+	instance->messageCallback(hwnd, type, param1, param2, pData);
 }
 
 void Input::Init()

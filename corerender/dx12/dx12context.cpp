@@ -6,8 +6,6 @@
 #include "dx12vertexbuffer.h"
 #include "dx12structuredbuffer.h"
 #include "dx12texture.h"
-#include "core.h"
-#include <map>
 #include <chrono>
 
 uint64_t Signal(ID3D12CommandQueue *d3dCommandQueue, ID3D12Fence *d3dFence, uint64_t& fenceValue)
@@ -28,33 +26,10 @@ void WaitForFenceValue(ID3D12Fence *d3dFence, uint64_t fenceValue, HANDLE fenceE
 	}
 }
 
-uint64_t CalculateChecksum(const PipelineState& pso)
-{
-	// 0: 15 (16)  vb ID
-	// 16:31 (16)  shader ID
-	// 32:34 (3)   PRIMITIVE_TOPOLOGY
-	// 35:38 (4)   src blend
-	// 39:42 (4)   dst blend
-
-	constexpr auto blends = static_cast<int>(BLEND_FACTOR::NUM);
-	static_assert(blends == 11);
-
-	auto *dx12buffer = static_cast<Dx12CoreVertexBuffer*>(pso.vb);
-	auto* dx12shader = static_cast<Dx12CoreShader*>(pso.shader);
-
-	uint64_t checksum = 0;
-	checksum |= uint64_t(dx12buffer->ID() << 0);
-	checksum |= uint64_t(dx12shader->ID() << 16);
-	checksum |= uint64_t(pso.primitiveTopology) << 32;
-	checksum |= uint64_t(pso.src) << 35;
-	checksum |= uint64_t(pso.dst) << 39;
-
-	return checksum;
-}
 
 void Dx12GraphicCommandContext::SetPipelineState(const PipelineState& pso)
 {
-	uint64_t checksum = CalculateChecksum(pso);
+	auto checksum = CalculateChecksum(pso);
 
 	if (checksum == this->state.psoChecksum)
 		return;
@@ -62,79 +37,24 @@ void Dx12GraphicCommandContext::SetPipelineState(const PipelineState& pso)
 	Dx12CoreShader* dx12Shader = static_cast<Dx12CoreShader*>(pso.shader);
 	Dx12CoreVertexBuffer* dx12vb = static_cast<Dx12CoreVertexBuffer*>(pso.vb);
 
-	auto setState = [this, pso, dx12Shader](ID3D12PipelineState* state, uint64_t checksum)
-	{
-		resetState();
+	auto* state = GetCoreRender()->getPSO(pso);
 
-		cmdList->TrackResource(pso.vb);
-		cmdList->TrackResource(pso.shader);
+	resetState();
 
-		this->state.shader = dx12Shader;
-		this->state.psoChecksum = checksum;
-		this->state.primitiveTopology = pso.primitiveTopology;
+	cmdList->TrackResource(pso.vb);
+	cmdList->TrackResource(pso.shader);
 
-		cmdList->d3dCmdList->SetPipelineState(state);
-		++this->statistic.stateChanges;
+	this->state.shader = dx12Shader;
+	this->state.psoChecksum = checksum;
+	this->state.primitiveTopology = pso.primitiveTopology;
 
-		if (!dx12Shader->HasResources())
-			cmdList->d3dCmdList->SetGraphicsRootSignature(GetCoreRender()->GetDefaultRootSignature());
-		else
-			cmdList->d3dCmdList->SetGraphicsRootSignature(this->state.shader->resourcesRootSignature.Get());
-	};
+	cmdList->d3dCmdList->SetPipelineState(state);
+	++this->statistic.stateChanges;
 
-	auto it = CR_GetGlobalPSOMap().find(checksum);
-	if (it != CR_GetGlobalPSOMap().end())
-	{
-		ComPtr<ID3D12PipelineState> state = CR_GetGlobalPSOMap()[checksum];
-		setState(state.Get(), checksum);
-		return;
-	}
-
-	// Create PSO
-	D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = {};
-	desc.InputLayout = {  &dx12vb->inputLayout[0], (UINT)dx12vb->inputLayout.size() };
-	desc.pRootSignature = dx12Shader->HasResources() ? dx12Shader->resourcesRootSignature.Get() :
-		GetCoreRender()->GetDefaultRootSignature();
-	desc.VS = CD3DX12_SHADER_BYTECODE(dx12Shader->vs.Get());
-	desc.PS = CD3DX12_SHADER_BYTECODE(dx12Shader->ps.Get());
-	desc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-
-	auto setRTBlending = [&pso](D3D12_RENDER_TARGET_BLEND_DESC& out) -> void
-	{
-		out.BlendEnable = pso.src != BLEND_FACTOR::NONE || pso.dst != BLEND_FACTOR::NONE;
-		out.LogicOpEnable = FALSE;
-		out.SrcBlend = static_cast<D3D12_BLEND>(pso.src);
-		out.DestBlend = static_cast<D3D12_BLEND>(pso.dst);
-		out.BlendOp = D3D12_BLEND_OP_ADD;
-		out.SrcBlendAlpha = D3D12_BLEND_ZERO;
-		out.DestBlendAlpha = D3D12_BLEND_ONE;
-		out.BlendOpAlpha = D3D12_BLEND_OP_ADD;
-		out.LogicOp = D3D12_LOGIC_OP_NOOP;
-		out.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
-	};
-
-	desc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
-	setRTBlending(desc.BlendState.RenderTarget[0]);
-
-	desc.DepthStencilState.DepthEnable = TRUE;
-	desc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
-	desc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
-	desc.DepthStencilState.StencilEnable = FALSE;
-	desc.PrimitiveTopologyType = static_cast<D3D12_PRIMITIVE_TOPOLOGY_TYPE>(pso.primitiveTopology);
-	assert(desc.PrimitiveTopologyType <= D3D12_PRIMITIVE_TOPOLOGY_TYPE::D3D12_PRIMITIVE_TOPOLOGY_TYPE_PATCH);
-	assert(desc.PrimitiveTopologyType > D3D12_PRIMITIVE_TOPOLOGY_TYPE::D3D12_PRIMITIVE_TOPOLOGY_TYPE_UNDEFINED);
-	desc.SampleMask = UINT_MAX;
-	desc.NumRenderTargets = 1;
-	desc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
-	desc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
-	desc.SampleDesc.Count = 1;
-
-	ComPtr<ID3D12PipelineState> d3dPipelineState;
-	ThrowIfFailed(device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(d3dPipelineState.GetAddressOf())));
-
-	CR_GetGlobalPSOMap()[checksum] = d3dPipelineState;
-
-	setState(d3dPipelineState.Get(), checksum);
+	if (!dx12Shader->HasResources())
+		cmdList->d3dCmdList->SetGraphicsRootSignature(GetCoreRender()->GetDefaultRootSignature());
+	else
+		cmdList->d3dCmdList->SetGraphicsRootSignature(this->state.shader->resourcesRootSignature.Get());
 }
 
 void Dx12GraphicCommandContext::SetVertexBuffer(Dx12CoreVertexBuffer* vb)// TODO add vb to tracked resources
@@ -166,13 +86,6 @@ void Dx12GraphicCommandContext::SetScissor(unsigned x, unsigned y, unsigned widt
 {
 	CD3DX12_RECT rect(x, y, width, heigth);
 	cmdList->d3dCmdList->RSSetScissorRects(1, &rect);
-}
-
-void Dx12GraphicCommandContext::GetBufferSize(unsigned& width, unsigned& heigth)
-{
-	assert(surface && "Dx12GraphicCommandContext::GetBufferSize() no surface for command buffer");
-	width = surface->width;
-	heigth = surface->height;
 }
 
 void Dx12GraphicCommandContext::bindResources()
@@ -329,12 +242,6 @@ void Dx12GraphicCommandContext::bindResources()
 
 void Dx12GraphicCommandContext::Draw(Dx12CoreVertexBuffer* vb, uint32_t vertexCount, uint32_t vertexOffset)
 {
-	//if (cmdList->d3dDescriptorHeap != cmdList->gpuDescriptorHeap)
-	//{
-	//	d3dDescriptorHeap = cmdList->gpuDescriptorHeap;
-	//	cmdList->d3dCmdList->SetDescriptorHeaps(1, &d3dDescriptorHeap);
-	//}
-
 	bindResources();
 
 	state.vb = vb;
@@ -463,8 +370,7 @@ void Dx12GraphicCommandContext::CommandList::Begin()
 	d3dCmdList->SetDescriptorHeaps(1, &gpuDescriptorHeap);
 }
 
-Dx12GraphicCommandContext::Dx12GraphicCommandContext(Dx12WindowSurface* surface_, FinishFrameBroadcast finishFrameCallback_) :
-	surface(surface_),
+Dx12GraphicCommandContext::Dx12GraphicCommandContext(FinishFrameBroadcast finishFrameCallback_) :
 	finishFrameBroadcast(finishFrameCallback_)
 {
 	device = CR_GetD3DDevice();
@@ -564,47 +470,39 @@ void Dx12GraphicCommandContext::Free()
 	Release(queryReadBackBuffer);
 }
 
-void Dx12GraphicCommandContext::ClearBuiltinRenderTarget(vec4 color)
+void Dx12GraphicCommandContext::Begin(Dx12WindowSurface* surface_)
 {
-	assert(surface);
-	CD3DX12_CPU_DESCRIPTOR_HANDLE rtv(surface->descriptorHeapRTV->GetCPUDescriptorHandleForHeapStart(), frameIndex, CR_RTV_DescriptorsSize());
-	cmdList->d3dCmdList->ClearRenderTargetView(rtv, &color.x, 0, nullptr);
-}
+	assert(surface_);
+	surface = surface_;
 
-void Dx12GraphicCommandContext::ClearBuiltinRenderDepthBuffer()
-{
-	assert(surface);
-	FLOAT depth = 1.0f;
-	auto dsv = surface->descriptorHeapDSV->GetCPUDescriptorHandleForHeapStart();
-	cmdList->d3dCmdList->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH, depth, 0, 0, nullptr);
-}
-void Dx12GraphicCommandContext::SetBuiltinRenderTarget()
-{
-	CD3DX12_CPU_DESCRIPTOR_HANDLE rtv(surface->descriptorHeapRTV->GetCPUDescriptorHandleForHeapStart(), frameIndex, CR_RTV_DescriptorsSize());
-	auto dsv = surface->descriptorHeapDSV->GetCPUDescriptorHandleForHeapStart();
-	cmdList->d3dCmdList->OMSetRenderTargets(1, &rtv, FALSE, &dsv);
-}
-
-void Dx12GraphicCommandContext::Begin()
-{
-	assert(surface);
 	cmdList->d3dCommandAllocator->Reset();
 	cmdList->d3dCmdList->Reset(cmdList->d3dCommandAllocator, nullptr);
 	cmdList->Begin();
 
-	ID3D12Resource *backBuffer = surface->colorBuffers[frameIndex].Get();
+	if (surface)
+	{
+		ID3D12Resource *backBuffer = surface->colorBuffers[frameIndex].Get();
 
-	CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(backBuffer,
-			D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+		CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(backBuffer,
+				D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
-	cmdList->d3dCmdList->ResourceBarrier(1, &barrier);
+		cmdList->d3dCmdList->ResourceBarrier(1, &barrier);
+
+		CD3DX12_CPU_DESCRIPTOR_HANDLE rtv(surface->descriptorHeapRTV->GetCPUDescriptorHandleForHeapStart(), frameIndex, CR_RTV_DescriptorsSize());
+		auto dsv = surface->descriptorHeapDSV->GetCPUDescriptorHandleForHeapStart();
+
+		cmdList->d3dCmdList->OMSetRenderTargets(1, &rtv, FALSE, &dsv);
+
+		FLOAT depth = 1.0f;
+		cmdList->d3dCmdList->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH, depth, 0, 0, nullptr);
+
+		const vec4 color{ 0.0f, 0.0f, 0.0f, 0.0f };
+		cmdList->d3dCmdList->ClearRenderTargetView(rtv, &color.x, 0, nullptr);
+	}
 }
 void Dx12GraphicCommandContext::End()
 {
-	assert(surface);
-
 	// Query
-
 	// Write to buffer current time on GPU
 	UINT64 resolveAddress = queryResolveToFrameID * maxNumQuerySlots * sizeof(UINT64);
 	cmdList->d3dCmdList->ResolveQueryData(queryHeap, D3D12_QUERY_TYPE_TIMESTAMP, 0, maxNumQuerySlots, queryReadBackBuffer, resolveAddress);
@@ -629,14 +527,20 @@ void Dx12GraphicCommandContext::End()
 
 	// ---- Query
 
+	if (surface)
+	{
+		ID3D12Resource* backBuffer = surface->colorBuffers[frameIndex].Get();
 
-	ID3D12Resource* backBuffer = surface->colorBuffers[frameIndex].Get();
+		CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(backBuffer,
+					D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
 
-	CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(backBuffer,
-																			D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+		cmdList->d3dCmdList->ResourceBarrier(1, &barrier);
 
-	cmdList->d3dCmdList->ResourceBarrier(1, &barrier);
+		//D3D12_CPU_DESCRIPTOR_HANDLE* handles = {};
+		//cmdList->d3dCmdList->OMSetRenderTargets(1, handles, FALSE, nullptr);
 
+		surface = nullptr;
+	}
 
 	ThrowIfFailed(cmdList->d3dCmdList->Close());
 }
@@ -645,16 +549,6 @@ void Dx12GraphicCommandContext::Submit()
 {
 	ID3D12CommandList* const commandLists[1] = { cmdList->d3dCmdList };
 	d3dCommandQueue->ExecuteCommandLists(1, commandLists);
-}
-
-void Dx12GraphicCommandContext::Present()
-{
-	assert(surface);
-	
-	UINT syncInterval = CR_IsVSync() ? 1 : 0;
-	UINT presentFlags = CR_IsTearingSupport() && !CR_IsVSync() ? DXGI_PRESENT_ALLOW_TEARING : 0;
-
-	ThrowIfFailed(surface->swapChain->Present(syncInterval, presentFlags));
 }
 
 void Dx12GraphicCommandContext::resetState()

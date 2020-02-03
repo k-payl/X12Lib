@@ -23,7 +23,7 @@ MainWindow::~MainWindow()
 
 void MainWindow::invokeMesage(WINDOW_MESSAGE type, uint32_t param1, uint32_t param2, void* pData)
 {
-	onWindowEvent.Invoke(type, param1, param2, pData);
+	onWindowEvent.Invoke(hwnd, type, param1, param2, pData);
 }
 
 LRESULT MainWindow::wndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
