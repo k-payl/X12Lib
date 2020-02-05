@@ -293,7 +293,8 @@ bool Dx12CoreRenderer::CreateVertexBuffer(Dx12CoreVertexBuffer** out, const void
 
 bool Dx12CoreRenderer::CreateUniformBuffer(Dx12UniformBuffer **out, size_t size)
 {
-	auto ptr = new Dx12UniformBuffer((UINT)size);
+	auto idx = uniformBufferVec.size();
+	auto ptr = new Dx12UniformBuffer((UINT)size, idx);
 	uniformBufferVec.emplace_back(ptr);
 
 	*out = ptr;

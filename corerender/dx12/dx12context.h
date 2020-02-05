@@ -21,18 +21,17 @@ class Dx12GraphicCommandContext
 	{
 		Dx12CoreShader *shader;
 		Dx12CoreVertexBuffer *vb;
-
 		uint64_t psoChecksum; // 0 not set
 		PRIMITIVE_TOPOLOGY primitiveTopology;
 
-		struct SlotResource
+		struct SlotData
 		{
 			RESOURCE_BIND_FLAGS dirtyFlags; // resources to set before draw call
 
-			// TODO:
 			// CBV register b
 			// SRV register t
 			// UAV register u
+
 			Dx12UniformBuffer *CBV;
 
 			union
@@ -42,13 +41,13 @@ class Dx12GraphicCommandContext
 			} SRV;
 		};
 
-		struct ShaderResources
+		struct ShaderSlots
 		{
-			SlotResource resources[MaxResourcesPerShader];
+			SlotData resources[MaxResourcesPerShader];
 			int dirty{0};
 		};
 
-		ShaderResources bind[(int)SHADER_TYPE::NUM];
+		ShaderSlots binds[(int)SHADER_TYPE::NUM];
 	} 
 	state;
 	void resetState();

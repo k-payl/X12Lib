@@ -8,6 +8,13 @@
 #include "dx12texture.h"
 #include <chrono>
 
+#define ADD_DIRY_FLAGS(FLAGS, ADD) \
+	FLAGS = static_cast<RESOURCE_BIND_FLAGS>(FLAGS | ADD);
+
+#define REMOVE_DIRY_FLAGS(FLAGS, _REMOVE) \
+	FLAGS = static_cast<RESOURCE_BIND_FLAGS>(FLAGS & ~_REMOVE);
+
+
 uint64_t Signal(ID3D12CommandQueue *d3dCommandQueue, ID3D12Fence *d3dFence, uint64_t& fenceValue)
 {
 	uint64_t fenceValueForSignal = fenceValue;
@@ -101,7 +108,7 @@ void Dx12GraphicCommandContext::bindResources()
 	{
 		RootSignatureParameter& rootParam = params[rootIdx];
 
-		State::ShaderResources& shaderResources = state.bind[(int)rootParam.shaderType];
+		State::ShaderSlots& shaderResources = state.binds[(int)rootParam.shaderType];
 		if (!shaderResources.dirty)
 			continue;
 		
@@ -111,14 +118,14 @@ void Dx12GraphicCommandContext::bindResources()
 
 			switch (rootParam.inlineResource.resources)
 			{
-				case UNIFORM_BUFFER: 
+				case UNIFORM_BUFFER:
 				{
 					Dx12UniformBuffer* buffer = shaderResources.resources[slot].CBV;
 
-					if (buffer == nullptr)
+					if (!buffer)
 						throw std::exception("Resource is not set");
 
-					if (!shaderResources.resources[slot].dirtyFlags != RESOURCE_BIND_FLAGS::NONE && !buffer->dirty)
+					if (!(shaderResources.resources[slot].dirtyFlags & RESOURCE_BIND_FLAGS::UNIFORM_BUFFER) && !buffer->dirty)
 						continue;
 
 					auto alloc = cmdList->fastAllocator->Allocate();
@@ -141,26 +148,23 @@ void Dx12GraphicCommandContext::bindResources()
 
 		else if (rootParam.type == PARAMETER_TYPE::TABLE)
 		{			
-			bool changed = false;
+			bool isDirty = false;
 
-			for (int i = 0; i < rootParam.tableResourcesNum && !changed; ++i)
+			for (int i = 0; i < rootParam.tableResourcesNum && !isDirty; ++i)
 			{
 				int slot = rootParam.tableResources[i].slot;
 				
-				if (shaderResources.resources[slot].dirtyFlags & RESOURCE_BIND_FLAGS::UNIFORM_BUFFER)
-					changed = true;
-				else
-				{
-					Dx12UniformBuffer* buffer = shaderResources.resources[slot].CBV;
-					if (buffer)
-						changed = changed || buffer->dirty;
-				}
+				isDirty = isDirty || (shaderResources.resources[slot].dirtyFlags != RESOURCE_BIND_FLAGS::NONE);
+				if (isDirty)
+					break;
 
-				if (shaderResources.resources[slot].dirtyFlags & RESOURCE_BIND_FLAGS::TEXTURE_SRV)
-					changed = true;
+				if (Dx12UniformBuffer* buffer = shaderResources.resources[slot].CBV)
+				{
+					isDirty = isDirty || buffer->dirty;
+				}
 			}
 
-			if (!changed)
+			if (!isDirty)
 				continue;
 				
 			D3D12_GPU_DESCRIPTOR_HANDLE gpuHadle{ cmdList->gpuDescriptorHeapStartGPU.ptr + cmdList->gpuDescriptorsOffset * descriptorSizeCBSRV };
@@ -180,7 +184,7 @@ void Dx12GraphicCommandContext::bindResources()
 
 						Dx12UniformBuffer* buffer = shaderResources.resources[slot].CBV;
 
-						if (buffer == nullptr)
+						if (!buffer)
 							throw std::exception("Resource is not set");
 
 						memcpy(alloc.ptr, buffer->cache, buffer->dataSize);
@@ -188,7 +192,7 @@ void Dx12GraphicCommandContext::bindResources()
 
 						device->CopyDescriptorsSimple(1, cpuHandleGPUVisible, cpuHandleCPUVisible, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
-						shaderResources.resources[slot].dirtyFlags = static_cast<RESOURCE_BIND_FLAGS>(shaderResources.resources[slot].dirtyFlags & ~RESOURCE_BIND_FLAGS::UNIFORM_BUFFER);
+						REMOVE_DIRY_FLAGS(shaderResources.resources[slot].dirtyFlags, RESOURCE_BIND_FLAGS::UNIFORM_BUFFER);
 					}
 					break;
 
@@ -205,8 +209,7 @@ void Dx12GraphicCommandContext::bindResources()
 
 						device->CopyDescriptorsSimple(1, cpuHandleGPUVisible, cpuHandleCPUVisible, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
-						shaderResources.resources[slot].dirtyFlags = static_cast<RESOURCE_BIND_FLAGS>(shaderResources.resources[slot].dirtyFlags & ~RESOURCE_BIND_FLAGS::TEXTURE_SRV);
-
+						REMOVE_DIRY_FLAGS(shaderResources.resources[slot].dirtyFlags, RESOURCE_BIND_FLAGS::TEXTURE_SRV);
 					}
 					break;
 
@@ -223,8 +226,7 @@ void Dx12GraphicCommandContext::bindResources()
 
 						device->CopyDescriptorsSimple(1, cpuHandleGPUVisible, cpuHandleCPUVisible, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
-						shaderResources.resources[slot].dirtyFlags = static_cast<RESOURCE_BIND_FLAGS>(shaderResources.resources[slot].dirtyFlags & ~RESOURCE_BIND_FLAGS::STRUCTURED_BUFFER_SRV);
-
+						REMOVE_DIRY_FLAGS(shaderResources.resources[slot].dirtyFlags, RESOURCE_BIND_FLAGS::STRUCTURED_BUFFER_SRV);
 					}
 					break;
 
@@ -263,27 +265,27 @@ void Dx12GraphicCommandContext::Draw(Dx12CoreVertexBuffer* vb, uint32_t vertexCo
 
 void Dx12GraphicCommandContext::BindUniformBuffer(int slot, Dx12UniformBuffer* buffer, SHADER_TYPE shaderType)
 {
-	State::ShaderResources& bindings = state.bind[(int)shaderType];
+	State::ShaderSlots& bindings = state.binds[(int)shaderType];
 	bindings.resources[slot].CBV = buffer;
-	bindings.resources[slot].dirtyFlags = static_cast<RESOURCE_BIND_FLAGS>(bindings.resources[slot].dirtyFlags | RESOURCE_BIND_FLAGS::UNIFORM_BUFFER);
+	ADD_DIRY_FLAGS(bindings.resources[slot].dirtyFlags, RESOURCE_BIND_FLAGS::UNIFORM_BUFFER);
 	bindings.dirty = true;
 }
 
 void Dx12GraphicCommandContext::BindTexture(int slot, Dx12CoreTexture* tex, SHADER_TYPE shaderType)
 {
-	State::ShaderResources& bindings = state.bind[(int)shaderType];
+	State::ShaderSlots& bindings = state.binds[(int)shaderType];
 	bindings.resources[slot].SRV.texture = tex;
-	bindings.resources[slot].dirtyFlags = static_cast<RESOURCE_BIND_FLAGS>(bindings.resources[slot].dirtyFlags & ~RESOURCE_BIND_FLAGS::STRUCTURED_BUFFER_SRV);
-	bindings.resources[slot].dirtyFlags = static_cast<RESOURCE_BIND_FLAGS>(bindings.resources[slot].dirtyFlags | RESOURCE_BIND_FLAGS::TEXTURE_SRV);
+	REMOVE_DIRY_FLAGS(bindings.resources[slot].dirtyFlags, RESOURCE_BIND_FLAGS::STRUCTURED_BUFFER_SRV);
+	ADD_DIRY_FLAGS(bindings.resources[slot].dirtyFlags, RESOURCE_BIND_FLAGS::TEXTURE_SRV);
 	bindings.dirty = true;
 }
 
 void Dx12GraphicCommandContext::BindStructuredBuffer(int slot, Dx12CoreStructuredBuffer* buffer, SHADER_TYPE shaderType)
 {
-	State::ShaderResources& bindings = state.bind[(int)shaderType];
+	State::ShaderSlots& bindings = state.binds[(int)shaderType];
 	bindings.resources[slot].SRV.structuredBuffer = buffer;
-	bindings.resources[slot].dirtyFlags = static_cast<RESOURCE_BIND_FLAGS>(bindings.resources[slot].dirtyFlags & ~RESOURCE_BIND_FLAGS::TEXTURE_SRV);
-	bindings.resources[slot].dirtyFlags = static_cast<RESOURCE_BIND_FLAGS>(bindings.resources[slot].dirtyFlags | RESOURCE_BIND_FLAGS::STRUCTURED_BUFFER_SRV);
+	REMOVE_DIRY_FLAGS(bindings.resources[slot].dirtyFlags, RESOURCE_BIND_FLAGS::TEXTURE_SRV);
+	ADD_DIRY_FLAGS(bindings.resources[slot].dirtyFlags, RESOURCE_BIND_FLAGS::STRUCTURED_BUFFER_SRV);
 	bindings.dirty = true;
 }
 
@@ -557,7 +559,7 @@ void Dx12GraphicCommandContext::resetState()
 	state.shader = nullptr;
 
 	// TODO: GPU reset
-	memset(&state, 0, sizeof(state.bind));
+	memset(&state, 0, sizeof(state.binds));
 }
 
 void Dx12GraphicCommandContext::resetStatistic()
