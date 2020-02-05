@@ -37,9 +37,14 @@
 
 #else
 
+	cbuffer GraphColor : register(b0)
+	{
+		float4 color;
+	};
+
 	float4 main() : SV_Target
 	{
-		return float4(1, 0, 1, 1);
+		return color;
 	}
 
 #endif

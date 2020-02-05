@@ -19,10 +19,22 @@ const auto fontDataPath = GPU_PROFILER_DIR"font//1.fnt";
 const auto fontTexturePath = GPU_PROFILER_LDIR"font//1_0.dds";
 static vec4 graphData[4096];
 
+struct Graph
+{
+	uint32_t graphRingBufferOffset{ 0 };
+	vec4 lastGraphValue;
+	intrusive_ptr<Dx12CoreVertexBuffer> graphVertexBuffer;
+	Dx12UniformBuffer* graphOffsetUniformBuffer;
+	Dx12UniformBuffer* graphColorUniformBuffer;
+	vec4 lastColor;
+};
+
+constexpr int GrpahsCount = 2;
+std::vector<Graph> graphs;
+
 
 struct GpuProfiler::Impl
 {
-	intrusive_ptr<Dx12CoreVertexBuffer> graphVertexBuffer;
 	intrusive_ptr<Dx12CoreShader> fontShader;
 	intrusive_ptr<Dx12CoreShader> graphShader;
 
@@ -32,7 +44,6 @@ struct GpuProfiler::Impl
 
 	Dx12UniformBuffer *viewportUniformBuffer;
 	Dx12UniformBuffer *transformUniformBuffer;
-	Dx12UniformBuffer *graphOffsetUniformBuffer;
 };
 
 struct RenderProfilerRecord
@@ -171,56 +182,71 @@ void GpuProfiler::Render(const RenderContext& ctx)
 	}
 	
 
-	// Graph.
+	// Graphs.
 
 	if (w != lastWidth)
-		recreateGraphBuffer(w);
+		for(int i = 0; i < GrpahsCount; ++i)
+			recreateGraphBuffer(graphs[i], w);
 
 	pso.primitiveTopology = PRIMITIVE_TOPOLOGY::LINE;
 	pso.shader = impl->graphShader.get();
-	pso.vb = impl->graphVertexBuffer.get();
+	pso.vb = graphs[0].graphVertexBuffer.get();
 	context->SetPipelineState(pso);
 
-	context->SetVertexBuffer(impl->graphVertexBuffer.get());
-
 	context->BindUniformBuffer(0, impl->viewportUniformBuffer, SHADER_TYPE::SHADER_VERTEX);
-	context->BindUniformBuffer(1, impl->graphOffsetUniformBuffer, SHADER_TYPE::SHADER_VERTEX);
 
-	vec4 cpuv[2];
-	cpuv[0] = lastGraphValue;
-	cpuv[1] = vec4((float)graphRingBufferOffset, h - ctx.cpu_ * 30, 0, 0);
-
-	impl->graphVertexBuffer->SetData(&cpuv, sizeof(cpuv), graphRingBufferOffset * sizeof(cpuv), nullptr, 0, 0);
-
-	float transform = (float)graphRingBufferOffset;
-	context->UpdateUniformBuffer(impl->graphOffsetUniformBuffer, &transform, 0, 4);
-	if (graphRingBufferOffset > 0)
-		context->Draw(impl->graphVertexBuffer.get(), graphRingBufferOffset * 2);
-
-	transform = float(graphRingBufferOffset + w);
-	context->UpdateUniformBuffer(impl->graphOffsetUniformBuffer, &transform, 0, 4);
-	context->Draw(impl->graphVertexBuffer.get(), (w - graphRingBufferOffset) * 2, graphRingBufferOffset * 2);
-
-	lastGraphValue = cpuv[1];
-	graphRingBufferOffset++;
-	if (graphRingBufferOffset >= w)
+	auto renderGraph = [context, this, w, h](Graph& g, float value, const vec4& color)
 	{
-		lastGraphValue.x = 0;
-		graphRingBufferOffset = 0;
-	}
+		context->SetVertexBuffer(g.graphVertexBuffer.get());
+		
+		context->BindUniformBuffer(1, g.graphOffsetUniformBuffer, SHADER_TYPE::SHADER_VERTEX);
+
+		if (!g.lastColor.Aproximately(color))
+		{
+			context->UpdateUniformBuffer(g.graphColorUniformBuffer, &color, 0, 16);
+			g.lastColor = color;
+		}
+		context->BindUniformBuffer(0, g.graphColorUniformBuffer, SHADER_TYPE::SHADER_FRAGMENT);
+
+		vec4 cpuv[2];
+		cpuv[0] = g.lastGraphValue;
+		cpuv[1] = vec4((float)g.graphRingBufferOffset, h - value, 0, 0);
+
+		g.graphVertexBuffer->SetData(&cpuv, sizeof(cpuv), g.graphRingBufferOffset * sizeof(cpuv), nullptr, 0, 0);
+
+		float transform = (float)g.graphRingBufferOffset;
+		context->UpdateUniformBuffer(g.graphOffsetUniformBuffer, &transform, 0, 4);
+		if (g.graphRingBufferOffset > 0)
+			context->Draw(g.graphVertexBuffer.get(), g.graphRingBufferOffset * 2);
+
+		transform = float(g.graphRingBufferOffset + w);
+		context->UpdateUniformBuffer(g.graphOffsetUniformBuffer, &transform, 0, 4);
+		context->Draw(g.graphVertexBuffer.get(), (w - g.graphRingBufferOffset) * 2, g.graphRingBufferOffset * 2);
+
+		g.lastGraphValue = cpuv[1];
+		g.graphRingBufferOffset++;
+		if (g.graphRingBufferOffset >= w)
+		{
+			g.lastGraphValue.x = 0;
+			g.graphRingBufferOffset = 0;
+		}
+	};
+
+	renderGraph(graphs[0], ctx.cpu_ * 30, vec4(0, 0.5f, 0.5f, 1));
+	renderGraph(graphs[1], ctx.gpu_ * 30, vec4(1, 0, 0.5f, 1));
 
 	lastWidth = w;
 	lastHeight = h;
 }
 
-void GpuProfiler::recreateGraphBuffer(int w)
+void GpuProfiler::recreateGraphBuffer(Graph &g, int w)
 {
 	if (w == lastWidth)
 		return;
 
-	lastGraphValue = {};
-	lastGraphValue.y = (float)w;
-	graphRingBufferOffset = 0;
+	g.lastGraphValue = {};
+	g.lastGraphValue.y = (float)w;
+	g.graphRingBufferOffset = 0;
 
 	// Vertex buffer
 	VertexAttributeDesc attr[1];
@@ -236,10 +262,10 @@ void GpuProfiler::recreateGraphBuffer(int w)
 	for (uint32_t i = 0; i < desc.vertexCount; i++)
 		graphData[i] = vec4(float(i/2), 100, 0, 0);
 
-	if (impl->graphVertexBuffer)
-		impl->graphVertexBuffer = nullptr;
+	if (g.graphVertexBuffer)
+		g.graphVertexBuffer = nullptr;
 
-	GetCoreRender()->CreateVertexBuffer(impl->graphVertexBuffer.getAdressOf(), graphData , &desc, nullptr, nullptr, BUFFER_USAGE::CPU_WRITE);
+	GetCoreRender()->CreateVertexBuffer(g.graphVertexBuffer.getAdressOf(), graphData , &desc, nullptr, nullptr, BUFFER_USAGE::CPU_WRITE);
 }
 
 GpuProfiler::GpuProfiler()
@@ -299,6 +325,7 @@ void GpuProfiler::Init()
 	}
 
 	// Graph
+	graphs.resize(GrpahsCount);
 	{
 		const ConstantBuffersDesc buffersdesc[1] =
 		{
@@ -311,13 +338,16 @@ void GpuProfiler::Init()
 		Dx12GraphicCommandContext* context = GetCoreRender()->GetGraphicCommmandContext();
 		unsigned w, h;
 		GetCoreRender()->GetSurfaceSize(w, h);
-
-		recreateGraphBuffer(w);
 	}
 
 	GetCoreRender()->CreateUniformBuffer(&impl->viewportUniformBuffer, 16);
 	GetCoreRender()->CreateUniformBuffer(&impl->transformUniformBuffer, sizeof(TransformConstantBuffer));
-	GetCoreRender()->CreateUniformBuffer(&impl->graphOffsetUniformBuffer, 16);
+
+	for(int i = 0; i < GrpahsCount; ++i)
+	{
+		GetCoreRender()->CreateUniformBuffer(&graphs[i].graphOffsetUniformBuffer, 16);
+		GetCoreRender()->CreateUniformBuffer(&graphs[i].graphColorUniformBuffer, 16);
+	}
 
 	//
 	// Texture
@@ -343,5 +373,6 @@ void GpuProfiler::Free()
 		if (r.vertexBuffer)
 			r.vertexBuffer->Release();
 	}
+	graphs.clear();
 }
 

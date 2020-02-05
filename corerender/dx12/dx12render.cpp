@@ -175,9 +175,6 @@ void Dx12CoreRenderer::Free()
 			throw std::exception("Resource is not released properly");
 	}
 	resources.clear();
-
-	for (Dx12UniformBuffer* b : uniformBufferVec)
-		delete b;
 	uniformBufferVec.clear();
 
 	delete graphicCommandContext;
@@ -186,7 +183,6 @@ void Dx12CoreRenderer::Free()
 	delete copyCommandContext;
 	copyCommandContext = nullptr;
 
-	uniformBufferVec.clear();
 	psoMap.clear();
 
 	for (auto pools : fastAllocatorPagePools)

@@ -8,6 +8,9 @@ struct RenderContext
 	float gpu_;
 };
 
+
+struct Graph;
+
 class GpuProfiler
 {
 	const int rectSize = 100;
@@ -19,14 +22,11 @@ class GpuProfiler
 	float viewport[4];
 	unsigned lastWidth{ 0 };
 	unsigned lastHeight{ 0 };
-	
-	uint32_t graphRingBufferOffset{0};
-	vec4 lastGraphValue;
 
 	struct Impl;
 	Impl* impl{};
 
-	void recreateGraphBuffer(int width);
+	void recreateGraphBuffer(Graph&, int width);
 
 public:
 	GpuProfiler();

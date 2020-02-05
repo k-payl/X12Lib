@@ -4,7 +4,7 @@
 #include "intrusiveptr.h"
 
 typedef std::map<uint64_t, ComPtr<ID3D12PipelineState>> psomap_t;
-typedef std::vector<Dx12UniformBuffer*> uniformbuffers_t;
+typedef std::vector<std::unique_ptr<Dx12UniformBuffer>> uniformbuffers_t;
 
 class GpuProfiler;
 
