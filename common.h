@@ -52,12 +52,10 @@ struct Dx12UniformBuffer;
 struct Dx12CoreTexture;
 class Input;
 class Console;
-class GpuProfiler;
 
 namespace FastFrameAllocator
 {
 	struct Page;
-	class PagePool;
 	struct Alloc;
 	class Allocator;
 }
@@ -77,6 +75,7 @@ typedef IDXGIFactory4 dxgifactory_t;
 typedef void (*WindowCallback)(HWND, WINDOW_MESSAGE, uint32_t, uint32_t, void*);
 typedef void (*RenderProcedure)();
 typedef void (*InitProcedure)();
+typedef void (*InitRendererProcedure)(void*);
 typedef void (*UpdateProcedure)(float dt);
 typedef void (*FreeProcedure)();
 
@@ -91,8 +90,6 @@ void Release(T*& ptr)
 		ptr = nullptr;
 	}
 }
-
-std::shared_ptr<char[]> loadShader(const char* path);
 
 template<class T>
 class IdGenerator
@@ -214,6 +211,9 @@ inline UINT alignResource(UINT size, UINT alignment)
 {
 	return (size + alignment - 1) & ~(alignment - 1);
 }
+
+std::string ConvertFromUtf16ToUtf8(const std::wstring& wstr);
+std::wstring ConvertFromUtf8ToUtf16(const std::string& str);
 
 struct RuntimeDescriptor
 {

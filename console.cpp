@@ -99,20 +99,6 @@ void Console::Destroy()
 	DestroyWindow(hwnd);
 }
 
-wstring ConvertFromUtf8ToUtf16(const string& str)
-{
-	wstring res;
-	int size = MultiByteToWideChar(CP_UTF8, 0, str.c_str(), -1, 0, 0);
-	if (size > 0)
-	{
-		std::vector<wchar_t> buffer(size);
-		MultiByteToWideChar(CP_UTF8, 0, str.c_str(), -1, &buffer[0], size);
-		res.assign(buffer.begin(), buffer.end() - 1);
-	}
-
-	return res;
-}
-
 void Console::log(const char* str)
 {
 	string _str(str);
@@ -120,9 +106,6 @@ void Console::log(const char* str)
 	wstring wstr = ConvertFromUtf8ToUtf16(_str);
 	SendMessage(hwndEdit0, EM_REPLACESEL, TRUE, reinterpret_cast<LPARAM>(wstr.c_str()));
 }
-
-
-
 
 string to_stringf(int i)
 {

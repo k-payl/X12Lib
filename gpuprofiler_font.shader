@@ -53,7 +53,7 @@ struct VertexShaderOutput
 
 #else
 
-	Texture2D texture_font : register(t0);
+	Texture2D texture_font : register(t1);
 
 	float4 main(VertexShaderOutput IN) : SV_Target
 	{

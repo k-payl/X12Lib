@@ -24,6 +24,7 @@ struct Dx12CoreVertexBuffer : public ICoreVertexBuffer
 	std::vector<D3D12_INPUT_ELEMENT_DESC> inputLayout;
 
 	uint16_t ID() { return id; }
+	const D3D12_INDEX_BUFFER_VIEW* pIndexBufferVew() const { return indexBufferView.SizeInBytes > 0 ? &indexBufferView : nullptr; }
 
 private:
 

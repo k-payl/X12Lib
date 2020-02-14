@@ -3,10 +3,8 @@
 #include "icorerender.h"
 #include "intrusiveptr.h"
 
-typedef std::map<uint64_t, ComPtr<ID3D12PipelineState>> psomap_t;
-typedef std::vector<std::unique_ptr<Dx12UniformBuffer>> uniformbuffers_t;
-
-class GpuProfiler;
+using psomap_t = std::map<uint64_t, ComPtr<ID3D12PipelineState>> ;
+using uniformbuffers_t = std::vector<std::unique_ptr<Dx12UniformBuffer>>;
 
 // Resources associated with window
 struct Dx12WindowSurface
@@ -44,17 +42,19 @@ class Dx12CoreRenderer
 	Dx12GraphicCommandContext* graphicCommandContext;
 	Dx12CopyCommandContext* copyCommandContext;
 
-	std::vector<intrusive_ptr<IResourceUnknown>> resources;					// All resources
-	uniformbuffers_t uniformBufferVec;										// All uniform buffers
-	psomap_t psoMap;														// All Pipeline State Objects. checksum -> PSO
-	std::map<UINT, FastFrameAllocator::PagePool*> fastAllocatorPagePools;	// Page pools for uniform buffers. allocation size -> pool
-	DescriptorHeap::Allocator* descriptorAllocator;							// Descriptors for static long-lived resources
-	ComPtr<ID3D12RootSignature> defaultRootSignature;						// Root signature for shaders without input resources
+	std::vector<intrusive_ptr<IResourceUnknown>> resources;	// All resources
+	uniformbuffers_t uniformBufferVec;						// All uniform buffers
+	psomap_t psoMap;										// All Pipeline State Objects. checksum -> PSO
+	DescriptorHeap::Allocator* descriptorAllocator;			// Descriptors for static long-lived resources
+	ComPtr<ID3D12RootSignature> defaultRootSignature;		// Root signature for shaders without input resources
 	bool Vsync{false};
 	bool tearingSupported;
 	UINT descriptorSizeCBSRV;
 	UINT descriptorSizeRTV;
 	UINT descriptorSizeDSV;
+ 
+	std::vector<FastFrameAllocator::Page*> allocatedPages;
+	std::vector<FastFrameAllocator::Page*> avaliablePages;
 
 	void ReleaseFrame(uint64_t fenceID);
 	static void sReleaseFrameCallback(uint64_t fenceID);
@@ -66,22 +66,21 @@ public:
 	auto Init() -> void;
 	auto Free() -> void;
 
-	inline auto GetDevice() -> device_t* { return device; }
-	inline auto IsTearingSupport() -> bool { return tearingSupported; }
-	inline auto IsVSync() -> bool { return Vsync; }
-	inline auto CBSRV_DescriptorsSize() -> UINT { return descriptorSizeCBSRV; }
-	inline auto RTV_DescriptorsSize() -> UINT { return descriptorSizeRTV; }
-	inline auto DSV_DescriptorsSize() -> UINT { return descriptorSizeDSV; }
-	auto GetFastFrameAllocatorPool(UINT bufferSize)->FastFrameAllocator::PagePool*;
-	auto GetDefaultRootSignature()->ID3D12RootSignature*;
-	auto getPSO(const PipelineState& pso)->ID3D12PipelineState*;
+	auto GetDevice() -> device_t* { return device; }
+	auto GetPSO(const PipelineState& pso)->ID3D12PipelineState*;
 	auto AllocateDescriptor(UINT num = 1)->DescriptorHeap::Alloc;
 	auto ReleaseResource(int& refs, IResourceUnknown* ptr) -> void;
+
+	// Contexts
 	auto GetGraphicCommmandContext() const -> Dx12GraphicCommandContext* { return graphicCommandContext; };
 	auto GetCopyCommandContext() const -> Dx12CopyCommandContext* { return copyCommandContext; }
 
+	// Pages
+	auto GetPage(UINT size = 256) -> FastFrameAllocator::Page*;
+	auto ReleasePage(FastFrameAllocator::Page* page) -> void;
+
 	// Surfaces
-	auto fetchSurface(HWND hwnd)->surface_ptr;
+	auto FetchSurface(HWND hwnd)->surface_ptr;
 	auto RecreateBuffers(HWND hwnd, UINT newWidth, UINT newHeight) -> void;
 	auto MakeCurrent(HWND hwnd) -> surface_ptr;
 	auto GetSurfaceSize(unsigned& w, unsigned& h) -> void { w = currentSurfaceWidth; h = currentSurfaceHeight; }
@@ -93,7 +92,15 @@ public:
 	auto Triangles()->uint64_t;
 	auto DrawCalls()->uint64_t;
 
-	// Resurces creation
+	// Constants
+	auto CBSRV_DescriptorsSize() -> UINT { return descriptorSizeCBSRV; }
+	auto RTV_DescriptorsSize() -> UINT { return descriptorSizeRTV; }
+	auto DSV_DescriptorsSize() -> UINT { return descriptorSizeDSV; }
+	auto IsTearingSupport() -> bool { return tearingSupported; }
+	auto IsVSync() -> bool { return Vsync; }
+	auto GetDefaultRootSignature() -> ID3D12RootSignature*;
+
+	// Resurces
 	bool CreateShader(Dx12CoreShader **out, const char* vertText, const char* fragText,
 							const ConstantBuffersDesc *variabledesc = nullptr, uint32_t varNum = 0);
 	bool CreateVertexBuffer(Dx12CoreVertexBuffer** out, const void* vbData, const VeretxBufferDesc* vbDesc,

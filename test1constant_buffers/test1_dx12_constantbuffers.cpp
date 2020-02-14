@@ -1,5 +1,3 @@
-//#include "pch.h"
-
 #include "common.h"
 #include "core.h"
 #include "dx12render.h"
@@ -8,6 +6,7 @@
 #include "dx12vertexbuffer.h"
 #include "camera.h"
 #include "mainwindow.h"
+#include "filesystem.h"
 #include "test1_shared.h"
 
 using namespace std::chrono;
@@ -39,7 +38,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPWSTR, _In_ int)
 	core->AddInitProcedure(Init);
 
 	res = new Resources();
-	core->Init(INIT_FLAGS::SHOW_CONSOLE);
+	core->Init(nullptr, nullptr, /*INIT_FLAGS::SHOW_CONSOLE |*/ INIT_FLAGS::BUILT_IN_DX12_RENDERER);
 	res->hwnd = *core->GetWindow()->handle();
 
 	core->Start();
@@ -112,7 +111,7 @@ void Render()
 
 	auto frameCPU = duration_cast<microseconds>(high_resolution_clock::now() - start).count() * 1e-3f;
 
-	CORE->RenderProfiler(frameGPU, frameCPU);
+	CORE->RenderProfiler(frameGPU, frameCPU, true);
 
 	context->End();
 	context->Submit();
@@ -143,7 +142,7 @@ void Init()
 
 	renderer->CreateVertexBuffer(res->vertexBuffer.getAdressOf(), vertexData, &desc, indexData, &idxDesc);
 
-	auto text = loadShader("..//mesh.shader");
+	auto text = CORE->GetFS()->LoadFile("mesh.shader");
 
 	const ConstantBuffersDesc buffersdesc[] =
 	{

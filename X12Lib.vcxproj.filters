@@ -55,6 +55,14 @@
     <ClInclude Include="corerender\dx12\dx12texture.h">
       <Filter>x12lib\dx12</Filter>
     </ClInclude>
+    <ClInclude Include="filesystem.h" />
+    <ClInclude Include="dx12gpuprofiler.h" />
+    <ClInclude Include="dx11/dx11gpuprofiler.h">
+      <Filter>_dx11</Filter>
+    </ClInclude>
+    <ClInclude Include="3rdparty\DirectXTex\DDSTextureLoader.h">
+      <Filter>3rdparty\DirectXTex</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="core.cpp" />
@@ -100,6 +108,14 @@
     </ClCompile>
     <ClCompile Include="corerender\dx12\dx12texture.cpp">
       <Filter>x12lib\dx12</Filter>
+    </ClCompile>
+    <ClCompile Include="filesystem.cpp" />
+    <ClCompile Include="dx12gpuprofiler.cpp" />
+    <ClCompile Include="dx11/dx11gpuprofiler.cpp">
+      <Filter>_dx11</Filter>
+    </ClCompile>
+    <ClCompile Include="3rdparty\DirectXTex\DDSTextureLoader.cpp">
+      <Filter>3rdparty\DirectXTex</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

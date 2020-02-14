@@ -1,6 +1,9 @@
 #pragma once
 #include "common.h"
 
+class GpuProfiler;
+class FileSystem;
+
 extern Core* core__;
 #define CORE core__
 
@@ -8,19 +11,26 @@ enum class INIT_FLAGS
 {
 	NONE = 0,
 	SHOW_CONSOLE = 1 << 1,
+	BUILT_IN_DX12_RENDERER = 1 << 2,
 };
-inline bool operator &(INIT_FLAGS a, INIT_FLAGS b)
+inline bool operator&(INIT_FLAGS a, INIT_FLAGS b)
 {
     return (static_cast<int>(a) & static_cast<int>(b));
+}
+
+inline INIT_FLAGS operator|(INIT_FLAGS a, INIT_FLAGS b)
+{
+    return static_cast<INIT_FLAGS>(static_cast<int>(a) | static_cast<int>(b));
 }
 
 class Core
 {
 	MainWindow* window{};
 	Dx12CoreRenderer* renderer{};
-	Input* input;
-	Console* console;
-	GpuProfiler* gpuprofiler;
+	Input* input{};
+	Console* console{};
+	GpuProfiler* gpuprofiler{};
+	FileSystem* fs{};
 
 	Signal<> onRender;
 	Signal<> onInit;
@@ -42,10 +52,10 @@ public:
 	int fps{};
 	int64_t frame{};
 
-	void Init(INIT_FLAGS flags = INIT_FLAGS::NONE);
+	void Init(GpuProfiler* gpuprofiler_, InitRendererProcedure initRenderer, INIT_FLAGS flags = INIT_FLAGS::NONE);
 	void Free();
 	void Start();
-	void RenderProfiler(float gpu_, float cpu_);
+	void RenderProfiler(float gpu_, float cpu_, bool extended);
 
 	void AddRenderProcedure(RenderProcedure fn);
 	void AddInitProcedure(InitProcedure fn);
@@ -55,6 +65,7 @@ public:
 	Dx12CoreRenderer* GetCoreRenderer() const { return renderer; }
 	MainWindow* GetWindow() { return window; }
 	Input* GetInput() { return input; }
+	FileSystem* GetFS() { return fs; }
 
 	void Log(const char* str);
 	void LogProfiler(const char* key, const char* value);

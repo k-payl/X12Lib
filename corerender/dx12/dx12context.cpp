@@ -44,7 +44,7 @@ void Dx12GraphicCommandContext::SetPipelineState(const PipelineState& pso)
 	Dx12CoreShader* dx12Shader = static_cast<Dx12CoreShader*>(pso.shader);
 	Dx12CoreVertexBuffer* dx12vb = static_cast<Dx12CoreVertexBuffer*>(pso.vb);
 
-	auto* state = GetCoreRender()->getPSO(pso);
+	auto* state = GetCoreRender()->GetPSO(pso);
 
 	resetState();
 
@@ -80,7 +80,7 @@ void Dx12GraphicCommandContext::SetVertexBuffer(Dx12CoreVertexBuffer* vb)// TODO
 
 	cmdList->d3dCmdList->IASetPrimitiveTopology(d3dtopology);
 	cmdList->d3dCmdList->IASetVertexBuffers(0, 1, &vb->vertexBufferView);
-	cmdList->d3dCmdList->IASetIndexBuffer(&vb->indexBufferView);
+	cmdList->d3dCmdList->IASetIndexBuffer(vb->pIndexBufferVew());
 }
 
 void Dx12GraphicCommandContext::SetViewport(unsigned width, unsigned heigth)
@@ -359,7 +359,7 @@ void Dx12GraphicCommandContext::CommandList::ReleaseTrakedResources()
 
 void Dx12GraphicCommandContext::CommandList::CompleteGPUFrame(uint64_t nextFenceID)
 {
-	fastAllocator->FreeMemory();
+	fastAllocator->Reset();
 
 	ReleaseTrakedResources();
 
@@ -440,8 +440,7 @@ void Dx12GraphicCommandContext::CommandList::Init(Dx12GraphicCommandContext* par
 	gpuDescriptorHeapStart = gpuDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
 	gpuDescriptorHeapStartGPU = gpuDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
 
-	FastFrameAllocator::PagePool * pool = GetCoreRender()->GetFastFrameAllocatorPool(256); // TODO
-	fastAllocator = new FastFrameAllocator::Allocator(pool);
+	fastAllocator = new FastFrameAllocator::Allocator;
 }
 
 void Dx12GraphicCommandContext::CommandList::Free()

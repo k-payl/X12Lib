@@ -4,7 +4,8 @@
 #include "input.h"
 #include "dx12render.h"
 #include "console.h"
-#include "gpuprofiler.h"
+#include "filesystem.h"
+#include "dx12gpuprofiler.h"
 #include <chrono>
 #include <string>
 
@@ -27,7 +28,10 @@ void Core::mainLoop()
 void Core::messageCallback(HWND hwnd, WINDOW_MESSAGE type, uint32_t param1, uint32_t param2, void* pData)
 {
 	if (type == WINDOW_MESSAGE::SIZE)
-		renderer->RecreateBuffers(hwnd, param1, param2);
+	{
+		if (renderer)
+			renderer->RecreateBuffers(hwnd, param1, param2);
+	}
 	else if (type == WINDOW_MESSAGE::KEY_UP)
 	{
 		KEYBOARD_KEY_CODES key = static_cast<KEYBOARD_KEY_CODES>(param1);
@@ -51,9 +55,11 @@ Core::Core()
 	core__ = this;
 }
 
-void Core::Init(INIT_FLAGS flags)
+void Core::Init(GpuProfiler* gpuprofiler_, InitRendererProcedure initRenderer, INIT_FLAGS flags)
 {
 	SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+
+	fs = new FileSystem("..//");
 
 	if (flags & INIT_FLAGS::SHOW_CONSOLE)
 	{
@@ -69,35 +75,62 @@ void Core::Init(INIT_FLAGS flags)
 	input = new Input;
 	input->Init();
 
-	renderer = new Dx12CoreRenderer;
-	renderer->Init();
+	if (flags & INIT_FLAGS::BUILT_IN_DX12_RENDERER)
+	{
+		renderer = new Dx12CoreRenderer;
+		renderer->Init();
 
-	gpuprofiler = new GpuProfiler;
-	gpuprofiler->Init();
-	
+		assert(gpuprofiler == nullptr);
+		gpuprofiler = new Dx12GpuProfiler;
+	}
+
+	if (initRenderer)
+		initRenderer(window->handle());
+
+	if (gpuprofiler_)
+		gpuprofiler = gpuprofiler_;
+
+	if (gpuprofiler)
+		gpuprofiler->Init();
+
 	onInit.Invoke();
 }
 
 void Core::Free()
 {
-	gpuprofiler->Free();
-	delete gpuprofiler;
-
 	onFree.Invoke();
 
-	renderer->Free();
-	delete renderer;
+	if (gpuprofiler)
+	{
+		gpuprofiler->Free();
+		delete gpuprofiler;
+		gpuprofiler = nullptr;
+	}
+
+	if (renderer)
+	{
+		renderer->Free();
+		delete renderer;
+		renderer = nullptr;
+	}
 
 	if (console)
 	{
 		console->Destroy();
 		delete console;
+		console = nullptr;
 	}
+
 	window->Destroy();
 	delete window;
+	window = nullptr;
 
 	input->Free();
 	delete input;
+	input = nullptr;
+
+	delete fs;
+	fs = nullptr;
 }
 
 void Core::setWindowCaption(int is_paused, int fps)
@@ -145,11 +178,21 @@ void Core::Start()
 	window->StartMainLoop();
 }
 
-void Core::RenderProfiler(float gpu_, float cpu_)
+void Core::RenderProfiler(float gpu_, float cpu_, bool extended)
 {
-	RenderContext ctx;
+	RenderPerfomanceData ctx;
 	ctx.cpu_ = cpu_;
 	ctx.gpu_ = gpu_;
+
+	ctx.extended = extended;
+
+	if (extended)
+	{
+		ctx.uniformUpdates = GetCoreRender()->UniformBufferUpdates();
+		ctx.stateChanges = GetCoreRender()->StateChanges();
+		ctx.triangles = GetCoreRender()->Triangles();
+		ctx.draws = GetCoreRender()->DrawCalls();
+	}
 
 	gpuprofiler->Render(ctx);
 }

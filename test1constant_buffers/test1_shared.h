@@ -79,18 +79,3 @@ static WORD indexData[idxCount] =
 
 #endif
 
-
-// stat
-size_t curFrame = 0;
-size_t Frames = 10000;
-size_t StartFrame = 1000;
-size_t SkipFrames = 1;
-
-struct Stat
-{
-	uint64_t f;
-	float GPU;
-	float CPU;
-};
-
-static std::vector<Stat> data;

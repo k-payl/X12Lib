@@ -3,18 +3,31 @@
 #include <fstream>
 #include <filesystem>
 
+using std::string;
 namespace fs = std::filesystem;
 
-std::shared_ptr<char[]> loadShader(const char* path)
+string ConvertFromUtf16ToUtf8(const std::wstring& wstr)
 {
-	std::fstream file(path, std::ofstream::in);
+	if (wstr.empty())
+		return string();
 
-	size_t size = (size_t)fs::file_size(path);
-	std::shared_ptr<char[]> ptr(new char[size + 1]);
+	int size_needed = WideCharToMultiByte(CP_UTF8, 0, &wstr[0], (int)wstr.size(), NULL, 0, NULL, NULL);
+	string strTo(size_needed, 0);
 
-	file.read((char*)ptr.get(), size);
-	ptr[size] = '\0';
+	WideCharToMultiByte(CP_UTF8, 0, &wstr[0], (int)wstr.size(), &strTo[0], size_needed, NULL, NULL);
 
-	file.close();
-	return ptr;
+	return strTo;
+}
+
+std::wstring ConvertFromUtf8ToUtf16(const string& str)
+{
+	std::wstring res;
+	int size = MultiByteToWideChar(CP_UTF8, 0, str.c_str(), -1, 0, 0);
+	if (size > 0)
+	{
+		std::vector<wchar_t> buffer(size);
+		MultiByteToWideChar(CP_UTF8, 0, str.c_str(), -1, &buffer[0], size);
+		res.assign(buffer.begin(), buffer.end() - 1);
+	}
+	return res;
 }

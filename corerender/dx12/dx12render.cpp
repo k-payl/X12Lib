@@ -35,19 +35,6 @@ Dx12CoreRenderer::~Dx12CoreRenderer()
 	_coreRender = nullptr;
 }
 
-FastFrameAllocator::PagePool* Dx12CoreRenderer::GetFastFrameAllocatorPool(UINT bufferSize)
-{
-	
-	if (auto it = fastAllocatorPagePools.find(bufferSize); it != fastAllocatorPagePools.end())
-		return it->second;
-
-	FastFrameAllocator::PagePool* pool = new FastFrameAllocator::PagePool(bufferSize);
-
-	fastAllocatorPagePools[bufferSize] = pool;
-
-	return pool;
-}
-
 static bool CheckTearingSupport()
 {
 	BOOL allowTearing = FALSE;
@@ -163,6 +150,10 @@ void Dx12CoreRenderer::Init()
 
 void Dx12CoreRenderer::Free()
 {
+	for(FastFrameAllocator::Page *p : avaliablePages)
+		delete p;
+	avaliablePages.clear();
+
 	PresentSurfaces();
 	surfaces.clear();
 
@@ -185,13 +176,6 @@ void Dx12CoreRenderer::Free()
 
 	psoMap.clear();
 
-	for (auto pools : fastAllocatorPagePools)
-	{
-		FastFrameAllocator::PagePool* pool = pools.second;
-		delete pool;
-	}
-	fastAllocatorPagePools.clear();
-
 	delete descriptorAllocator;
 	descriptorAllocator = nullptr;
 
@@ -212,7 +196,65 @@ void Dx12CoreRenderer::Free()
 	Release(device);
 }
 
-auto Dx12CoreRenderer::fetchSurface(HWND hwnd) -> surface_ptr
+FastFrameAllocator::Page* Dx12CoreRenderer::GetPage(UINT size)
+{
+	using namespace FastFrameAllocator;
+
+	if (!avaliablePages.empty())
+	{
+		auto ret = avaliablePages.back();
+		avaliablePages.pop_back();
+		return ret;
+	}
+
+	Page* page = new Page();
+	allocatedPages.push_back(page);
+
+	UINT alignedSize = alignConstnatBufferSize(size);
+	UINT pageSize = alignedSize * descriptorsInPage;
+
+	// Upload heap for dynamic resources
+	// For upload heap no need to put a fence to make sure the data is uploaded before you make a draw call
+	ThrowIfFailed(CR_GetD3DDevice()->CreateCommittedResource(
+		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+		D3D12_HEAP_FLAG_NONE,
+		&CD3DX12_RESOURCE_DESC::Buffer(pageSize),
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		nullptr,
+		IID_PPV_ARGS(&page->d3d12resource)));
+
+	// It is ok be mappped as long as you use buffer
+	// because d3d11 driver does not version memory (d3d11 did) and cpu-pointer is always valid
+	page->d3d12resource->Map(0, nullptr, &page->ptr);
+
+	page->gpuPtr = page->d3d12resource->GetGPUVirtualAddress();
+
+	// Prepare descriptors for page
+	page->descriptors = GetCoreRender()->AllocateDescriptor(descriptorsInPage);
+	SIZE_T ptrStart = page->descriptors.descriptor.ptr;
+
+	D3D12_CONSTANT_BUFFER_VIEW_DESC desc;
+	desc.SizeInBytes = alignConstnatBufferSize(size);
+
+	auto descriptorIncrementSize = page->descriptors.descriptorIncrementSize;
+
+	for (UINT i = 0; i < descriptorsInPage; ++i)
+	{
+		desc.BufferLocation = page->gpuPtr + i * 256;
+		D3D12_CPU_DESCRIPTOR_HANDLE handle{ ptrStart + i * descriptorIncrementSize };
+
+		device->CreateConstantBufferView(&desc, handle);
+	}
+
+	return page;
+}
+
+void Dx12CoreRenderer::ReleasePage(FastFrameAllocator::Page* page)
+{
+	avaliablePages.emplace_back(page);
+}
+
+auto Dx12CoreRenderer::FetchSurface(HWND hwnd) -> surface_ptr
 {
 	if (auto it = surfaces.find(hwnd); it == surfaces.end())
 	{
@@ -231,7 +273,7 @@ void Dx12CoreRenderer::RecreateBuffers(HWND hwnd, UINT newWidth, UINT newHeight)
 {
 	graphicCommandContext->WaitGPUAll();
 
-	surface_ptr surf = fetchSurface(hwnd);
+	surface_ptr surf = FetchSurface(hwnd);
 	surf->ResizeBuffers(newWidth, newHeight);
 
 	// after recreating swapchain's buffers frameIndex should be 0??
@@ -240,7 +282,7 @@ void Dx12CoreRenderer::RecreateBuffers(HWND hwnd, UINT newWidth, UINT newHeight)
 
 auto Dx12CoreRenderer::MakeCurrent(HWND hwnd) -> surface_ptr
 {
-	surface_ptr surf = fetchSurface(hwnd);
+	surface_ptr surf = FetchSurface(hwnd);
 
 	currentSurface = surf;
 	currentSurfaceWidth = surf->width;
@@ -394,7 +436,7 @@ uint64_t CalculateChecksum(const PipelineState& pso)
 	return checksum;
 }
 
-ID3D12PipelineState* Dx12CoreRenderer::getPSO(const PipelineState& pso)
+ID3D12PipelineState* Dx12CoreRenderer::GetPSO(const PipelineState& pso)
 {
 	uint64_t checksum = CalculateChecksum(pso);
 

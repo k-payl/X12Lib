@@ -3,7 +3,9 @@
 #include "camera.h"
 #include "dx11.h"
 #include "mainwindow.h"
+#include "filesystem.h"
 #include "test1_shared.h"
+#include "dx11gpuprofiler.h"
 #include <memory>
 
 using namespace std::chrono;
@@ -11,21 +13,20 @@ using namespace std::chrono;
 static ID3D11Device* device;
 static ID3D11DeviceContext* context;
 static IDXGISwapChain* swapChain;
-static ID3D11RenderTargetView *renderTargetView;
-static ID3D11Texture2D* swapChainTexture;
-static ID3D11DepthStencilView* dsv;
-static ID3D11Texture2D* depthTex;
 
-static UINT width, height;
 static unsigned queryFrame = 0;
 static const unsigned QueryFrames = 4;
 
 static steady_clock::time_point start;
 
+void Resize(HWND hwnd, WINDOW_MESSAGE type, uint32_t param1, uint32_t param2, void* data);
+void Init();
+void Render();
+
 
 struct Resources
 {
-	std::unique_ptr<Camera> cam;
+	std::unique_ptr<Camera> cam = std::make_unique<Camera>();;
 
 	ComPtr<ID3D11PixelShader> pixelShader;
 	ComPtr<ID3D11VertexShader> vertexShader;
@@ -45,38 +46,30 @@ struct Resources
 	ComPtr<ID3D11Query> beginQuery[QueryFrames];
 	ComPtr<ID3D11Query> endQuery[QueryFrames];
 
-	Resources()
-	{
-		cam = std::make_unique<Camera>();
-	}
-
 } *res;
-
-void Resize(HWND hwnd, WINDOW_MESSAGE type, uint32_t param1, uint32_t param2, void* data);
-void Init();
-void Render();
-void CreateBuffers(UINT w, UINT h);
-
 
 int APIENTRY wWinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPWSTR, _In_ int)
 {
-	Core* core = new Core();
+	Dx11GpuProfiler* gpuprofiler = new Dx11GpuProfiler;
+
+	Core* core = new Core{};
 	core->AddRenderProcedure(Render);
 
-	res = new Resources;
-	core->Init(INIT_FLAGS::SHOW_CONSOLE);
+	res = new Resources{};
+	core->Init(gpuprofiler, &dx11::InitDX11, INIT_FLAGS::NONE/*INIT_FLAGS::SHOW_CONSOLE*/);
 
-	HWND hwnd = *core->GetWindow()->handle();
-	initDX11(&hwnd, device, context, swapChain);
+	device = dx11::GetDx11Device();
+	context = dx11::GetDx11Context();
+	swapChain = dx11::GetDx11Swapchain();
 
-	RECT r;
-	GetClientRect(hwnd, &r);
-	UINT w = r.right - r.left;
-	UINT h = r.bottom - r.top;
-	CreateBuffers(w, h);
+	MainWindow* window = core->GetWindow();
 
-	core->GetWindow()->AddMessageCallback(Resize);
-	core->GetWindow()->SetCaption(L"Test DX11");
+	int w, h;
+	window->GetClientSize(w, h);
+	window->AddMessageCallback(Resize);
+	window->SetCaption(L"Test DX11");
+
+	dx11::_Resize(w, h);
 
 	Init();
 
@@ -84,12 +77,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPWSTR, _In_ int)
 
 	delete res;
 
-	device->Release();
-	context->Release();
-	swapChain->Release();
-	renderTargetView->Release();
-	dsv->Release();
-	depthTex->Release();
+	dx11::FreeDX11();
 
 	core->Free();
 	delete core;
@@ -104,23 +92,24 @@ void Render()
 	start = high_resolution_clock::now();
 
 	vec4 bgColor(0, 0, 0, 1);
-	context->ClearRenderTargetView(renderTargetView, &bgColor.x);
+	context->ClearRenderTargetView(dx11::GetDx11RTV(), &bgColor.x);
 
 	D3D11_VIEWPORT vp;
-	vp.Width = (float)width;
-	vp.Height = (float)height;
+	vp.Width = (float)dx11::GetWidth();
+	vp.Height = (float)dx11::GetHeight();
+	float aspect = float(vp.Width) / vp.Height;
 	vp.MinDepth = 0.0f;
 	vp.MaxDepth = 1.0f;
 	vp.TopLeftX = 0;
 	vp.TopLeftY = 0;
 	context->RSSetViewports(1, &vp);
 
-	context->ClearDepthStencilView(dsv, D3D11_CLEAR_DEPTH, 1.0f, 0);
+	context->ClearDepthStencilView(dx11::GetDx11DSV(), D3D11_CLEAR_DEPTH, 1.0f, 0);
 
 	context->OMSetDepthStencilState(res->depthState.Get(), 0);
 
-	ID3D11RenderTargetView *rtvs[1] = { renderTargetView };
-	context->OMSetRenderTargets(1, rtvs, dsv);
+	ID3D11RenderTargetView *rtvs[1] = { dx11::GetDx11RTV() };
+	context->OMSetRenderTargets(1, rtvs, dx11::GetDx11DSV());
 
 	context->VSSetShader(res->vertexShader.Get(), nullptr, 0);
 	context->PSSetShader(res->pixelShader.Get(), nullptr, 0);
@@ -142,7 +131,7 @@ void Render()
 	res->cam->GetViewMat(V);
 
 	mat4 P;
-	res->cam->GetPerspectiveMat(P, static_cast<float>(width) / height);
+	res->cam->GetPerspectiveMat(P, aspect);
 
 	mvpcb.MVP = P * V;
 
@@ -193,77 +182,23 @@ void Render()
 	auto micrs = duration_cast<microseconds>(duration).count();
 	float frameCPU = micrs * 1e-3f;
 
-#ifdef USE_PROFILER_REALTIME
-	static float accum;
-	if (accum > UPD_INTERVAL)
-	{
-		accum = 0;
-		CORE->LogProfiler("Render GPU (in ms)", frameGPU);
-		CORE->LogProfiler("Render CPU (in ms)", frameCPU);
-		CORE->LogProfiler("Frame CPU (in ms)", CORE->dt * 1e3f);
-		CORE->LogProfiler("FPS", CORE->fps);
-	}
-	accum += CORE->dt;
-#endif
-
-#ifdef USE_PROFILE_TO_CSV
-	// stat
-	if (CORE->frame > StartFrame && CORE->frame % SkipFrames == 0 && curFrame < Frames)
-	{
-		data[curFrame].f = CORE->frame;
-		data[curFrame].CPU = frameCPU;
-		data[curFrame].GPU = frameGPU;
-		curFrame++;
-	}
-	if (curFrame == Frames)
-	{
-		CORE->Log("Statistic compltetd");
-		{
-			std::ofstream file("dx11.csv", std::ios::out);
-			for (size_t i = 0; i < Frames; ++i)
-			{
-				file << data[i].f << ", " << data[i].CPU << ", " << data[i].GPU << "\n";
-			}
-			file.close();
-
-			std::sort(data.begin(), data.end(), [](const Stat& l, const Stat& r) -> int
-			{
-				return l.CPU < r.CPU;
-			});
-
-			char buf[50];
-			sprintf_s(buf, "Median CPU: %f", data[Frames / 2].CPU);
-			CORE->Log(buf);
-
-			std::sort(data.begin(), data.end(), [](const Stat& l, const Stat& r) -> int
-			{
-				return l.GPU < r.GPU;
-			});
-
-			sprintf_s(buf, "Median GPU: %f", data[Frames / 2].GPU);
-			CORE->Log(buf);
-
-		}
-		curFrame = Frames + 1;
-	}
-#endif
+	CORE->RenderProfiler(frameGPU, frameCPU, false);
 
 	swapChain->Present(0, 0);
 }
 
-
 void Init()
 {
-	auto text = loadShader("..//mesh.shader");
+	auto text = CORE->GetFS()->LoadFile("mesh.shader");
 
-	CreateVertexShader(device, text, res->vertexShader);
-	CreatePixelShader(device, text, res->pixelShader);
+	dx11::CreateVertexShader(text, res->vertexShader);
+	dx11::CreatePixelShader(text, res->pixelShader);
 
-	CreateVertexBuffer(device, vertexData, indexData, veretxCount, idxCount, res->vb, res->ib, res->inputLayout, res->stride);
+	dx11::CreateVertexBuffer(vertexData, indexData, veretxCount, idxCount, res->vb, res->ib, res->inputLayout, res->stride, false, true);
 	res->vertex = veretxCount;
 
-	res->MVPcb = CreateConstanBuffer(device, sizeof(MVPcb));
-	res->colorCB = CreateConstanBuffer(device, sizeof(ColorCB));
+	res->MVPcb = dx11::CreateConstanBuffer(sizeof(MVPcb));
+	res->colorCB = dx11::CreateConstanBuffer(sizeof(ColorCB));
 
 	D3D11_DEPTH_STENCIL_DESC depthStencilDesc{};
 	depthStencilDesc.DepthEnable = TRUE;
@@ -273,75 +208,17 @@ void Init()
 
 	for(int i = 0; i < QueryFrames; ++i)
 	{
-		res->disjontQuery[i] = CreateQuery(device, D3D11_QUERY_TIMESTAMP_DISJOINT);
-		res->beginQuery[i] = CreateQuery(device, D3D11_QUERY_TIMESTAMP);
-		res->endQuery[i] = CreateQuery(device, D3D11_QUERY_TIMESTAMP);
+		res->disjontQuery[i] = dx11::CreateQuery(D3D11_QUERY_TIMESTAMP_DISJOINT);
+		res->beginQuery[i] = dx11::CreateQuery(D3D11_QUERY_TIMESTAMP);
+		res->endQuery[i] = dx11::CreateQuery(D3D11_QUERY_TIMESTAMP);
 	}
-
-#ifdef USE_PROFILE_TO_CSV
-	data.resize(Frames);
-#endif
-}
-
-void _Resize();
-
-void CreateBuffers(UINT w, UINT h)
-{
-	width = w;
-	height = h;
-
-	_Resize();
 }
 
 void Resize(HWND hwnd, WINDOW_MESSAGE type, uint32_t param1, uint32_t param2, void* pData)
 {
 	if (type != WINDOW_MESSAGE::SIZE)
 		return;
-
-	width = param1;
-	height = param2;
 	
-	_Resize();
+	dx11::_Resize(param1, param2);
 }
 
-void _Resize()
-{
-	if (renderTargetView)
-		renderTargetView->Release();
-
-	ThrowIfFailed(swapChain->ResizeBuffers(0, width, height, DXGI_FORMAT_UNKNOWN, 0));
-
-	ID3D11Texture2D* pBuffer;
-	ThrowIfFailed(swapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)& pBuffer));
-
-	ThrowIfFailed(device->CreateRenderTargetView(pBuffer, NULL, &renderTargetView));
-	pBuffer->Release();
-
-	if (depthTex)
-		depthTex->Release();
-
-	// Depth resource
-	D3D11_TEXTURE2D_DESC descDepth{};
-	descDepth.Width = width;
-	descDepth.Height = height;
-	descDepth.MipLevels = 1;
-	descDepth.ArraySize = 1;
-	descDepth.Format = DXGI_FORMAT_R32_TYPELESS;
-	descDepth.SampleDesc.Count = 1;
-	descDepth.SampleDesc.Quality = 0;
-	descDepth.Usage = D3D11_USAGE_DEFAULT;
-	descDepth.BindFlags = D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE;
-	descDepth.CPUAccessFlags = 0;
-	descDepth.MiscFlags = 0;
-	ThrowIfFailed(device->CreateTexture2D(&descDepth, nullptr, &depthTex));
-
-	if (dsv)
-		dsv->Release();
-
-	// Depth DSV
-	D3D11_DEPTH_STENCIL_VIEW_DESC descDSV{};
-	descDSV.Format = DXGI_FORMAT_D32_FLOAT;
-	descDSV.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
-	descDSV.Texture2D.MipSlice = 0;
-	ThrowIfFailed(device->CreateDepthStencilView(depthTex, &descDSV, &dsv));
-}
