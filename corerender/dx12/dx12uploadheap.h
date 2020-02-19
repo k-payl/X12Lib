@@ -2,7 +2,7 @@
 #include "common.h"
 #include "dx12descriptorheap.h"
 
-namespace FastFrameAllocator
+namespace x12::fastdescriptorallocator
 {
 	struct Page;
 
@@ -31,7 +31,7 @@ namespace FastFrameAllocator
 		Microsoft::WRL::ComPtr<ID3D12Resource> d3d12resource;
 		void* ptr{};
 		D3D12_GPU_VIRTUAL_ADDRESS gpuPtr;
-		DescriptorHeap::Alloc descriptors;
+		x12::descriptorheap::Alloc descriptors;
 
 		Page() = default;
 		~Page();

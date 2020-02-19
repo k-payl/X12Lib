@@ -5,7 +5,7 @@
 #include "dx12vertexbuffer.h"
 #include "dx12shader.h"
 #include "dx12texture.h"
-#include "dx12structuredbuffer.h"
+#include "dx12buffer.h"
 #include "dx12uniformbuffer.h"
 #include "dx12context.h"
 #include "filesystem.h"

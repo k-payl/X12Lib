@@ -2,7 +2,7 @@
 #include "dx12descriptorheap.h"
 #include "dx12render.h"
 
-using namespace DescriptorHeap;
+using namespace x12::descriptorheap;
 
 Allocator::Allocator(D3D12_DESCRIPTOR_HEAP_TYPE type, std::function<uint64_t()> frameFn_)
 	: heapType(type)

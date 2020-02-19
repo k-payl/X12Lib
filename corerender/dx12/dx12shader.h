@@ -2,8 +2,7 @@
 #include "common.h"
 #include "icorerender.h"
 
-
-struct Dx12CoreShader : public ICoreShader
+struct Dx12CoreShader final : public ICoreShader
 {
 	void Init(const char* vertText, const char* fragText, const ConstantBuffersDesc* variabledesc, uint32_t varNum);
 	~Dx12CoreShader() override = default;
@@ -41,15 +40,9 @@ struct Dx12CoreShader : public ICoreShader
 
 	uint16_t ID() { return id; }
 
-	inline void AddRef() override { refs++; }
-	inline int GetRefs() override { return refs; }
-	void Release() override;
-
 private:
 
 	bool hasResources{false};
-
-	int refs{};
 
 	static IdGenerator<uint16_t> idGen;
 	uint16_t id;

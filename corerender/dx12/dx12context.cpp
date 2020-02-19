@@ -4,7 +4,7 @@
 #include "dx12shader.h"
 #include "dx12uniformbuffer.h"
 #include "dx12vertexbuffer.h"
-#include "dx12structuredbuffer.h"
+#include "dx12buffer.h"
 #include "dx12texture.h"
 #include <chrono>
 
@@ -55,13 +55,13 @@ void Dx12GraphicCommandContext::SetPipelineState(const PipelineState& pso)
 	this->state.psoChecksum = checksum;
 	this->state.primitiveTopology = pso.primitiveTopology;
 
-	cmdList->d3dCmdList->SetPipelineState(state);
+	d3dCmdList->SetPipelineState(state);
 	++this->statistic.stateChanges;
 
 	if (!dx12Shader->HasResources())
-		cmdList->d3dCmdList->SetGraphicsRootSignature(GetCoreRender()->GetDefaultRootSignature());
+		d3dCmdList->SetGraphicsRootSignature(GetCoreRender()->GetDefaultRootSignature());
 	else
-		cmdList->d3dCmdList->SetGraphicsRootSignature(this->state.shader->resourcesRootSignature.Get());
+		d3dCmdList->SetGraphicsRootSignature(this->state.shader->resourcesRootSignature.Get());
 }
 
 void Dx12GraphicCommandContext::SetVertexBuffer(Dx12CoreVertexBuffer* vb)// TODO add vb to tracked resources
@@ -78,21 +78,27 @@ void Dx12GraphicCommandContext::SetVertexBuffer(Dx12CoreVertexBuffer* vb)// TODO
 		default: throw new std::exception("Not impl");
 	}
 
-	cmdList->d3dCmdList->IASetPrimitiveTopology(d3dtopology);
-	cmdList->d3dCmdList->IASetVertexBuffers(0, 1, &vb->vertexBufferView);
-	cmdList->d3dCmdList->IASetIndexBuffer(vb->pIndexBufferVew());
+	UINT numBarriers;
+	D3D12_RESOURCE_BARRIER barriers[2];
+
+	if (vb->GetReadBarrier(&numBarriers, barriers))
+		d3dCmdList->ResourceBarrier(numBarriers, barriers);
+
+	d3dCmdList->IASetPrimitiveTopology(d3dtopology);
+	d3dCmdList->IASetVertexBuffers(0, 1, &vb->vertexBufferView);
+	d3dCmdList->IASetIndexBuffer(vb->pIndexBufferVew());
 }
 
 void Dx12GraphicCommandContext::SetViewport(unsigned width, unsigned heigth)
 {
 	CD3DX12_VIEWPORT viewport(0.0f, 0.0f, (float)width, (float)heigth);
-	cmdList->d3dCmdList->RSSetViewports(1, &viewport);
+	d3dCmdList->RSSetViewports(1, &viewport);
 }
 
 void Dx12GraphicCommandContext::SetScissor(unsigned x, unsigned y, unsigned width, unsigned heigth)
 {
 	CD3DX12_RECT rect(x, y, width, heigth);
-	cmdList->d3dCmdList->RSSetScissorRects(1, &rect);
+	d3dCmdList->RSSetScissorRects(1, &rect);
 }
 
 void Dx12GraphicCommandContext::bindResources()
@@ -131,7 +137,7 @@ void Dx12GraphicCommandContext::bindResources()
 					auto alloc = cmdList->fastAllocator->Allocate();
 					memcpy(alloc.ptr, buffer->cache, buffer->dataSize);
 
-					cmdList->d3dCmdList->SetGraphicsRootConstantBufferView(rootIdx, alloc.gpuPtr);
+					d3dCmdList->SetGraphicsRootConstantBufferView(rootIdx, alloc.gpuPtr);
 
 					shaderResources.resources[slot].dirtyFlags = static_cast<RESOURCE_BIND_FLAGS>(shaderResources.resources[slot].dirtyFlags & ~RESOURCE_BIND_FLAGS::UNIFORM_BUFFER);
 					buffer->dirty = false;
@@ -217,7 +223,7 @@ void Dx12GraphicCommandContext::bindResources()
 					{
 						D3D12_CPU_DESCRIPTOR_HANDLE cpuHandleGPUVisible{ cmdList->gpuDescriptorHeapStart.ptr + (tableParamIdx + cmdList->gpuDescriptorsOffset) * descriptorSizeCBSRV };
 
-						Dx12CoreStructuredBuffer* buffer = shaderResources.resources[slot].SRV.structuredBuffer;
+						Dx12CoreBuffer* buffer = shaderResources.resources[slot].SRV.structuredBuffer;
 
 						if (buffer == nullptr)
 							throw std::exception("Resource is not set");
@@ -237,7 +243,7 @@ void Dx12GraphicCommandContext::bindResources()
 			}
 
 			cmdList->gpuDescriptorsOffset += rootParam.tableResourcesNum;
-			cmdList->d3dCmdList->SetGraphicsRootDescriptorTable((UINT)rootIdx, gpuHadle);
+			d3dCmdList->SetGraphicsRootDescriptorTable((UINT)rootIdx, gpuHadle);
 		}
 	}
 }
@@ -251,12 +257,12 @@ void Dx12GraphicCommandContext::Draw(Dx12CoreVertexBuffer* vb, uint32_t vertexCo
 
 	if (vb->indexBuffer)
 	{
-		cmdList->d3dCmdList->DrawIndexedInstanced(vertexCount > 0 ? vertexCount : vb->indexCount, 1, vertexOffset, 0, 0);
+		d3dCmdList->DrawIndexedInstanced(vertexCount > 0 ? vertexCount : vb->indexCount, 1, vertexOffset, 0, 0);
 		statistic.triangles += vb->indexCount / 3;
 	}
 	else
 	{
-		cmdList->d3dCmdList->DrawInstanced(vertexCount > 0 ? vertexCount : vb->vertexCount, 1, vertexOffset, 0);
+		d3dCmdList->DrawInstanced(vertexCount > 0 ? vertexCount : vb->vertexCount, 1, vertexOffset, 0);
 		statistic.triangles += vb->vertexCount / 3;
 	}
 
@@ -280,7 +286,7 @@ void Dx12GraphicCommandContext::BindTexture(int slot, Dx12CoreTexture* tex, SHAD
 	bindings.dirty = true;
 }
 
-void Dx12GraphicCommandContext::BindStructuredBuffer(int slot, Dx12CoreStructuredBuffer* buffer, SHADER_TYPE shaderType)
+void Dx12GraphicCommandContext::BindStructuredBuffer(int slot, Dx12CoreBuffer* buffer, SHADER_TYPE shaderType)
 {
 	State::ShaderSlots& bindings = state.binds[(int)shaderType];
 	bindings.resources[slot].SRV.structuredBuffer = buffer;
@@ -299,13 +305,13 @@ void Dx12GraphicCommandContext::UpdateUniformBuffer(Dx12UniformBuffer* buffer, c
 void Dx12GraphicCommandContext::TimerBegin(uint32_t timerID)
 {
 	assert(timerID < maxNumTimers && "Timer ID out of range");
-	cmdList->d3dCmdList->EndQuery(queryHeap, D3D12_QUERY_TYPE_TIMESTAMP, timerID * 2);
+	d3dCmdList->EndQuery(queryHeap, D3D12_QUERY_TYPE_TIMESTAMP, timerID * 2);
 }
 
 void Dx12GraphicCommandContext::TimerEnd(uint32_t timerID)
 {
 	assert(timerID < maxNumTimers && "Timer ID out of range");
-	cmdList->d3dCmdList->EndQuery(queryHeap, D3D12_QUERY_TYPE_TIMESTAMP, timerID * 2 + 1);
+	d3dCmdList->EndQuery(queryHeap, D3D12_QUERY_TYPE_TIMESTAMP, timerID * 2 + 1);
 }
 
 auto Dx12GraphicCommandContext::TimerGetTimeInMs(uint32_t timerID) -> float
@@ -392,6 +398,7 @@ Dx12GraphicCommandContext::Dx12GraphicCommandContext(FinishFrameBroadcast finish
 		cmdLists[i].Init(this);
 
 	cmdList = &cmdLists[0];
+	d3dCmdList = cmdList->d3dCmdList;
 
 	// Query
 	queryTiming.resize(maxNumQuerySlots);
@@ -411,15 +418,9 @@ Dx12GraphicCommandContext::Dx12GraphicCommandContext(FinishFrameBroadcast finish
 	// have been submitted since. This is due to a fact that Present stalls when none of the m_maxframeCount frames are done/available.
 	size_t FramesInstances = DeferredBuffers + 1;
 
-	auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(FramesInstances * maxNumQuerySlots * sizeof(UINT64));
-	ThrowIfFailed(device->CreateCommittedResource(
-		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_READBACK),
-		D3D12_HEAP_FLAG_NONE,
-		&bufferDesc,
-		D3D12_RESOURCE_STATE_COPY_DEST,
-		nullptr,
-		IID_PPV_ARGS(&queryReadBackBuffer))
-	);
+	UINT64 size = FramesInstances * maxNumQuerySlots * sizeof(UINT64);
+	x12::memory::CreateCommittedBuffer(&queryReadBackBuffer, size, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_HEAP_TYPE_READBACK);
+
 	queryReadBackBuffer->SetName(L"Dx12commandbuffer query timers readback buffer");
 
 	descriptorSizeCBSRV = CR_CBSRV_DescriptorsSize();
@@ -440,7 +441,7 @@ void Dx12GraphicCommandContext::CommandList::Init(Dx12GraphicCommandContext* par
 	gpuDescriptorHeapStart = gpuDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
 	gpuDescriptorHeapStartGPU = gpuDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
 
-	fastAllocator = new FastFrameAllocator::Allocator;
+	fastAllocator = new x12::fastdescriptorallocator::Allocator;
 }
 
 void Dx12GraphicCommandContext::CommandList::Free()
@@ -477,7 +478,7 @@ void Dx12GraphicCommandContext::Begin(Dx12WindowSurface* surface_)
 	surface = surface_;
 
 	cmdList->d3dCommandAllocator->Reset();
-	cmdList->d3dCmdList->Reset(cmdList->d3dCommandAllocator, nullptr);
+	d3dCmdList->Reset(cmdList->d3dCommandAllocator, nullptr);
 	cmdList->Begin();
 
 	if (surface)
@@ -487,18 +488,18 @@ void Dx12GraphicCommandContext::Begin(Dx12WindowSurface* surface_)
 		CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(backBuffer,
 				D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
-		cmdList->d3dCmdList->ResourceBarrier(1, &barrier);
+		d3dCmdList->ResourceBarrier(1, &barrier);
 
 		CD3DX12_CPU_DESCRIPTOR_HANDLE rtv(surface->descriptorHeapRTV->GetCPUDescriptorHandleForHeapStart(), frameIndex, CR_RTV_DescriptorsSize());
 		auto dsv = surface->descriptorHeapDSV->GetCPUDescriptorHandleForHeapStart();
 
-		cmdList->d3dCmdList->OMSetRenderTargets(1, &rtv, FALSE, &dsv);
+		d3dCmdList->OMSetRenderTargets(1, &rtv, FALSE, &dsv);
 
 		FLOAT depth = 1.0f;
-		cmdList->d3dCmdList->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH, depth, 0, 0, nullptr);
+		d3dCmdList->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH, depth, 0, 0, nullptr);
 
 		const vec4 color{ 0.0f, 0.0f, 0.0f, 0.0f };
-		cmdList->d3dCmdList->ClearRenderTargetView(rtv, &color.x, 0, nullptr);
+		d3dCmdList->ClearRenderTargetView(rtv, &color.x, 0, nullptr);
 	}
 }
 void Dx12GraphicCommandContext::End()
@@ -506,7 +507,7 @@ void Dx12GraphicCommandContext::End()
 	// Query
 	// Write to buffer current time on GPU
 	UINT64 resolveAddress = queryResolveToFrameID * maxNumQuerySlots * sizeof(UINT64);
-	cmdList->d3dCmdList->ResolveQueryData(queryHeap, D3D12_QUERY_TYPE_TIMESTAMP, 0, maxNumQuerySlots, queryReadBackBuffer, resolveAddress);
+	d3dCmdList->ResolveQueryData(queryHeap, D3D12_QUERY_TYPE_TIMESTAMP, 0, maxNumQuerySlots, queryReadBackBuffer, resolveAddress);
 
 	// Grab read-back data for the queries from a finished frame m_maxframeCount ago.
 	UINT readBackFrameID = (queryResolveToFrameID + 1) % (DeferredBuffers + 1);
@@ -535,20 +536,17 @@ void Dx12GraphicCommandContext::End()
 		CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(backBuffer,
 					D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
 
-		cmdList->d3dCmdList->ResourceBarrier(1, &barrier);
-
-		//D3D12_CPU_DESCRIPTOR_HANDLE* handles = {};
-		//cmdList->d3dCmdList->OMSetRenderTargets(1, handles, FALSE, nullptr);
+		d3dCmdList->ResourceBarrier(1, &barrier);
 
 		surface = nullptr;
 	}
 
-	ThrowIfFailed(cmdList->d3dCmdList->Close());
+	ThrowIfFailed(d3dCmdList->Close());
 }
 
 void Dx12GraphicCommandContext::Submit()
 {
-	ID3D12CommandList* const commandLists[1] = { cmdList->d3dCmdList };
+	ID3D12CommandList* const commandLists[] = { d3dCmdList };
 	d3dCommandQueue->ExecuteCommandLists(1, commandLists);
 }
 
@@ -574,6 +572,7 @@ void Dx12GraphicCommandContext::WaitGPUFrame()
 	frameIndex = (frameIndex + 1u) % DeferredBuffers;
 
 	cmdList = &cmdLists[frameIndex];
+	d3dCmdList = cmdList->d3dCmdList;
 
 	// Fence ID that we want to wait
 	uint64_t fenceIDToWait = cmdList->fenceOldValue;

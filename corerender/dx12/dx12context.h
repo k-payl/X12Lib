@@ -3,7 +3,6 @@
 #include "dx12common.h"
 #include "icorerender.h"
 
-
 class Dx12GraphicCommandContext
 {
 	ID3D12CommandQueue *d3dCommandQueue{};
@@ -37,7 +36,7 @@ class Dx12GraphicCommandContext
 			union
 			{
 				Dx12CoreTexture* texture;
-				Dx12CoreStructuredBuffer* structuredBuffer;
+				Dx12CoreBuffer* structuredBuffer;
 			} SRV;
 		};
 
@@ -81,7 +80,7 @@ class Dx12GraphicCommandContext
 
 		uint64_t fenceOldValue{0};
 		std::vector<IResourceUnknown*> trakedResources;
-		FastFrameAllocator::Allocator *fastAllocator;
+		x12::fastdescriptorallocator::Allocator *fastAllocator;
 
 		// GPU-visible descriptors
 		ID3D12DescriptorHeap* gpuDescriptorHeap{};
@@ -101,6 +100,7 @@ class Dx12GraphicCommandContext
 
 	CommandList cmdLists[DeferredBuffers];
 	CommandList* cmdList{nullptr};
+	ID3D12GraphicsCommandList* d3dCmdList;
 
 	// Query
 	const UINT maxNumTimers = 3;
@@ -150,7 +150,7 @@ public:
 
 	void BindUniformBuffer(int slot, Dx12UniformBuffer* buffer, SHADER_TYPE shaderType);
 	void BindTexture(int slot, Dx12CoreTexture* buffer, SHADER_TYPE shaderType);
-	void BindStructuredBuffer(int slot, Dx12CoreStructuredBuffer* buffer, SHADER_TYPE shaderType);
+	void BindStructuredBuffer(int slot, Dx12CoreBuffer* buffer, SHADER_TYPE shaderType);
 
 	void UpdateUniformBuffer(Dx12UniformBuffer* buffer, const void* data, size_t offset, size_t size);
 

@@ -19,12 +19,3 @@ void Dx12CoreTexture::InitFromExistingResource(ID3D12Resource* resource_)
 
 	CR_GetD3DDevice()->CreateShaderResourceView(resource.Get(), &srvDesc, handle);
 }
-
-void Dx12CoreTexture::Release()
-{
-	--refs;
-	assert(refs > 0);
-
-	if (refs == 1)
-		CR_ReleaseResource(refs, this);
-}

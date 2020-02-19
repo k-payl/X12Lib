@@ -2,7 +2,7 @@
 #include "dx12uploadheap.h"
 #include "dx12render.h"
 
-FastFrameAllocator::Alloc FastFrameAllocator::Allocator::Allocate()
+x12::fastdescriptorallocator::Alloc x12::fastdescriptorallocator::Allocator::Allocate()
 {
 	if (offset >= descriptorsInPage)
 	{
@@ -32,7 +32,7 @@ FastFrameAllocator::Alloc FastFrameAllocator::Allocator::Allocate()
 	return ret;
 }
 
-void FastFrameAllocator::Allocator::Reset()
+void x12::fastdescriptorallocator::Allocator::Reset()
 {
 	for(Page *p : retiredPages)
 		GetCoreRender()->ReleasePage(p);
@@ -47,7 +47,7 @@ void FastFrameAllocator::Allocator::Reset()
 	}
 }
 
-FastFrameAllocator::Page::~Page()
+x12::fastdescriptorallocator::Page::~Page()
 {
 	if (ptr)
 	{

@@ -4,7 +4,7 @@
 #include "dx12render.h"
 #include "dx12shader.h"
 #include "dx12uniformbuffer.h"
-#include "dx12structuredbuffer.h"
+#include "dx12buffer.h"
 #include "dx12context.h"
 #include "dx12vertexbuffer.h"
 #include "dx12texture.h"
@@ -145,28 +145,33 @@ void Dx12CoreRenderer::Init()
 	tearingSupported = CheckTearingSupport();
 
 	auto frameFn = std::bind(&Dx12GraphicCommandContext::CurentFrame, graphicCommandContext);
-	descriptorAllocator = new DescriptorHeap::Allocator(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, frameFn);
+	descriptorAllocator = new x12::descriptorheap::Allocator(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, frameFn);
 }
 
 void Dx12CoreRenderer::Free()
 {
-	for(FastFrameAllocator::Page *p : avaliablePages)
-		delete p;
-	avaliablePages.clear();
+	{
+		std::scoped_lock lock(pagesMutex);
 
-	PresentSurfaces();
-	surfaces.clear();
+		for(x12::fastdescriptorallocator::Page *p : avaliablePages)
+			delete p;
+		avaliablePages.clear();
+	}
+
+	{
+		PresentSurfaces();
+		surfaces.clear();
+	}
 
 	graphicCommandContext->Free();
 	copyCommandContext->Free();
 
-	for (auto& r : resources)
+	IResourceUnknown::CheckResources();
+
 	{
-		if (r->GetRefs() != 1)
-			throw std::exception("Resource is not released properly");
+		std::scoped_lock guard(uniformBufferMutex);
+		uniformBufferVec.clear();
 	}
-	resources.clear();
-	uniformBufferVec.clear();
 
 	delete graphicCommandContext;
 	graphicCommandContext = nullptr;
@@ -196,9 +201,11 @@ void Dx12CoreRenderer::Free()
 	Release(device);
 }
 
-FastFrameAllocator::Page* Dx12CoreRenderer::GetPage(UINT size)
+x12::fastdescriptorallocator::Page* Dx12CoreRenderer::GetPage(UINT size)
 {
-	using namespace FastFrameAllocator;
+	using namespace x12::fastdescriptorallocator;
+
+	std::unique_lock lock(pagesMutex);
 
 	if (!avaliablePages.empty())
 	{
@@ -210,18 +217,14 @@ FastFrameAllocator::Page* Dx12CoreRenderer::GetPage(UINT size)
 	Page* page = new Page();
 	allocatedPages.push_back(page);
 
+	lock.unlock();
+
 	UINT alignedSize = alignConstnatBufferSize(size);
 	UINT pageSize = alignedSize * descriptorsInPage;
 
 	// Upload heap for dynamic resources
 	// For upload heap no need to put a fence to make sure the data is uploaded before you make a draw call
-	ThrowIfFailed(CR_GetD3DDevice()->CreateCommittedResource(
-		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
-		D3D12_HEAP_FLAG_NONE,
-		&CD3DX12_RESOURCE_DESC::Buffer(pageSize),
-		D3D12_RESOURCE_STATE_GENERIC_READ,
-		nullptr,
-		IID_PPV_ARGS(&page->d3d12resource)));
+	x12::memory::CreateCommittedBuffer(&page->d3d12resource, pageSize, D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_HEAP_TYPE_UPLOAD);
 
 	// It is ok be mappped as long as you use buffer
 	// because d3d11 driver does not version memory (d3d11 did) and cpu-pointer is always valid
@@ -249,8 +252,9 @@ FastFrameAllocator::Page* Dx12CoreRenderer::GetPage(UINT size)
 	return page;
 }
 
-void Dx12CoreRenderer::ReleasePage(FastFrameAllocator::Page* page)
+void Dx12CoreRenderer::ReleasePage(x12::fastdescriptorallocator::Page* page)
 {
+	std::scoped_lock lock(pagesMutex);
 	avaliablePages.emplace_back(page);
 }
 
@@ -307,9 +311,6 @@ bool Dx12CoreRenderer::CreateShader(Dx12CoreShader** out, const char* vertText, 
 	auto* ptr = new Dx12CoreShader{};
 	ptr->Init(vertText, fragText, variabledesc, varNum);
 	ptr->AddRef();
-
-	resources.push_back(ptr);
-
 	*out = ptr;
 
 	return ptr != nullptr;
@@ -321,9 +322,6 @@ bool Dx12CoreRenderer::CreateVertexBuffer(Dx12CoreVertexBuffer** out, const void
 	auto* ptr = new Dx12CoreVertexBuffer{};
 	ptr->Init(vbData, vbDesc, idxData, idxDesc, usage);
 	ptr->AddRef();
-
-	resources.push_back(ptr);
-
 	*out = ptr;
 
 	return ptr != nullptr;
@@ -331,21 +329,22 @@ bool Dx12CoreRenderer::CreateVertexBuffer(Dx12CoreVertexBuffer** out, const void
 
 bool Dx12CoreRenderer::CreateUniformBuffer(Dx12UniformBuffer **out, size_t size)
 {
+	std::scoped_lock guard(uniformBufferMutex);
+
 	auto idx = uniformBufferVec.size();
 	auto ptr = new Dx12UniformBuffer((UINT)size, idx);
+	*out = ptr;
+
 	uniformBufferVec.emplace_back(ptr);
 
-	*out = ptr;
 	return ptr != nullptr;
 }
 
-bool Dx12CoreRenderer::CreateStructuredBuffer(Dx12CoreStructuredBuffer** out, size_t structureSize, size_t num, const void* data)
+bool Dx12CoreRenderer::CreateStructuredBuffer(Dx12CoreBuffer** out, size_t structureSize, size_t num, const void* data)
 {
-	auto* ptr = new Dx12CoreStructuredBuffer;
-	ptr->Init(structureSize, num, data);
+	auto* ptr = new Dx12CoreBuffer;
+	ptr->InitStructuredBuffer(structureSize, num, data);
 	ptr->AddRef();
-
-	resources.push_back(ptr);
 	*out = ptr;
 
 	return ptr != nullptr;
@@ -368,13 +367,7 @@ bool Dx12CoreRenderer::CreateTexture(Dx12CoreTexture** out, std::unique_ptr<uint
 	const UINT64 uploadBufferSize = GetRequiredIntermediateSize(d3dtexture, 0, (UINT)subresources.size());
 
 	// Create the GPU upload buffer.
-	ThrowIfFailed(device->CreateCommittedResource(
-		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
-		D3D12_HEAP_FLAG_NONE,
-		&CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize),
-		D3D12_RESOURCE_STATE_GENERIC_READ,
-		nullptr,
-		IID_PPV_ARGS(&d3dTextureUploadHeap)));
+	x12::memory::CreateCommittedBuffer(&d3dTextureUploadHeap, uploadBufferSize, D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_HEAP_TYPE_UPLOAD);
 
 	copyCommandContext->Begin();
 		UpdateSubresources(copyCommandContext->GetD3D12CmdList(), d3dtexture, d3dTextureUploadHeap.Get(), 0, 0, 1, &subresources[0]);
@@ -385,8 +378,6 @@ bool Dx12CoreRenderer::CreateTexture(Dx12CoreTexture** out, std::unique_ptr<uint
 	auto* ptr = new Dx12CoreTexture();
 	ptr->InitFromExistingResource(d3dtexture);
 	ptr->AddRef();
-
-	resources.push_back(ptr);
 
 	*out = ptr;
 
@@ -440,8 +431,12 @@ ID3D12PipelineState* Dx12CoreRenderer::GetPSO(const PipelineState& pso)
 {
 	uint64_t checksum = CalculateChecksum(pso);
 
+	std::unique_lock lock(psoMutex);
+
 	if (auto it = psoMap.find(checksum); it != psoMap.end())
 		return it->second.Get();
+
+	lock.unlock();
 
 	Dx12CoreShader* dx12Shader = static_cast<Dx12CoreShader*>(pso.shader);
 	Dx12CoreVertexBuffer* dx12vb = static_cast<Dx12CoreVertexBuffer*>(pso.vb);
@@ -488,12 +483,18 @@ ID3D12PipelineState* Dx12CoreRenderer::GetPSO(const PipelineState& pso)
 	ComPtr<ID3D12PipelineState> d3dPipelineState;
 	ThrowIfFailed(device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(d3dPipelineState.GetAddressOf())));
 
-	psoMap[checksum] = d3dPipelineState;
+	lock.lock();
 
-	return d3dPipelineState.Get();
+	if (auto it = psoMap.find(checksum); it == psoMap.end())
+	{
+		psoMap[checksum] = d3dPipelineState;
+		return d3dPipelineState.Get();
+	}
+	else
+		return it->second.Get();
 }
 
-DescriptorHeap::Alloc Dx12CoreRenderer::AllocateDescriptor(UINT num)
+x12::descriptorheap::Alloc Dx12CoreRenderer::AllocateDescriptor(UINT num)
 {
 	return descriptorAllocator->Allocate(num);
 }
@@ -574,14 +575,8 @@ void Dx12WindowSurface::ResizeBuffers(unsigned width_, unsigned height_)
 	optimizedClearValue.Format = DXGI_FORMAT_D32_FLOAT;
 	optimizedClearValue.DepthStencil = { 1.0f, 0 };
 
-	ThrowIfFailed(CR_GetD3DDevice()->CreateCommittedResource(
-		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
-		D3D12_HEAP_FLAG_NONE,
-		&CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_D32_FLOAT, width, height, 1, 0, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL),
-		D3D12_RESOURCE_STATE_DEPTH_WRITE,
-		&optimizedClearValue,
-		IID_PPV_ARGS(&depthBuffer)
-	));
+	x12::memory::CreateCommitted2DTexture(&depthBuffer, width, height, 1, DXGI_FORMAT_D32_FLOAT,
+										  D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL, D3D12_RESOURCE_STATE_DEPTH_WRITE, &optimizedClearValue);
 
 	// Create handles for depth stencil
 	D3D12_DEPTH_STENCIL_VIEW_DESC dsv = {};
@@ -599,23 +594,6 @@ void Dx12WindowSurface::Present()
 	UINT presentFlags = CR_IsTearingSupport() && !CR_IsVSync() ? DXGI_PRESENT_ALLOW_TEARING : 0;
 
 	ThrowIfFailed(swapChain->Present(syncInterval, presentFlags));
-}
-
-void Dx12CoreRenderer::ReleaseResource(int& refs, IResourceUnknown *ptr)
-{
-	assert(refs == 1);
-
-	auto it = std::find_if(resources.begin(), resources.end(), [ptr](const intrusive_ptr<IResourceUnknown>& r) -> bool
-	{
-		return r.get() == ptr;
-	});
-
-	assert(it != resources.end());
-
-	refs = 10; // hack to avoid recursion because ~intrusive_ptr calls Release()
-	resources.erase(it);
-	refs = 0;
-	delete ptr;
 }
 
 uint64_t Dx12CoreRenderer::UniformBufferUpdates()

@@ -49,10 +49,21 @@ struct ConstantBuffersDesc
 
 struct IResourceUnknown
 {
-	virtual void AddRef() = 0;
-	virtual void Release() = 0;
-	virtual int GetRefs() = 0;
+private:
+	int refs{};
+
+	static std::vector<IResourceUnknown*> resources;
+	static void ReleaseResource(int& refs, IResourceUnknown* ptr);
+
+public:
+	IResourceUnknown();
+
+	void AddRef() { refs++; }
+	int GetRefs() { return refs; }
+	void Release();
 	virtual ~IResourceUnknown() = default;
+
+	static void CheckResources();
 };
 
 struct ICoreShader : public IResourceUnknown
@@ -67,7 +78,7 @@ struct ICoreTexture : public IResourceUnknown
 {
 };
 
-struct ICoreStructuredBuffer : public IResourceUnknown
+struct ICoreBuffer : public IResourceUnknown
 {
 };
 

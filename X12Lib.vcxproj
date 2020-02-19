@@ -189,7 +189,7 @@
     <ClInclude Include="common.h" />
     <ClInclude Include="corerender\dx12\dx12common.h" />
     <ClInclude Include="corerender\dx12\dx12descriptorheap.h" />
-    <ClInclude Include="corerender\dx12\dx12structuredbuffer.h" />
+    <ClInclude Include="corerender\dx12\dx12buffer.h" />
     <ClInclude Include="corerender\dx12\dx12texture.h" />
     <ClInclude Include="dx11/dx11.h" />
     <ClInclude Include="corerender\dx12\dx12context.h" />
@@ -274,7 +274,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Use</PrecompiledHeader>
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">pch.h</PrecompiledHeaderFile>
     </ClCompile>
-    <ClCompile Include="corerender\dx12\dx12structuredbuffer.cpp">
+    <ClCompile Include="corerender\dx12\dx12buffer.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Use</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Use</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Use</PrecompiledHeader>

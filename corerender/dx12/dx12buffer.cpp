@@ -1,40 +1,18 @@
 #include "pch.h"
-#include "dx12structuredbuffer.h"
+#include "dx12buffer.h"
 #include "dx12context.h"
 #include "dx12render.h"
 
-IdGenerator<uint16_t> Dx12CoreStructuredBuffer::idGen;
+IdGenerator<uint16_t> Dx12CoreBuffer::idGen;
 
-void Dx12CoreStructuredBuffer::Release()
-{
-	--refs;
-	assert(refs > 0);
-
-	if (refs == 1)
-		CR_ReleaseResource(refs, this);
-}
-
-void Dx12CoreStructuredBuffer::Init(size_t structureSize, size_t num, const void* data)
+void Dx12CoreBuffer::InitStructuredBuffer(size_t structureSize, size_t num, const void* data)
 {
 	const UINT64 sizeUploadBuffer = structureSize * num;
-
-	ThrowIfFailed(CR_GetD3DDevice()->CreateCommittedResource(
-		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
-		D3D12_HEAP_FLAG_NONE,
-		&CD3DX12_RESOURCE_DESC::Buffer(sizeUploadBuffer),
-		D3D12_RESOURCE_STATE_COPY_DEST,
-		nullptr,
-		IID_PPV_ARGS(resource.GetAddressOf())));
+	
+	x12::memory::CreateCommittedBuffer(resource.GetAddressOf(), sizeUploadBuffer, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_HEAP_TYPE_DEFAULT);
 
 	ComPtr<ID3D12Resource> uploadResource;
-
-	ThrowIfFailed(CR_GetD3DDevice()->CreateCommittedResource(
-		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
-		D3D12_HEAP_FLAG_NONE,
-		&CD3DX12_RESOURCE_DESC::Buffer(sizeUploadBuffer),
-		D3D12_RESOURCE_STATE_GENERIC_READ,
-		nullptr,
-		IID_PPV_ARGS(uploadResource.GetAddressOf())));
+	x12::memory::CreateCommittedBuffer(uploadResource.GetAddressOf(), sizeUploadBuffer, D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_HEAP_TYPE_UPLOAD);
 	
 	D3D12_SUBRESOURCE_DATA particlesData = {};
 	particlesData.pData = data;
@@ -62,7 +40,5 @@ void Dx12CoreStructuredBuffer::Init(size_t structureSize, size_t num, const void
 	srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
 
 	descriptorAllocation = GetCoreRender()->AllocateDescriptor();
-	D3D12_CPU_DESCRIPTOR_HANDLE handle = descriptorAllocation.descriptor;
 	
-	CR_GetD3DDevice()->CreateShaderResourceView(resource.Get(), &srvDesc, handle);	
-}
+	CR_GetD3DDevice()->CreateShaderResourceView(resource.Get(), &srvDesc, descriptorAllocation.descriptor);}

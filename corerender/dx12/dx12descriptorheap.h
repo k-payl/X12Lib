@@ -2,7 +2,7 @@
 #include "common.h"
 
 
-namespace DescriptorHeap
+namespace x12::descriptorheap
 {
 	class Page;
 	class Allocator;

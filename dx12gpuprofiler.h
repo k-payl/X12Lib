@@ -7,7 +7,7 @@ class Dx12GpuProfiler : public GpuProfiler
 
 	Dx12CoreShader* fontShader;
 	Dx12CoreShader* graphShader;
-	Dx12CoreStructuredBuffer* fontDataStructuredBuffer;
+	Dx12CoreBuffer* fontDataStructuredBuffer;
 	Dx12CoreTexture* fontTexture;
 
 	Dx12UniformBuffer* viewportUniformBuffer;

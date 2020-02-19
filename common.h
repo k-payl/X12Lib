@@ -30,6 +30,7 @@ using namespace Microsoft::WRL;
 #include <set>
 #include <functional>
 #include <map>
+#include <mutex>
 
 #include "vmath.h"
 
@@ -44,7 +45,7 @@ class Core;
 struct Dx12CoreShader;
 struct Dx12WindowSurface;
 struct Dx12CoreVertexBuffer;
-struct Dx12CoreStructuredBuffer;
+struct Dx12CoreBuffer;
 class Dx12BaseCommandList;
 class Dx12GraphicCommandContext;
 class Dx12CopyCommandContext;
@@ -53,19 +54,18 @@ struct Dx12CoreTexture;
 class Input;
 class Console;
 
-namespace FastFrameAllocator
+namespace x12::fastdescriptorallocator
 {
 	struct Page;
 	struct Alloc;
 	class Allocator;
 }
 
-namespace DescriptorHeap
+namespace x12::descriptorheap
 {
 	struct Alloc;
 	class Allocator;
 }
-
 
 typedef ID3D12Device2 device_t;
 typedef IDXGIAdapter4 adapter_t;

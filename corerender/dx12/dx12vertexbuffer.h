@@ -2,35 +2,34 @@
 #include "common.h"
 #include "icorerender.h"
 
-struct Dx12CoreVertexBuffer : public ICoreVertexBuffer
+struct Dx12CoreVertexBuffer final : public ICoreVertexBuffer
 {
 	void Init(const void* vbData, const VeretxBufferDesc* vbDesc, const void* idxData, const IndexBufferDesc* idxDesc, BUFFER_USAGE usage = BUFFER_USAGE::GPU_READ);
 	void SetData(const void* vbData, size_t vbSize, size_t vbOffset, const void* idxData, size_t idxSize, size_t idxOffset);
 
 	~Dx12CoreVertexBuffer();
 
-	inline void AddRef() override { refs++; }
-	inline int GetRefs() override { return refs; }
-	void Release() override;
+	BUFFER_USAGE usage;
 
 	uint32_t vertexCount;
 	ComPtr<ID3D12Resource> vertexBuffer;
 	D3D12_VERTEX_BUFFER_VIEW vertexBufferView;
+	D3D12_RESOURCE_STATES vbState;
 
 	uint32_t indexCount;
 	ComPtr<ID3D12Resource> indexBuffer;
 	D3D12_INDEX_BUFFER_VIEW indexBufferView;
+	D3D12_RESOURCE_STATES ibState;
 
 	std::vector<D3D12_INPUT_ELEMENT_DESC> inputLayout;
 
 	uint16_t ID() { return id; }
 	const D3D12_INDEX_BUFFER_VIEW* pIndexBufferVew() const { return indexBufferView.SizeInBytes > 0 ? &indexBufferView : nullptr; }
 
-private:
+	bool GetReadBarrier(UINT *numBarrires, D3D12_RESOURCE_BARRIER *barriers);
 
-	int refs{};
+private:
 
 	static IdGenerator<uint16_t> idGen;
 	uint16_t id;
-	BUFFER_USAGE usage;
 };
