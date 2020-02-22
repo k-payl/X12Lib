@@ -9,8 +9,8 @@ namespace fs = std::filesystem;
 #define USE_PROFILER_REALTIME
 //#define USE_PROFILE_TO_CSV
 
-const auto numCubesX = 30;
-const auto numCubesY = 40;
+const auto numCubesX = 2;
+const auto numCubesY = 15;
 
 static vec4 colors[] = { vec4(1,0,0,1),vec4(0,1,0,1),vec4(0,0,1,1),vec4(1,1,1,1) };
 

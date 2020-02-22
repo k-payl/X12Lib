@@ -14,8 +14,8 @@ void Dx12CoreTexture::InitFromExistingResource(ID3D12Resource* resource_)
 	srvDesc.Texture2D.MipLevels = desc.MipLevels;
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 
-	descriptorAllocation = GetCoreRender()->AllocateDescriptor();
-	D3D12_CPU_DESCRIPTOR_HANDLE handle = descriptorAllocation.descriptor;
+	SRVdescriptor = GetCoreRender()->AllocateDescriptor();
+	D3D12_CPU_DESCRIPTOR_HANDLE handle = SRVdescriptor.descriptor;
 
 	CR_GetD3DDevice()->CreateShaderResourceView(resource.Get(), &srvDesc, handle);
 }

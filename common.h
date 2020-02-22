@@ -27,6 +27,7 @@ using namespace Microsoft::WRL;
 #include <stdint.h>
 #include <cassert>
 #include <vector>
+#include <stack>
 #include <set>
 #include <functional>
 #include <map>
@@ -53,6 +54,17 @@ struct Dx12UniformBuffer;
 struct Dx12CoreTexture;
 class Input;
 class Console;
+
+#define DEFINE_ENUM_OPERATORS(ENUM_NAME) \
+inline ENUM_NAME operator|(ENUM_NAME a, ENUM_NAME b) \
+{ \
+	using T = std::underlying_type_t <ENUM_NAME>; \
+	return static_cast<ENUM_NAME>(static_cast<T>(a) | static_cast<T>(b)); \
+} \
+inline bool operator&(ENUM_NAME a, ENUM_NAME b) \
+{ \
+	return static_cast<bool>(static_cast<int>(a) & static_cast<int>(b)); \
+}
 
 namespace x12::fastdescriptorallocator
 {

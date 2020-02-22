@@ -2,32 +2,13 @@
 #include "common.h"
 #include "icorerender.h"
 #include "intrusiveptr.h"
+#include "dx12common.h"
 
-using psomap_t = std::map<uint64_t, ComPtr<ID3D12PipelineState>> ;
+using psomap_t = std::map<psomap_checksum_t, ComPtr<ID3D12PipelineState>> ;
 using uniformbuffers_t = std::vector<std::unique_ptr<Dx12UniformBuffer>>;
 
-// Resources associated with window
-struct Dx12WindowSurface
-{
-	void Init(HWND hwnd, ID3D12CommandQueue* queue);
-
-	unsigned width, height;
-
-	ComPtr<swapchain_t> swapChain;
-
-	ComPtr<ID3D12Resource> colorBuffers[DeferredBuffers];
-	ComPtr<ID3D12Resource> depthBuffer;
-
-	ComPtr<ID3D12DescriptorHeap> descriptorHeapRTV;
-	ComPtr<ID3D12DescriptorHeap> descriptorHeapDSV;
-
-	void ResizeBuffers(unsigned width_, unsigned height_);
-	void Present();
-};
-
-using surface_ptr = std::shared_ptr<Dx12WindowSurface>;
-
-uint64_t CalculateChecksum(const PipelineState& pso);
+psomap_checksum_t CalculateChecksum(const GraphicPipelineState& pso);
+psomap_checksum_t CalculateChecksum(const ComputePipelineState& pso);
 
 class Dx12CoreRenderer
 {
@@ -71,7 +52,8 @@ public:
 	auto Free() -> void;
 
 	auto GetDevice() -> device_t* { return device; }
-	auto GetPSO(const PipelineState& pso) -> ID3D12PipelineState*;
+	auto GetGraphicPSO(const GraphicPipelineState& pso, psomap_checksum_t checksum) -> ComPtr<ID3D12PipelineState>;
+	auto GetComputePSO(const ComputePipelineState& pso, psomap_checksum_t checksum) -> ComPtr<ID3D12PipelineState>;
 	auto AllocateDescriptor(UINT num = 1) -> x12::descriptorheap::Alloc;
 
 	// Contexts
@@ -101,17 +83,26 @@ public:
 	auto DSV_DescriptorsSize() -> UINT { return descriptorSizeDSV; }
 	auto IsTearingSupport() -> bool { return tearingSupported; }
 	auto IsVSync() -> bool { return Vsync; }
-	auto GetDefaultRootSignature() -> ID3D12RootSignature*;
+	auto GetDefaultRootSignature() -> ComPtr<ID3D12RootSignature>;
 
 	// Resurces
 	bool CreateShader(Dx12CoreShader **out, const char* vertText, const char* fragText,
 							const ConstantBuffersDesc *variabledesc = nullptr, uint32_t varNum = 0);
+
+	bool CreateComputeShader(Dx12CoreShader **out, const char* text,
+							const ConstantBuffersDesc *variabledesc = nullptr, uint32_t varNum = 0);
+
 	bool CreateVertexBuffer(Dx12CoreVertexBuffer** out, const void* vbData, const VeretxBufferDesc* vbDesc,
-							const void* idxData, const IndexBufferDesc* idxDesc, BUFFER_USAGE usage = BUFFER_USAGE::GPU_READ);
+							const void* idxData, const IndexBufferDesc* idxDesc, BUFFER_FLAGS flags = BUFFER_FLAGS::GPU_READ);
 	bool CreateUniformBuffer(Dx12UniformBuffer** out, size_t size);
-	bool CreateStructuredBuffer(Dx12CoreBuffer **out, size_t structureSize, size_t num, const void* data);
+
+	bool CreateStructuredBuffer(Dx12CoreBuffer **out, size_t structureSize, size_t num,
+								const void* data = nullptr, BUFFER_FLAGS flags = BUFFER_FLAGS::NONE);
+
+	bool CreateRawBuffer(Dx12CoreBuffer **out, size_t size);
+
 	bool CreateTexture(Dx12CoreTexture **out, std::unique_ptr<uint8_t[]> ddsData,
-							std::vector<D3D12_SUBRESOURCE_DATA> subresources, ID3D12Resource* d3dtexture);
+					   std::vector<D3D12_SUBRESOURCE_DATA> subresources, ID3D12Resource* d3dtexture);
 };
 
 

@@ -4,12 +4,12 @@
 
 struct Dx12CoreVertexBuffer final : public ICoreVertexBuffer
 {
-	void Init(const void* vbData, const VeretxBufferDesc* vbDesc, const void* idxData, const IndexBufferDesc* idxDesc, BUFFER_USAGE usage = BUFFER_USAGE::GPU_READ);
+	void Init(const void* vbData, const VeretxBufferDesc* vbDesc, const void* idxData, const IndexBufferDesc* idxDesc, BUFFER_FLAGS usage = BUFFER_FLAGS::GPU_READ);
 	void SetData(const void* vbData, size_t vbSize, size_t vbOffset, const void* idxData, size_t idxSize, size_t idxOffset);
 
 	~Dx12CoreVertexBuffer();
 
-	BUFFER_USAGE usage;
+	BUFFER_FLAGS usage;
 
 	uint32_t vertexCount;
 	ComPtr<ID3D12Resource> vertexBuffer;

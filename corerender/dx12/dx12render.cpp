@@ -309,7 +309,17 @@ bool Dx12CoreRenderer::CreateShader(Dx12CoreShader** out, const char* vertText, 
 											const ConstantBuffersDesc* variabledesc, uint32_t varNum)
 {
 	auto* ptr = new Dx12CoreShader{};
-	ptr->Init(vertText, fragText, variabledesc, varNum);
+	ptr->InitGraphic(vertText, fragText, variabledesc, varNum);
+	ptr->AddRef();
+	*out = ptr;
+
+	return ptr != nullptr;
+}
+
+bool Dx12CoreRenderer::CreateComputeShader(Dx12CoreShader** out, const char* text, const ConstantBuffersDesc* variabledesc, uint32_t varNum)
+{
+	auto* ptr = new Dx12CoreShader{};
+	ptr->InitCompute(text, variabledesc, varNum);
 	ptr->AddRef();
 	*out = ptr;
 
@@ -317,7 +327,7 @@ bool Dx12CoreRenderer::CreateShader(Dx12CoreShader** out, const char* vertText, 
 }
 
 bool Dx12CoreRenderer::CreateVertexBuffer(Dx12CoreVertexBuffer** out, const void* vbData, const VeretxBufferDesc* vbDesc,
-	const void* idxData, const IndexBufferDesc* idxDesc, BUFFER_USAGE usage)
+	const void* idxData, const IndexBufferDesc* idxDesc, BUFFER_FLAGS usage)
 {
 	auto* ptr = new Dx12CoreVertexBuffer{};
 	ptr->Init(vbData, vbDesc, idxData, idxDesc, usage);
@@ -340,10 +350,21 @@ bool Dx12CoreRenderer::CreateUniformBuffer(Dx12UniformBuffer **out, size_t size)
 	return ptr != nullptr;
 }
 
-bool Dx12CoreRenderer::CreateStructuredBuffer(Dx12CoreBuffer** out, size_t structureSize, size_t num, const void* data)
+bool Dx12CoreRenderer::CreateStructuredBuffer(Dx12CoreBuffer** out, size_t structureSize,
+											  size_t num, const void* data, BUFFER_FLAGS flags)
 {
 	auto* ptr = new Dx12CoreBuffer;
-	ptr->InitStructuredBuffer(structureSize, num, data);
+	ptr->InitStructuredBuffer(structureSize, num, data, flags);
+	ptr->AddRef();
+	*out = ptr;
+
+	return ptr != nullptr;
+}
+
+bool Dx12CoreRenderer::CreateRawBuffer(Dx12CoreBuffer** out, size_t size)
+{
+	auto* ptr = new Dx12CoreBuffer;
+	ptr->InitRawBuffer(size);
 	ptr->AddRef();
 	*out = ptr;
 
@@ -369,9 +390,9 @@ bool Dx12CoreRenderer::CreateTexture(Dx12CoreTexture** out, std::unique_ptr<uint
 	// Create the GPU upload buffer.
 	x12::memory::CreateCommittedBuffer(&d3dTextureUploadHeap, uploadBufferSize, D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_HEAP_TYPE_UPLOAD);
 
-	copyCommandContext->Begin();
+	copyCommandContext->CommandsBegin();
 		UpdateSubresources(copyCommandContext->GetD3D12CmdList(), d3dtexture, d3dTextureUploadHeap.Get(), 0, 0, 1, &subresources[0]);
-	copyCommandContext->End();
+	copyCommandContext->CommandsEnd();
 	copyCommandContext->Submit();
 	copyCommandContext->WaitGPUAll(); // wait GPU copying upload -> default heap
 
@@ -384,10 +405,10 @@ bool Dx12CoreRenderer::CreateTexture(Dx12CoreTexture** out, std::unique_ptr<uint
 	return ptr != nullptr;
 }
 
-ID3D12RootSignature* Dx12CoreRenderer::GetDefaultRootSignature()
+ComPtr<ID3D12RootSignature> Dx12CoreRenderer::GetDefaultRootSignature()
 {
 	if (defaultRootSignature)
-		return defaultRootSignature.Get();
+		return defaultRootSignature;
 
 	CD3DX12_ROOT_SIGNATURE_DESC desc;
 	desc.Init(0, nullptr, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
@@ -397,10 +418,10 @@ ID3D12RootSignature* Dx12CoreRenderer::GetDefaultRootSignature()
 
 	ThrowIfFailed(GetDevice()->CreateRootSignature(0, blob->GetBufferPointer(), blob->GetBufferSize(), IID_PPV_ARGS(&defaultRootSignature)));
 
-	return defaultRootSignature.Get();
+	return defaultRootSignature;
 }
 
-uint64_t CalculateChecksum(const PipelineState& pso)
+psomap_checksum_t CalculateChecksum(const GraphicPipelineState& pso)
 {
 	// 0: 15 (16)  vb ID
 	// 16:31 (16)  shader ID
@@ -417,8 +438,7 @@ uint64_t CalculateChecksum(const PipelineState& pso)
 	assert(dx12buffer != nullptr);
 	assert(dx12shader != nullptr);
 
-	uint64_t checksum = 0;
-	checksum |= uint64_t(dx12buffer->ID() << 0);
+	uint64_t checksum = uint64_t(dx12buffer->ID() << 0);
 	checksum |= uint64_t(dx12shader->ID() << 16);
 	checksum |= uint64_t(pso.primitiveTopology) << 32;
 	checksum |= uint64_t(pso.src) << 35;
@@ -426,15 +446,22 @@ uint64_t CalculateChecksum(const PipelineState& pso)
 
 	return checksum;
 }
-
-ID3D12PipelineState* Dx12CoreRenderer::GetPSO(const PipelineState& pso)
+psomap_checksum_t CalculateChecksum(const ComputePipelineState& pso)
 {
-	uint64_t checksum = CalculateChecksum(pso);
+	auto* dx12shader = static_cast<Dx12CoreShader*>(pso.shader);
+	assert(dx12shader != nullptr);
 
+	uint64_t checksum = uint64_t(dx12shader->ID() << 0);
+
+	return checksum;
+}
+
+ComPtr<ID3D12PipelineState> Dx12CoreRenderer::GetGraphicPSO(const GraphicPipelineState& pso, psomap_checksum_t checksum)
+{
 	std::unique_lock lock(psoMutex);
 
 	if (auto it = psoMap.find(checksum); it != psoMap.end())
-		return it->second.Get();
+		return it->second;
 
 	lock.unlock();
 
@@ -445,7 +472,7 @@ ID3D12PipelineState* Dx12CoreRenderer::GetPSO(const PipelineState& pso)
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = {};
 	desc.InputLayout = { &dx12vb->inputLayout[0], (UINT)dx12vb->inputLayout.size() };
 	desc.pRootSignature = dx12Shader->HasResources() ? dx12Shader->resourcesRootSignature.Get() :
-		GetCoreRender()->GetDefaultRootSignature();
+		GetCoreRender()->GetDefaultRootSignature().Get();
 	desc.VS = CD3DX12_SHADER_BYTECODE(dx12Shader->vs.Get());
 	desc.PS = CD3DX12_SHADER_BYTECODE(dx12Shader->ps.Get());
 	desc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
@@ -488,10 +515,42 @@ ID3D12PipelineState* Dx12CoreRenderer::GetPSO(const PipelineState& pso)
 	if (auto it = psoMap.find(checksum); it == psoMap.end())
 	{
 		psoMap[checksum] = d3dPipelineState;
-		return d3dPipelineState.Get();
+		return d3dPipelineState;
 	}
 	else
-		return it->second.Get();
+		return it->second;
+}
+
+auto Dx12CoreRenderer::GetComputePSO(const ComputePipelineState& pso, psomap_checksum_t checksum) -> ComPtr<ID3D12PipelineState>
+{
+	std::unique_lock lock(psoMutex);
+
+	if (auto it = psoMap.find(checksum); it != psoMap.end())
+		return it->second;
+
+	lock.unlock();
+
+	Dx12CoreShader* dx12Shader = static_cast<Dx12CoreShader*>(pso.shader);
+
+	// Create PSO
+	D3D12_COMPUTE_PIPELINE_STATE_DESC desc = {};
+	desc.pRootSignature = dx12Shader->HasResources() ? dx12Shader->resourcesRootSignature.Get() :
+		GetCoreRender()->GetDefaultRootSignature().Get();
+	desc.CS = CD3DX12_SHADER_BYTECODE(dx12Shader->cs.Get());
+
+	ComPtr<ID3D12PipelineState> d3dPipelineState;
+	ThrowIfFailed(device->CreateComputePipelineState(&desc, IID_PPV_ARGS(d3dPipelineState.GetAddressOf())));
+
+	lock.lock();
+
+	if (auto it = psoMap.find(checksum); it == psoMap.end())
+	{
+		psoMap[checksum] = d3dPipelineState;
+		return d3dPipelineState;
+	}
+	else
+		return it->second;
+
 }
 
 x12::descriptorheap::Alloc Dx12CoreRenderer::AllocateDescriptor(UINT num)

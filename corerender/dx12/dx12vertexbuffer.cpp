@@ -12,7 +12,7 @@ static void UpdateBufferResource(ID3D12GraphicsCommandList* pCmdList,
 
 Dx12CoreVertexBuffer::~Dx12CoreVertexBuffer()
 {
-	if (usage == BUFFER_USAGE::CPU_WRITE)
+	if (usage & BUFFER_FLAGS::CPU_WRITE)
 	{
 		vertexBuffer->Unmap(0, nullptr);
 		if (indexBuffer)
@@ -24,14 +24,14 @@ bool Dx12CoreVertexBuffer::GetReadBarrier(UINT* numBarrires, D3D12_RESOURCE_BARR
 {
 	UINT num = 0;
 
-	if (usage == BUFFER_USAGE::GPU_READ && vbState != D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER)
+	if ((usage & BUFFER_FLAGS::GPU_READ) && vbState != D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER)
 	{
 		++num;
 		barriers[0] = CD3DX12_RESOURCE_BARRIER::Transition(vertexBuffer.Get(), vbState, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
 		vbState = D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER;
 	}
 
-	if (usage == BUFFER_USAGE::GPU_READ && ibState != D3D12_RESOURCE_STATE_INDEX_BUFFER)
+	if ((usage & BUFFER_FLAGS::GPU_READ) && ibState != D3D12_RESOURCE_STATE_INDEX_BUFFER)
 	{
 		++num;
 		barriers[1] = CD3DX12_RESOURCE_BARRIER::Transition(indexBuffer.Get(), ibState, D3D12_RESOURCE_STATE_INDEX_BUFFER);
@@ -45,7 +45,7 @@ bool Dx12CoreVertexBuffer::GetReadBarrier(UINT* numBarrires, D3D12_RESOURCE_BARR
 }
 
 void Dx12CoreVertexBuffer::Init(const void* vbData, const VeretxBufferDesc* vbDesc,
-								const void* idxData, const IndexBufferDesc* idxDesc, BUFFER_USAGE usage_)
+								const void* idxData, const IndexBufferDesc* idxDesc, BUFFER_FLAGS usage_)
 {
 	usage = usage_;
 	id = idGen.getId();
@@ -67,13 +67,13 @@ void Dx12CoreVertexBuffer::Init(const void* vbData, const VeretxBufferDesc* vbDe
 
 	usage = usage_;
 
-	if (usage_ == BUFFER_USAGE::GPU_READ)
+	if (usage_ & BUFFER_FLAGS::GPU_READ)
 	{
 		d3dheapProperties = D3D12_HEAP_TYPE_DEFAULT;
 		vbState = D3D12_RESOURCE_STATE_COPY_DEST; // for copy cmd list
 		ibState = D3D12_RESOURCE_STATE_COPY_DEST;
 	}
-	else if (usage_ == BUFFER_USAGE::CPU_WRITE)
+	else if (usage_ & BUFFER_FLAGS::CPU_WRITE)
 	{
 		d3dheapProperties = D3D12_HEAP_TYPE_UPLOAD;
 		vbState = D3D12_RESOURCE_STATE_GENERIC_READ; // for upload heap
@@ -131,7 +131,7 @@ void Dx12CoreVertexBuffer::Init(const void* vbData, const VeretxBufferDesc* vbDe
 
 void Dx12CoreVertexBuffer::SetData(const void* vbData, size_t vbSize, size_t vbOffset, const void* idxData, size_t idxSize, size_t idxOffset)
 {
-	if (usage == BUFFER_USAGE::GPU_READ)
+	if (usage & BUFFER_FLAGS::GPU_READ)
 	{
 		assert(vbOffset == 0 && "Not impl");
 		assert(idxOffset == 0 && "Not impl");
@@ -142,7 +142,7 @@ void Dx12CoreVertexBuffer::SetData(const void* vbData, size_t vbSize, size_t vbO
 		ComPtr<ID3D12Resource> uploadVertexBuffer;
 		ComPtr<ID3D12Resource> uploadIndexBuffer;
 
-		copyContext->Begin();
+		copyContext->CommandsBegin();
 
 		UpdateBufferResource(d3dcommandList, vertexBuffer.Get(), &uploadVertexBuffer, vbSize, vbData);
 
@@ -153,11 +153,11 @@ void Dx12CoreVertexBuffer::SetData(const void* vbData, size_t vbSize, size_t vbO
 		// For a default heap, you need to use a fence because the GPU can be doing copying from an 
 		// upload heap to a default heap for example at the same time it is drawing
 
-		copyContext->End();
+		copyContext->CommandsEnd();
 		copyContext->Submit();
 		copyContext->WaitGPUAll(); // wait GPU copying upload -> default heap
 	}
-	else if (usage == BUFFER_USAGE::CPU_WRITE)
+	else if (usage & BUFFER_FLAGS::CPU_WRITE)
 	{
 		{
 			UINT8* pVertexDataBegin;

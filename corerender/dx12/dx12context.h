@@ -2,6 +2,7 @@
 #include "common.h"
 #include "dx12common.h"
 #include "icorerender.h"
+#include "intrusiveptr.h"
 
 class Dx12GraphicCommandContext
 {
@@ -9,47 +10,59 @@ class Dx12GraphicCommandContext
 	ID3D12Fence* d3dFence{};
 	HANDLE fenceEvent{};
 	uint64_t fenceValue{1}; // fence value ready to signal
-	Dx12WindowSurface *surface{};
 	device_t* device;
 
 	UINT descriptorSizeCBSRV;
 	UINT descriptorSizeRTV;
 	UINT descriptorSizeDSV;
 
-	struct State
+	struct SlotData
 	{
-		Dx12CoreShader *shader;
-		Dx12CoreVertexBuffer *vb;
-		uint64_t psoChecksum; // 0 not set
+		RESOURCE_BIND_FLAGS bindFlags;
+		RESOURCE_BIND_FLAGS bindDirtyFlags;
+
+		Dx12UniformBuffer* CBV;
+
+		union
+		{
+			Dx12CoreTexture* texture;
+			Dx12CoreBuffer* buffer;
+		} SRV;
+
+		union
+		{
+			Dx12CoreTexture* texture;
+			Dx12CoreBuffer* buffer;
+		} UAV;
+	};
+
+	// State
+	surface_ptr surface;
+	bool needReBindSurface{true}; // ex.: we need bind surfaces after calls: d3dcmdlist::Close(), d3dcmdlist::Reset()
+
+	struct StateCache
+	{
+		D3D12_VIEWPORT viewport;
+		D3D12_RECT scissor;
+
+		struct PSO
+		{
+			ComPtr<ID3D12RootSignature> rootSignature;
+			intrusive_ptr<Dx12CoreShader> shader;
+			intrusive_ptr<Dx12CoreVertexBuffer> vb;
+
+			bool isCompute;
+			psomap_checksum_t graphicPsoChecksum; // 0 not set
+			psomap_checksum_t computePsoChecksum; // 0 not set
+			ComPtr<ID3D12PipelineState> d3dpso;
+		}pso;
+
 		PRIMITIVE_TOPOLOGY primitiveTopology;
-
-		struct SlotData
-		{
-			RESOURCE_BIND_FLAGS dirtyFlags; // resources to set before draw call
-
-			// CBV register b
-			// SRV register t
-			// UAV register u
-
-			Dx12UniformBuffer *CBV;
-
-			union
-			{
-				Dx12CoreTexture* texture;
-				Dx12CoreBuffer* structuredBuffer;
-			} SRV;
-		};
-
-		struct ShaderSlots
-		{
-			SlotData resources[MaxResourcesPerShader];
-			int dirty{0};
-		};
-
-		ShaderSlots binds[(int)SHADER_TYPE::NUM];
+		uint8_t shaderTypesUsedBits;
+		SlotData binds[(int)SHADER_TYPE::NUM][MaxResourcesPerShader];
 	} 
 	state;
-	void resetState();
+	std::stack<StateCache> statesStack;
 
 	struct Statistic
 	{
@@ -59,7 +72,6 @@ class Dx12GraphicCommandContext
 		uint64_t stateChanges{};
 	};
 	Statistic statistic;
-	void resetStatistic();
 
 	struct CommandList
 	{
@@ -95,7 +107,7 @@ class Dx12GraphicCommandContext
 		void TrackResource(IResourceUnknown* resource);
 		void ReleaseTrakedResources();
 		void CompleteGPUFrame(uint64_t nextFenceID);
-		void Begin();
+		void CommandsBegin();
 	};
 
 	CommandList cmdLists[DeferredBuffers];
@@ -113,7 +125,13 @@ class Dx12GraphicCommandContext
 
 	FinishFrameBroadcast finishFrameBroadcast;
 
+	void resetStatistic();
+	void resetPSOState();
+	void resetFullState();
 	void bindResources();
+
+	void setComputePipeline(psomap_checksum_t newChecksum, ID3D12PipelineState* d3dpso);
+	void setGraphicPipeline(psomap_checksum_t newChecksum, ID3D12PipelineState* d3dpso);
 
 public:
 	Dx12GraphicCommandContext(FinishFrameBroadcast finishFrameCallback_);
@@ -123,6 +141,7 @@ public:
 
 	void Free();
 	ID3D12CommandQueue* GetD3D12CmdQueue() { return d3dCommandQueue; }
+	ID3D12GraphicsCommandList* GetD3D12CmdList() { return d3dCmdList; }
 
 	inline uint64_t CurentFrame() const { return fenceValue; }
 
@@ -131,28 +150,41 @@ public:
 	uint64_t uniformBufferUpdates() const { return statistic.uniformBufferUpdates; }
 	uint64_t stateChanges() const { return statistic.stateChanges; }
 
+	void bindSurface();
+
 public:
 	// API
 
-	void Begin(Dx12WindowSurface* surface);
-	void End();
+	void CommandsBegin(surface_ptr surface = surface_ptr{});
+	void CommandsEnd();
+	void FrameEnd();
 
 	void Submit();
 
 	void WaitGPUFrame();
 	void WaitGPUAll();
 
-	void SetPipelineState(const PipelineState& desc);
+	void PushState();
+	void PopState();
+
+	void SetGraphicPipelineState(const GraphicPipelineState& gpso);
+	void SetComputePipelineState(const ComputePipelineState& cpso);
 	void SetVertexBuffer(Dx12CoreVertexBuffer* vb);
 	void SetViewport(unsigned width, unsigned heigth);
 	void SetScissor(unsigned x, unsigned y, unsigned width, unsigned heigth);
+
 	void Draw(Dx12CoreVertexBuffer* vb, uint32_t vertexCount = 0, uint32_t vertexOffset = 0);
+	void Dispatch(uint32_t x, uint32_t y, uint32_t z = 1);
+	void Clear();
 
 	void BindUniformBuffer(int slot, Dx12UniformBuffer* buffer, SHADER_TYPE shaderType);
 	void BindTexture(int slot, Dx12CoreTexture* buffer, SHADER_TYPE shaderType);
-	void BindStructuredBuffer(int slot, Dx12CoreBuffer* buffer, SHADER_TYPE shaderType);
+	void BindSRVStructuredBuffer(int slot, Dx12CoreBuffer* buffer, SHADER_TYPE shaderType);
+	void BindUAVStructuredBuffer(int slot, Dx12CoreBuffer* buffer, SHADER_TYPE shaderType);
 
 	void UpdateUniformBuffer(Dx12UniformBuffer* buffer, const void* data, size_t offset, size_t size);
+
+	void EmitUAVBarrier(Dx12CoreBuffer* buffer);
 
 	void TimerBegin(uint32_t timerID);
 	void TimerEnd(uint32_t timerID);
@@ -177,8 +209,8 @@ public:
 	ID3D12GraphicsCommandList* GetD3D12CmdList() { return d3dCommandList; }
 
 	void Free();
-	void Begin();
-	void End();
+	void CommandsBegin();
+	void CommandsEnd();
 	void Submit();
 	void WaitGPUAll();
 };

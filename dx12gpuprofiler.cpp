@@ -79,7 +79,7 @@ struct Dx12Graph : public Graph
 		if (graphVertexBuffer)
 			graphVertexBuffer = nullptr;
 
-		GetCoreRender()->CreateVertexBuffer(graphVertexBuffer.getAdressOf(), graphData, &desc, nullptr, nullptr, BUFFER_USAGE::CPU_WRITE);
+		GetCoreRender()->CreateVertexBuffer(graphVertexBuffer.getAdressOf(), graphData, &desc, nullptr, nullptr, BUFFER_FLAGS::CPU_WRITE);
 	}
 };
 
@@ -105,9 +105,9 @@ struct Dx12RenderProfilerRecord : public RenderProfilerRecord
 		VeretxBufferDesc desc;
 		desc.attributesCount = _countof(attr);
 		desc.attributes = attr;
-		desc.vertexCount = 6 * (uint32_t)text.size();
+		desc.vertexCount = 6 * ((uint32_t)text.size() + 10); // for numbers
 
-		GetCoreRender()->CreateVertexBuffer(&vertexBuffer, nullptr, &desc, nullptr, nullptr, BUFFER_USAGE::CPU_WRITE);
+		GetCoreRender()->CreateVertexBuffer(&vertexBuffer, nullptr, &desc, nullptr, nullptr, BUFFER_FLAGS::CPU_WRITE);
 	}
 
 	void UpdateBuffer(void* data) override
@@ -179,13 +179,13 @@ void Dx12GpuProfiler::Begin()
 
 void Dx12GpuProfiler::BeginGraph()
 {
-	PipelineState pso{};
+	GraphicPipelineState pso{};
 	pso.src = BLEND_FACTOR::SRC_ALPHA;
 	pso.dst = BLEND_FACTOR::ONE_MINUS_SRC_ALPHA;
 	pso.primitiveTopology = PRIMITIVE_TOPOLOGY::LINE;
 	pso.shader = graphShader;
 	pso.vb = static_cast<Dx12Graph*>(graphs[0])->graphVertexBuffer.get();
-	context->SetPipelineState(pso);
+	context->SetGraphicPipelineState(pso);
 
 	context->BindUniformBuffer(0, viewportUniformBuffer, SHADER_TYPE::SHADER_VERTEX);
 }
@@ -197,19 +197,19 @@ void Dx12GpuProfiler::UpdateViewportConstantBuffer()
 
 void Dx12GpuProfiler::DrawFont(int maxRecords)
 {
-	PipelineState pso{};
+	GraphicPipelineState pso{};
 	pso.primitiveTopology = PRIMITIVE_TOPOLOGY::TRIANGLE;
 	pso.shader = fontShader;
 	pso.vb = static_cast<Dx12RenderProfilerRecord*>(records[0])->vertexBuffer;
 	pso.src = BLEND_FACTOR::SRC_ALPHA;
 	pso.dst = BLEND_FACTOR::ONE_MINUS_SRC_ALPHA;
-	context->SetPipelineState(pso);
+	context->SetGraphicPipelineState(pso);
 
 	context->BindUniformBuffer(0, viewportUniformBuffer, SHADER_TYPE::SHADER_VERTEX);
 	context->BindUniformBuffer(1, transformUniformBuffer, SHADER_TYPE::SHADER_VERTEX);
 
 	context->BindTexture(1, fontTexture, SHADER_TYPE::SHADER_FRAGMENT);
-	context->BindStructuredBuffer(0, fontDataStructuredBuffer, SHADER_TYPE::SHADER_VERTEX);
+	context->BindSRVStructuredBuffer(0, fontDataStructuredBuffer, SHADER_TYPE::SHADER_VERTEX);
 
 	float t = 0;
 	for (int i = 0; i < maxRecords; ++i)

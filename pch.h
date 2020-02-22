@@ -32,6 +32,7 @@ using namespace Microsoft::WRL;
 
 #include <cassert>
 #include <vector>
+#include <stack>
 #include <queue>
 #include <set>
 #include <functional>

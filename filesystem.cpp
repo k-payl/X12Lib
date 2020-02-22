@@ -61,7 +61,7 @@ bool FileSystem::IsRelative(const char *path)
 
 auto FileSystem::OpenFile(const char *path, FILE_OPEN_MODE mode) -> File
 {
-	const bool read = bool(mode & FILE_OPEN_MODE::READ);
+	const bool read = mode & FILE_OPEN_MODE::READ;
 	
 	fs::path fsPath = fs::u8path(path);
 
@@ -75,7 +75,7 @@ auto FileSystem::OpenFile(const char *path, FILE_OPEN_MODE mode) -> File
 
 	std::ios_base::openmode cpp_mode = read ? std::ofstream::in : cpp_mode = std::ofstream::out;
 
-	if (bool(FILE_OPEN_MODE::APPEND & mode))
+	if (FILE_OPEN_MODE::APPEND & mode)
 		cpp_mode |= std::ofstream::out | std::ofstream::app;
 
 	if (bool(mode & FILE_OPEN_MODE::BINARY))

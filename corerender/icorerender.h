@@ -107,7 +107,7 @@ enum class BLEND_FACTOR
 	NUM
 };
 
-struct PipelineState
+struct GraphicPipelineState
 {
 	ICoreShader* shader;
 	ICoreVertexBuffer* vb;
@@ -116,29 +116,42 @@ struct PipelineState
 	BLEND_FACTOR dst;
 };
 
-enum BUFFER_USAGE
+struct ComputePipelineState
 {
-	CPU_WRITE,
-	GPU_READ
+	ICoreShader* shader;
 };
+
+enum class BUFFER_FLAGS
+{
+	NONE = 0,
+	CPU_WRITE = 1 << 0,
+	GPU_READ = 1 << 1,
+	UNORDERED_ACCESS = 1 << 2
+};
+DEFINE_ENUM_OPERATORS(BUFFER_FLAGS)
 
 enum class SHADER_TYPE
 {
 	SHADER_VERTEX,
 	SHADER_FRAGMENT,
+	SHADER_COMPUTE,
 	NUM
 };
 
 enum RESOURCE_BIND_FLAGS
 {
-	NONE = 0,
+	RBF_NO_RESOURCE = 0,
+	RBF_UNIFORM_BUFFER = 1 << 1,
 
-	UNIFORM_BUFFER = 1 << 1,
+	RBF_TEXTURE_SRV = 1 << 2,
+	RBF_BUFFER_SRV = 1 << 3,
+	RBF_SRV = RBF_TEXTURE_SRV | RBF_BUFFER_SRV,
 
-	TEXTURE_SRV = 1 << 2,
-	STRUCTURED_BUFFER_SRV = 1 << 3,
-	SRV = TEXTURE_SRV | STRUCTURED_BUFFER_SRV,
+	RBF_TEXTURE_UAV = 1 << 4,
+	RBF_BUFFER_UAV = 1 << 5,
+	RBF_UAV = RBF_TEXTURE_UAV | RBF_BUFFER_UAV,
 };
+DEFINE_ENUM_OPERATORS(RESOURCE_BIND_FLAGS)
 
 static UINT formatInBytes(VERTEX_BUFFER_FORMAT format)
 {

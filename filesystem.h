@@ -4,16 +4,6 @@
 #include <fstream>
 #include <utility>
 
-#define DEFINE_ENUM_OPERATORS(ENUM_NAME) \
-inline ENUM_NAME operator|(ENUM_NAME a, ENUM_NAME b) \
-{ \
-	return static_cast<ENUM_NAME>(static_cast<int>(a) | static_cast<int>(b)); \
-} \
-inline ENUM_NAME operator&(ENUM_NAME a, ENUM_NAME b) \
-{ \
-	return static_cast<ENUM_NAME>(static_cast<int>(a) & static_cast<int>(b)); \
-}
-
 enum class FILE_OPEN_MODE
 {
 	READ = 1 << 0,

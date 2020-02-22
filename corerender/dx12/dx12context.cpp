@@ -33,41 +33,69 @@ void WaitForFenceValue(ID3D12Fence *d3dFence, uint64_t fenceValue, HANDLE fenceE
 	}
 }
 
-
-void Dx12GraphicCommandContext::SetPipelineState(const PipelineState& pso)
+void Dx12GraphicCommandContext::SetGraphicPipelineState(const GraphicPipelineState& pso)
 {
 	auto checksum = CalculateChecksum(pso);
 
-	if (checksum == this->state.psoChecksum)
+	if (checksum == state.pso.graphicPsoChecksum && !state.pso.isCompute)
 		return;
 
 	Dx12CoreShader* dx12Shader = static_cast<Dx12CoreShader*>(pso.shader);
 	Dx12CoreVertexBuffer* dx12vb = static_cast<Dx12CoreVertexBuffer*>(pso.vb);
 
-	auto* state = GetCoreRender()->GetPSO(pso);
+	resetPSOState();
 
-	resetState();
+	state.pso.shader = dx12Shader;
+	state.pso.vb = dx12vb;
+	state.primitiveTopology = pso.primitiveTopology;
 
-	cmdList->TrackResource(pso.vb);
-	cmdList->TrackResource(pso.shader);
-
-	this->state.shader = dx12Shader;
-	this->state.psoChecksum = checksum;
-	this->state.primitiveTopology = pso.primitiveTopology;
-
-	d3dCmdList->SetPipelineState(state);
-	++this->statistic.stateChanges;
+	auto d3dstate = GetCoreRender()->GetGraphicPSO(pso, checksum);
+	setGraphicPipeline(checksum, d3dstate.Get());
 
 	if (!dx12Shader->HasResources())
-		d3dCmdList->SetGraphicsRootSignature(GetCoreRender()->GetDefaultRootSignature());
+		state.pso.rootSignature = GetCoreRender()->GetDefaultRootSignature();
 	else
-		d3dCmdList->SetGraphicsRootSignature(this->state.shader->resourcesRootSignature.Get());
+		state.pso.rootSignature = dx12Shader->resourcesRootSignature;
+
+	d3dCmdList->SetGraphicsRootSignature(state.pso.rootSignature.Get());
+}
+
+void Dx12GraphicCommandContext::SetComputePipelineState(const ComputePipelineState& pso)
+{
+	auto checksum = CalculateChecksum(pso);
+
+	if (checksum == state.pso.computePsoChecksum && !state.pso.isCompute)
+		return;
+
+	resetPSOState();
+
+	Dx12CoreShader* dx12Shader = static_cast<Dx12CoreShader*>(pso.shader);
+
+	state.pso.shader = dx12Shader;
+
+	auto d3dstate = GetCoreRender()->GetComputePSO(pso, checksum);
+	setComputePipeline(checksum, d3dstate.Get());
+
+	//auto d3dstate = GetCoreRender()->GetComputePSO(pso, checksum);
+	//d3dCmdList->SetPipelineState(d3dstate.Get());
+	//++statistic.stateChanges;
+	//state.pso.isCompute = true;
+	//state.pso.computePsoChecksum = checksum;
+	//state.pso.d3dpso = std::move(d3dstate);
+
+	if (!dx12Shader->HasResources())
+		state.pso.rootSignature = GetCoreRender()->GetDefaultRootSignature();
+	else
+		state.pso.rootSignature = dx12Shader->resourcesRootSignature;
+
+	d3dCmdList->SetComputeRootSignature(state.pso.rootSignature.Get());
 }
 
 void Dx12GraphicCommandContext::SetVertexBuffer(Dx12CoreVertexBuffer* vb)// TODO add vb to tracked resources
 {
-	assert(state.psoChecksum > 0 && "PSO is not set");
-	state.vb = vb;
+	assert(state.pso.graphicPsoChecksum > 0 && "PSO is not set");
+
+	state.pso.vb = vb;
 
 	D3D12_PRIMITIVE_TOPOLOGY d3dtopology;
 	switch (state.primitiveTopology)
@@ -91,32 +119,49 @@ void Dx12GraphicCommandContext::SetVertexBuffer(Dx12CoreVertexBuffer* vb)// TODO
 
 void Dx12GraphicCommandContext::SetViewport(unsigned width, unsigned heigth)
 {
-	CD3DX12_VIEWPORT viewport(0.0f, 0.0f, (float)width, (float)heigth);
-	d3dCmdList->RSSetViewports(1, &viewport);
+	D3D12_VIEWPORT v{ 0.0f, 0.0f, (float)width, (float)heigth, D3D12_MIN_DEPTH, D3D12_MAX_DEPTH };
+	if (memcmp(&state.viewport, &v, sizeof(D3D12_VIEWPORT)) != 0)
+	{
+		d3dCmdList->RSSetViewports(1, &v);
+		memcpy(&state.viewport, &v, sizeof(D3D12_VIEWPORT));
+	}
 }
 
 void Dx12GraphicCommandContext::SetScissor(unsigned x, unsigned y, unsigned width, unsigned heigth)
 {
-	CD3DX12_RECT rect(x, y, width, heigth);
-	d3dCmdList->RSSetScissorRects(1, &rect);
+	D3D12_RECT r{LONG(x), LONG(y), LONG(width), LONG(heigth)};
+	if (memcmp(&state.scissor, &r, sizeof(D3D12_RECT)) != 0)
+	{
+		d3dCmdList->RSSetScissorRects(1, &r);
+		memcpy(&state.scissor, &r, sizeof(D3D12_RECT));
+	}
 }
 
 void Dx12GraphicCommandContext::bindResources()
 {
-	assert(state.shader && "Shader must be set");
+	assert(state.pso.shader && "Shader must be set");
+	static_assert(sizeof(state.shaderTypesUsedBits) * CHAR_BIT >= (size_t)SHADER_TYPE::NUM);
+
+	if (!state.shaderTypesUsedBits)
+		return;
+
+	uint32_t shaderTypesUsedBits = state.shaderTypesUsedBits;
 
 	using RootSignatureParameter = Dx12CoreShader::RootSignatureParameter;
 	using PARAMETER_TYPE = Dx12CoreShader::PARAMETER_TYPE;
 	
-	std::vector<RootSignatureParameter>& params = state.shader->rootSignatureParameters;
+	std::vector<RootSignatureParameter>& params = state.pso.shader->rootSignatureParameters;
 
 	for (int rootIdx = 0; rootIdx < params.size(); ++rootIdx)
 	{
 		RootSignatureParameter& rootParam = params[rootIdx];
 
-		State::ShaderSlots& shaderResources = state.binds[(int)rootParam.shaderType];
-		if (!shaderResources.dirty)
+		decltype(state.shaderTypesUsedBits) shaderNum = 1 << int(rootParam.shaderType);
+
+		if (!(shaderTypesUsedBits & shaderNum)) // skip shaders without resources
 			continue;
+
+		auto& slotsData = state.binds[(int)rootParam.shaderType];
 		
 		if (rootParam.type == PARAMETER_TYPE::INLINE_DESCRIPTOR)
 		{
@@ -124,27 +169,24 @@ void Dx12GraphicCommandContext::bindResources()
 
 			switch (rootParam.inlineResource.resources)
 			{
-				case UNIFORM_BUFFER:
+				case RBF_UNIFORM_BUFFER:
 				{
-					Dx12UniformBuffer* buffer = shaderResources.resources[slot].CBV;
+					Dx12UniformBuffer* buffer = slotsData[slot].CBV;
 
-					if (!buffer)
-						throw std::exception("Resource is not set");
-
-					if (!(shaderResources.resources[slot].dirtyFlags & RESOURCE_BIND_FLAGS::UNIFORM_BUFFER) && !buffer->dirty)
+					if (!(slotsData[slot].bindDirtyFlags & RBF_UNIFORM_BUFFER) && !buffer->dirty)
 						continue;
 
 					auto alloc = cmdList->fastAllocator->Allocate();
 					memcpy(alloc.ptr, buffer->cache, buffer->dataSize);
 
-					d3dCmdList->SetGraphicsRootConstantBufferView(rootIdx, alloc.gpuPtr);
+					if (!state.pso.isCompute)
+						d3dCmdList->SetGraphicsRootConstantBufferView(rootIdx, alloc.gpuPtr);
+					else
+						d3dCmdList->SetComputeRootConstantBufferView(rootIdx, alloc.gpuPtr);
 
-					shaderResources.resources[slot].dirtyFlags = static_cast<RESOURCE_BIND_FLAGS>(shaderResources.resources[slot].dirtyFlags & ~RESOURCE_BIND_FLAGS::UNIFORM_BUFFER);
+					slotsData[slot].bindDirtyFlags = static_cast<RESOURCE_BIND_FLAGS>(slotsData[slot].bindDirtyFlags & ~RBF_UNIFORM_BUFFER);
 					buffer->dirty = false;
 				}
-					break;
-				case TEXTURE_SRV:
-					throw std::exception("Not impl");
 					break;
 				default:
 					throw std::exception("Not impl");
@@ -160,14 +202,12 @@ void Dx12GraphicCommandContext::bindResources()
 			{
 				int slot = rootParam.tableResources[i].slot;
 				
-				isDirty = isDirty || (shaderResources.resources[slot].dirtyFlags != RESOURCE_BIND_FLAGS::NONE);
+				isDirty = isDirty || (slotsData[slot].bindDirtyFlags != 0);
 				if (isDirty)
 					break;
 
-				if (Dx12UniformBuffer* buffer = shaderResources.resources[slot].CBV)
-				{
+				if (Dx12UniformBuffer* buffer = slotsData[slot].CBV)
 					isDirty = isDirty || buffer->dirty;
-				}
 			}
 
 			if (!isDirty)
@@ -179,81 +219,96 @@ void Dx12GraphicCommandContext::bindResources()
 			{
 				int slot = rootParam.tableResources[tableParamIdx].slot;
 
-				switch (rootParam.tableResources[tableParamIdx].resources)
-				{
-					case UNIFORM_BUFFER:
+				D3D12_CPU_DESCRIPTOR_HANDLE cpuHandleGPUVisible{ cmdList->gpuDescriptorHeapStart.ptr + (tableParamIdx + cmdList->gpuDescriptorsOffset) * descriptorSizeCBSRV };
+				D3D12_CPU_DESCRIPTOR_HANDLE cpuHandleCPUVisible{};
+
+				auto type = rootParam.tableResources[tableParamIdx].resources;
+
+				if (type & RBF_UNIFORM_BUFFER)
 					{
-						D3D12_CPU_DESCRIPTOR_HANDLE cpuHandleGPUVisible{ cmdList->gpuDescriptorHeapStart.ptr + (tableParamIdx + cmdList->gpuDescriptorsOffset) * descriptorSizeCBSRV };
-
 						auto alloc = cmdList->fastAllocator->Allocate();
-						D3D12_CPU_DESCRIPTOR_HANDLE& cpuHandleCPUVisible = alloc.descriptor;
+						cpuHandleCPUVisible = alloc.descriptor;
 
-						Dx12UniformBuffer* buffer = shaderResources.resources[slot].CBV;
-
-						if (!buffer)
-							throw std::exception("Resource is not set");
+						Dx12UniformBuffer* buffer = slotsData[slot].CBV;
 
 						memcpy(alloc.ptr, buffer->cache, buffer->dataSize);
 						buffer->dirty = false;
 
-						device->CopyDescriptorsSimple(1, cpuHandleGPUVisible, cpuHandleCPUVisible, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-
-						REMOVE_DIRY_FLAGS(shaderResources.resources[slot].dirtyFlags, RESOURCE_BIND_FLAGS::UNIFORM_BUFFER);
+						REMOVE_DIRY_FLAGS(slotsData[slot].bindDirtyFlags, RBF_UNIFORM_BUFFER);
 					}
-					break;
-
-					case TEXTURE_SRV:
+				if (type & RBF_TEXTURE_SRV)
 					{
-						D3D12_CPU_DESCRIPTOR_HANDLE cpuHandleGPUVisible{ cmdList->gpuDescriptorHeapStart.ptr + (tableParamIdx + cmdList->gpuDescriptorsOffset) * descriptorSizeCBSRV };
+						Dx12CoreTexture* texture = slotsData[slot].SRV.texture;
 
-						Dx12CoreTexture* texture = shaderResources.resources[slot].SRV.texture;
+						cpuHandleCPUVisible = texture->GetSRV();
 
-						if (texture == nullptr)
-							throw std::exception("Resource is not set");
-
-						auto cpuHandleCPUVisible = texture->GetHandle();
-
-						device->CopyDescriptorsSimple(1, cpuHandleGPUVisible, cpuHandleCPUVisible, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-
-						REMOVE_DIRY_FLAGS(shaderResources.resources[slot].dirtyFlags, RESOURCE_BIND_FLAGS::TEXTURE_SRV);
+						REMOVE_DIRY_FLAGS(slotsData[slot].bindDirtyFlags, RBF_TEXTURE_SRV);
 					}
-					break;
-
-					case STRUCTURED_BUFFER_SRV:
+				if (type & RBF_BUFFER_SRV)
 					{
-						D3D12_CPU_DESCRIPTOR_HANDLE cpuHandleGPUVisible{ cmdList->gpuDescriptorHeapStart.ptr + (tableParamIdx + cmdList->gpuDescriptorsOffset) * descriptorSizeCBSRV };
+						Dx12CoreBuffer* buffer = slotsData[slot].SRV.buffer;
 
-						Dx12CoreBuffer* buffer = shaderResources.resources[slot].SRV.structuredBuffer;
+						cpuHandleCPUVisible = buffer->GetSRV();
 
-						if (buffer == nullptr)
-							throw std::exception("Resource is not set");
-
-						auto cpuHandleCPUVisible = buffer->GetHandle();
-
-						device->CopyDescriptorsSimple(1, cpuHandleGPUVisible, cpuHandleCPUVisible, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-
-						REMOVE_DIRY_FLAGS(shaderResources.resources[slot].dirtyFlags, RESOURCE_BIND_FLAGS::STRUCTURED_BUFFER_SRV);
+						REMOVE_DIRY_FLAGS(slotsData[slot].bindDirtyFlags, RBF_BUFFER_SRV);
 					}
-					break;
+				if (type & RBF_BUFFER_UAV)
+					{
+						Dx12CoreBuffer* buffer = slotsData[slot].UAV.buffer;
 
-					default:
-						throw std::exception("Not impl");
-						break;
-				}
+						cpuHandleCPUVisible = buffer->GetUAV();
+
+						REMOVE_DIRY_FLAGS(slotsData[slot].bindDirtyFlags, RBF_BUFFER_UAV);
+					}
+
+				device->CopyDescriptorsSimple(1, cpuHandleGPUVisible, cpuHandleCPUVisible, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 			}
 
 			cmdList->gpuDescriptorsOffset += rootParam.tableResourcesNum;
-			d3dCmdList->SetGraphicsRootDescriptorTable((UINT)rootIdx, gpuHadle);
+
+			if (!state.pso.isCompute)
+				d3dCmdList->SetGraphicsRootDescriptorTable((UINT)rootIdx, gpuHadle);
+			else
+				d3dCmdList->SetComputeRootDescriptorTable((UINT)rootIdx, gpuHadle);
 		}
 	}
+}
+
+void Dx12GraphicCommandContext::setComputePipeline(psomap_checksum_t newChecksum, ID3D12PipelineState* d3dpso)
+{
+	d3dCmdList->SetPipelineState(d3dpso);
+
+	++statistic.stateChanges;
+
+	state.pso.isCompute = true;
+	state.pso.computePsoChecksum = newChecksum;
+	state.pso.graphicPsoChecksum = 0;
+	state.pso.d3dpso = d3dpso;
+}
+
+void Dx12GraphicCommandContext::setGraphicPipeline(psomap_checksum_t newChecksum, ID3D12PipelineState* d3dpso)
+{
+	d3dCmdList->SetPipelineState(d3dpso);
+
+	++statistic.stateChanges;
+
+	state.pso.isCompute = false;
+	state.pso.graphicPsoChecksum = newChecksum;
+	state.pso.computePsoChecksum = 0;
+	state.pso.d3dpso = d3dpso;
 }
 
 void Dx12GraphicCommandContext::Draw(Dx12CoreVertexBuffer* vb, uint32_t vertexCount, uint32_t vertexOffset)
 {
 	bindResources();
 
-	state.vb = vb;
+	state.pso.vb = vb;
 	cmdList->TrackResource(const_cast<Dx12CoreVertexBuffer*>(vb));
+
+	if (vertexCount > 0)
+	{
+		assert(vertexCount <= vb->vertexCount);
+	}
 
 	if (vb->indexBuffer)
 	{
@@ -269,30 +324,83 @@ void Dx12GraphicCommandContext::Draw(Dx12CoreVertexBuffer* vb, uint32_t vertexCo
 	++statistic.drawCalls;
 }
 
+void Dx12GraphicCommandContext::Dispatch(uint32_t x, uint32_t y, uint32_t z)
+{
+	bindResources();
+	d3dCmdList->Dispatch(x, y, z);
+	++statistic.drawCalls;
+}
+
+void Dx12GraphicCommandContext::Clear()
+{
+	CD3DX12_CPU_DESCRIPTOR_HANDLE rtv(surface->descriptorHeapRTV->GetCPUDescriptorHandleForHeapStart(), frameIndex, CR_RTV_DescriptorsSize());
+	D3D12_CPU_DESCRIPTOR_HANDLE dsv = surface->descriptorHeapDSV->GetCPUDescriptorHandleForHeapStart();
+
+	FLOAT depth = 1.0f;
+	d3dCmdList->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH, depth, 0, 0, nullptr);
+
+	const vec4 color{ 0.0f, 0.0f, 0.0f, 0.0f };
+	d3dCmdList->ClearRenderTargetView(rtv, &color.x, 0, nullptr);
+}
+
 void Dx12GraphicCommandContext::BindUniformBuffer(int slot, Dx12UniformBuffer* buffer, SHADER_TYPE shaderType)
 {
-	State::ShaderSlots& bindings = state.binds[(int)shaderType];
-	bindings.resources[slot].CBV = buffer;
-	ADD_DIRY_FLAGS(bindings.resources[slot].dirtyFlags, RESOURCE_BIND_FLAGS::UNIFORM_BUFFER);
-	bindings.dirty = true;
+	int shaderNum = (int)shaderType;
+	state.shaderTypesUsedBits |= 1<<shaderNum;
+	auto& shaderData = state.binds[shaderNum];
+
+	shaderData[slot].CBV = buffer;
+
+	ADD_DIRY_FLAGS(shaderData[slot].bindFlags, RBF_UNIFORM_BUFFER);
+	ADD_DIRY_FLAGS(shaderData[slot].bindDirtyFlags, RBF_UNIFORM_BUFFER);
 }
 
 void Dx12GraphicCommandContext::BindTexture(int slot, Dx12CoreTexture* tex, SHADER_TYPE shaderType)
 {
-	State::ShaderSlots& bindings = state.binds[(int)shaderType];
-	bindings.resources[slot].SRV.texture = tex;
-	REMOVE_DIRY_FLAGS(bindings.resources[slot].dirtyFlags, RESOURCE_BIND_FLAGS::STRUCTURED_BUFFER_SRV);
-	ADD_DIRY_FLAGS(bindings.resources[slot].dirtyFlags, RESOURCE_BIND_FLAGS::TEXTURE_SRV);
-	bindings.dirty = true;
+	int shaderNum = (int)shaderType;
+	state.shaderTypesUsedBits |= 1 << shaderNum;
+	auto& shaderData = state.binds[shaderNum];
+
+	shaderData[slot].SRV.texture = tex;
+
+	REMOVE_DIRY_FLAGS(shaderData[slot].bindFlags, RBF_BUFFER_SRV);
+	REMOVE_DIRY_FLAGS(shaderData[slot].bindDirtyFlags, RBF_BUFFER_SRV);
+	ADD_DIRY_FLAGS(shaderData[slot].bindFlags, RBF_TEXTURE_SRV);
+	ADD_DIRY_FLAGS(shaderData[slot].bindDirtyFlags, RBF_TEXTURE_SRV);
 }
 
-void Dx12GraphicCommandContext::BindStructuredBuffer(int slot, Dx12CoreBuffer* buffer, SHADER_TYPE shaderType)
+void Dx12GraphicCommandContext::BindSRVStructuredBuffer(int slot, Dx12CoreBuffer* buffer, SHADER_TYPE shaderType)
 {
-	State::ShaderSlots& bindings = state.binds[(int)shaderType];
-	bindings.resources[slot].SRV.structuredBuffer = buffer;
-	REMOVE_DIRY_FLAGS(bindings.resources[slot].dirtyFlags, RESOURCE_BIND_FLAGS::TEXTURE_SRV);
-	ADD_DIRY_FLAGS(bindings.resources[slot].dirtyFlags, RESOURCE_BIND_FLAGS::STRUCTURED_BUFFER_SRV);
-	bindings.dirty = true;
+	int shaderNum = (int)shaderType;
+	state.shaderTypesUsedBits |= 1 << shaderNum;
+	auto& shaderData = state.binds[shaderNum];
+
+	shaderData[slot].SRV.buffer = buffer;
+
+	REMOVE_DIRY_FLAGS(shaderData[slot].bindFlags, RBF_TEXTURE_SRV);
+	REMOVE_DIRY_FLAGS(shaderData[slot].bindDirtyFlags, RBF_TEXTURE_SRV);
+	ADD_DIRY_FLAGS(shaderData[slot].bindFlags, RBF_BUFFER_SRV);
+	ADD_DIRY_FLAGS(shaderData[slot].bindDirtyFlags, RBF_BUFFER_SRV);
+}
+
+void Dx12GraphicCommandContext::BindUAVStructuredBuffer(int slot, Dx12CoreBuffer* buffer, SHADER_TYPE shaderType)
+{
+	int shaderNum = (int)shaderType;
+	state.shaderTypesUsedBits |= 1 << shaderNum;
+	auto& shaderData = state.binds[shaderNum];
+
+	shaderData[slot].UAV.buffer = buffer;
+
+	REMOVE_DIRY_FLAGS(shaderData[slot].bindFlags, RBF_TEXTURE_UAV);
+	REMOVE_DIRY_FLAGS(shaderData[slot].bindDirtyFlags, RBF_TEXTURE_UAV);
+	ADD_DIRY_FLAGS(shaderData[slot].bindFlags, RBF_BUFFER_UAV);
+	ADD_DIRY_FLAGS(shaderData[slot].bindDirtyFlags, RBF_BUFFER_UAV);
+
+	if (buffer->resourceState() != D3D12_RESOURCE_STATE_UNORDERED_ACCESS) // TODO: batch
+	{
+		d3dCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(buffer->GetResource(), buffer->resourceState(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS));
+		buffer->resourceState() = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+	}
 }
 
 void Dx12GraphicCommandContext::UpdateUniformBuffer(Dx12UniformBuffer* buffer, const void* data, size_t offset, size_t size)
@@ -300,6 +408,11 @@ void Dx12GraphicCommandContext::UpdateUniformBuffer(Dx12UniformBuffer* buffer, c
 	++statistic.uniformBufferUpdates;
 	memcpy(buffer->cache + offset, data, size);
 	buffer->dirty = true;
+}
+
+void Dx12GraphicCommandContext::EmitUAVBarrier(Dx12CoreBuffer* buffer)
+{
+	d3dCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::UAV(buffer->GetResource()));
 }
 
 void Dx12GraphicCommandContext::TimerBegin(uint32_t timerID)
@@ -334,7 +447,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE Dx12GraphicCommandContext::CommandList::newGPUHandle
 	assert(gpuDescriptorsOffset < MaxBindedResourcesPerFrame);
 
 	D3D12_CPU_DESCRIPTOR_HANDLE ret;
-	ret.ptr = gpuDescriptorHeapStart.ptr + gpuDescriptorsOffset * CR_CBSRV_DescriptorsSize();
+	ret.ptr = gpuDescriptorHeapStart.ptr + size_t(gpuDescriptorsOffset) * CR_CBSRV_DescriptorsSize();
 	++gpuDescriptorsOffset;
 	return ret;
 }
@@ -373,7 +486,7 @@ void Dx12GraphicCommandContext::CommandList::CompleteGPUFrame(uint64_t nextFence
 	fenceOldValue = nextFenceID;
 }
 
-void Dx12GraphicCommandContext::CommandList::Begin()
+void Dx12GraphicCommandContext::CommandList::CommandsBegin()
 {
 	d3dCmdList->SetDescriptorHeaps(1, &gpuDescriptorHeap);
 }
@@ -461,6 +574,8 @@ Dx12GraphicCommandContext::~Dx12GraphicCommandContext()
 
 void Dx12GraphicCommandContext::Free()
 {
+	statesStack = {};
+
 	WaitGPUAll();
 
 	for (int i = 0; i < DeferredBuffers; ++i)
@@ -472,38 +587,95 @@ void Dx12GraphicCommandContext::Free()
 	Release(queryReadBackBuffer);
 }
 
-void Dx12GraphicCommandContext::Begin(Dx12WindowSurface* surface_)
+void Dx12GraphicCommandContext::FrameEnd()
 {
-	assert(surface_);
-	surface = surface_;
+	resetStatistic();
+}
+
+void Dx12GraphicCommandContext::PushState()
+{
+	statesStack.push(state);
+}
+
+void Dx12GraphicCommandContext::PopState()
+{
+	StateCache& state_ = statesStack.top();
+
+	if (state_.pso.isCompute)
+	{
+		if (state.pso.computePsoChecksum != state_.pso.computePsoChecksum)
+		{
+			setComputePipeline(state_.pso.computePsoChecksum, state_.pso.d3dpso.Get());
+
+			state.pso.shader = state_.pso.shader; // TODO:remove  copy paste
+			state.pso.vb = state_.pso.vb;
+			state.primitiveTopology = state_.primitiveTopology;
+		}
+	}
+	else
+	{
+		if (state.pso.graphicPsoChecksum != state_.pso.graphicPsoChecksum)
+		{
+			setGraphicPipeline(state_.pso.graphicPsoChecksum, state_.pso.d3dpso.Get());
+
+			state.pso.shader = state_.pso.shader;
+			state.pso.vb = state_.pso.vb;
+			state.primitiveTopology = state_.primitiveTopology;
+		}
+	}
+
+	d3dCmdList->SetGraphicsRootSignature(state_.pso.rootSignature.Get());
+
+	if (state_.pso.vb)
+		SetVertexBuffer(state_.pso.vb.get());
+
+	SetScissor(state_.scissor.left, state_.scissor.top, state_.scissor.right, state_.scissor.bottom);
+
+	SetViewport((unsigned)state_.viewport.Width, (unsigned)state_.viewport.Height);
+
+	// ...
+
+	state = state_;
+
+	for (auto& s : state.binds)
+		for (auto &a : s)
+			a.bindDirtyFlags = a.bindFlags; // need set all resources before draw
+
+	statesStack.pop();
+}
+
+void Dx12GraphicCommandContext::CommandsBegin(surface_ptr surface_)
+{
+	if (surface_)
+		surface = surface_;
 
 	cmdList->d3dCommandAllocator->Reset();
 	d3dCmdList->Reset(cmdList->d3dCommandAllocator, nullptr);
-	cmdList->Begin();
+	cmdList->CommandsBegin();
 
-	if (surface)
-	{
-		ID3D12Resource *backBuffer = surface->colorBuffers[frameIndex].Get();
-
-		CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(backBuffer,
-				D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
-
-		d3dCmdList->ResourceBarrier(1, &barrier);
-
-		CD3DX12_CPU_DESCRIPTOR_HANDLE rtv(surface->descriptorHeapRTV->GetCPUDescriptorHandleForHeapStart(), frameIndex, CR_RTV_DescriptorsSize());
-		auto dsv = surface->descriptorHeapDSV->GetCPUDescriptorHandleForHeapStart();
-
-		d3dCmdList->OMSetRenderTargets(1, &rtv, FALSE, &dsv);
-
-		FLOAT depth = 1.0f;
-		d3dCmdList->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH, depth, 0, 0, nullptr);
-
-		const vec4 color{ 0.0f, 0.0f, 0.0f, 0.0f };
-		d3dCmdList->ClearRenderTargetView(rtv, &color.x, 0, nullptr);
-	}
+	if (needReBindSurface)
+		bindSurface();
 }
-void Dx12GraphicCommandContext::End()
+void Dx12GraphicCommandContext::bindSurface()
 {
+	ID3D12Resource* backBuffer = surface->colorBuffers[frameIndex].Get();
+
+	CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(backBuffer,
+																			D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+
+	d3dCmdList->ResourceBarrier(1, &barrier);
+
+	CD3DX12_CPU_DESCRIPTOR_HANDLE rtv(surface->descriptorHeapRTV->GetCPUDescriptorHandleForHeapStart(), frameIndex, CR_RTV_DescriptorsSize());
+	D3D12_CPU_DESCRIPTOR_HANDLE dsv = surface->descriptorHeapDSV->GetCPUDescriptorHandleForHeapStart();
+
+	d3dCmdList->OMSetRenderTargets(1, &rtv, FALSE, &dsv);
+
+	needReBindSurface = false;
+}
+void Dx12GraphicCommandContext::CommandsEnd()
+{
+	needReBindSurface = true;
+
 	// Query
 	// Write to buffer current time on GPU
 	UINT64 resolveAddress = queryResolveToFrameID * maxNumQuerySlots * sizeof(UINT64);
@@ -537,11 +709,11 @@ void Dx12GraphicCommandContext::End()
 					D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
 
 		d3dCmdList->ResourceBarrier(1, &barrier);
-
-		surface = nullptr;
 	}
 
 	ThrowIfFailed(d3dCmdList->Close());
+
+	resetFullState();
 }
 
 void Dx12GraphicCommandContext::Submit()
@@ -550,13 +722,19 @@ void Dx12GraphicCommandContext::Submit()
 	d3dCommandQueue->ExecuteCommandLists(1, commandLists);
 }
 
-void Dx12GraphicCommandContext::resetState()
+void Dx12GraphicCommandContext::resetPSOState()
 {
-	state.vb = nullptr;
-	state.shader = nullptr;
+	//state.viewport = {};
+	//state.scissor = {};
+	state.pso = {};
+	//state.primitiveTopology = {};
+	state.shaderTypesUsedBits = 0;
+	memset(&state.binds, 0, sizeof(state.binds));
+}
 
-	// TODO: GPU reset
-	memset(&state, 0, sizeof(state.binds));
+void Dx12GraphicCommandContext::resetFullState()
+{
+	state = {};
 }
 
 void Dx12GraphicCommandContext::resetStatistic()
@@ -583,9 +761,6 @@ void Dx12GraphicCommandContext::WaitGPUFrame()
 	// Here frame fenceIDToWait is completed on GPU
 
 	cmdList->CompleteGPUFrame(fenceValue);
-	
-	resetState();
-	resetStatistic();
 
 	if (finishFrameBroadcast)
 		finishFrameBroadcast(fenceIDToWait);
@@ -604,13 +779,9 @@ void Dx12GraphicCommandContext::WaitGPUAll()
 		cmdLists[i].CompleteGPUFrame(fenceValue);
 	}
 
-	resetState();
-	resetStatistic();
-
 	if (finishFrameBroadcast)
 		finishFrameBroadcast(fenceIDEmited);
 }
-
 
 // Dx12CopyCommandContext
 //
@@ -654,13 +825,13 @@ void Dx12CopyCommandContext::Free()
 	Release(d3dFence);
 }
 
-void Dx12CopyCommandContext::Begin()
+void Dx12CopyCommandContext::CommandsBegin()
 {
 	d3dCommandAllocator->Reset();
 	d3dCommandList->Reset(d3dCommandAllocator, nullptr);
 }
 
-void Dx12CopyCommandContext::End()
+void Dx12CopyCommandContext::CommandsEnd()
 {
 	ThrowIfFailed(d3dCommandList->Close());
 }

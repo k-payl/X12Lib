@@ -57,12 +57,14 @@ void IResourceUnknown::CheckResources()
 	}
 }
 
-void x12::memory::CreateCommittedBuffer(ID3D12Resource** out, UINT64 size, D3D12_RESOURCE_STATES state, D3D12_HEAP_TYPE heap, D3D12_HEAP_FLAGS flags)
+void x12::memory::CreateCommittedBuffer(ID3D12Resource** out, UINT64 size, D3D12_RESOURCE_STATES state,
+										D3D12_HEAP_TYPE heap, D3D12_HEAP_FLAGS flags,
+										D3D12_RESOURCE_FLAGS resFlags)
 {
 	return ThrowIfFailed(CR_GetD3DDevice()->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(heap),
 		flags,
-		&CD3DX12_RESOURCE_DESC::Buffer(size),
+		&CD3DX12_RESOURCE_DESC::Buffer(size, resFlags),
 		state,
 		nullptr,
 		IID_PPV_ARGS(out)));

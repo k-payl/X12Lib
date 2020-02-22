@@ -5,18 +5,42 @@
 
 struct Dx12CoreBuffer final : public ICoreBuffer
 {
-	uint16_t ID() { return id; }
-
-	D3D12_CPU_DESCRIPTOR_HANDLE GetHandle() const { return descriptorAllocation.descriptor; }
-
-	void InitStructuredBuffer(size_t structureSize, size_t num, const void *data);
-
 private:
+	void initSRV(UINT num, UINT structireSize, D3D12_BUFFER_SRV_FLAGS flag = D3D12_BUFFER_SRV_FLAG_NONE, DXGI_FORMAT format = DXGI_FORMAT_UNKNOWN);
+	void initUAV(UINT num, UINT structireSize, D3D12_BUFFER_UAV_FLAGS flag = D3D12_BUFFER_UAV_FLAG_NONE, DXGI_FORMAT format = DXGI_FORMAT_UNKNOWN);
 
 	ComPtr<ID3D12Resource> resource;
+	D3D12_RESOURCE_STATES state;
+
+	x12::descriptorheap::Alloc SRVdescriptor;
+	x12::descriptorheap::Alloc UAVdescriptor;
+
+	size_t size;
+
+	ComPtr<ID3D12Resource> stagingResource;
+	D3D12_RESOURCE_STATES stagingState;
 
 	static IdGenerator<uint16_t> idGen;
 	uint16_t id;
 
-	x12::descriptorheap::Alloc descriptorAllocation;
+public:
+	uint16_t ID() { return id; }
+
+	D3D12_CPU_DESCRIPTOR_HANDLE GetSRV() const { return SRVdescriptor.descriptor; }
+	D3D12_CPU_DESCRIPTOR_HANDLE GetUAV() const { return UAVdescriptor.descriptor; }
+
+	void InitStructuredBuffer(size_t structureSize, size_t num, const void *data, BUFFER_FLAGS flags);
+	void InitRawBuffer(size_t size);
+
+	ID3D12Resource* GetResource() const { return resource.Get(); }
+
+	void _GPUCopyToStaging();
+	void _GetStagingData(void* data);
+
+	D3D12_RESOURCE_STATES& resourceState() { return state; }
+	D3D12_RESOURCE_STATES& stagingResourceState() { return stagingState; }
+
+	void GetData(void* data);
+
+	Dx12CoreBuffer();
 };
