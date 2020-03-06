@@ -11,15 +11,16 @@ class Dx12GraphicCommandContext
 	HANDLE fenceEvent{};
 	uint64_t fenceValue{1}; // fence value ready to signal
 	device_t* device;
-
 	UINT descriptorSizeCBSRV;
 	UINT descriptorSizeRTV;
 	UINT descriptorSizeDSV;
 
-	struct SlotData
+	/* --- State ---- */
+
+	struct SlotDataCache
 	{
-		RESOURCE_BIND_FLAGS bindFlags;
-		RESOURCE_BIND_FLAGS bindDirtyFlags;
+		RESOURCE_DEFINITION bindFlags;
+		RESOURCE_DEFINITION bindDirtyFlags;
 
 		Dx12UniformBuffer* CBV;
 
@@ -36,32 +37,30 @@ class Dx12GraphicCommandContext
 		} UAV;
 	};
 
-	// State
-	surface_ptr surface;
-	bool needReBindSurface{true}; // ex.: we need bind surfaces after calls: d3dcmdlist::Close(), d3dcmdlist::Reset()
-
 	struct StateCache
 	{
+		surface_ptr surface;
+
 		D3D12_VIEWPORT viewport;
 		D3D12_RECT scissor;
 
 		struct PSO
 		{
-			ComPtr<ID3D12RootSignature> rootSignature;
-			intrusive_ptr<Dx12CoreShader> shader;
-			intrusive_ptr<Dx12CoreVertexBuffer> vb;
-
 			bool isCompute;
-			psomap_checksum_t graphicPsoChecksum; // 0 not set
-			psomap_checksum_t computePsoChecksum; // 0 not set
+			psomap_checksum_t PsoChecksum; // 0 not set. Compute or graphic checksum
+			intrusive_ptr<Dx12CoreShader> shader;
+			ComPtr<ID3D12RootSignature> d3drootSignature;
 			ComPtr<ID3D12PipelineState> d3dpso;
+
+			// Graphic only
+			intrusive_ptr<Dx12CoreVertexBuffer> vb;
 		}pso;
 
 		PRIMITIVE_TOPOLOGY primitiveTopology;
+
 		uint8_t shaderTypesUsedBits;
-		SlotData binds[(int)SHADER_TYPE::NUM][MaxResourcesPerShader];
-	} 
-	state;
+		SlotDataCache binds[(int)SHADER_TYPE::NUM][MaxResourcesPerShader];
+	} state;
 	std::stack<StateCache> statesStack;
 
 	struct Statistic
@@ -125,11 +124,11 @@ class Dx12GraphicCommandContext
 
 	FinishFrameBroadcast finishFrameBroadcast;
 
+	void transiteSurfaceToState(D3D12_RESOURCE_STATES newState);
 	void resetStatistic();
-	void resetPSOState();
+	void resetOnlyPSOState(); // reset PSO and shader bindings
 	void resetFullState();
-	void bindResources();
-
+	void bindResourceCacheForDraw();
 	void setComputePipeline(psomap_checksum_t newChecksum, ID3D12PipelineState* d3dpso);
 	void setGraphicPipeline(psomap_checksum_t newChecksum, ID3D12PipelineState* d3dpso);
 
@@ -150,12 +149,12 @@ public:
 	uint64_t uniformBufferUpdates() const { return statistic.uniformBufferUpdates; }
 	uint64_t stateChanges() const { return statistic.stateChanges; }
 
-	void bindSurface();
-
 public:
 	// API
 
-	void CommandsBegin(surface_ptr surface = surface_ptr{});
+	void bindSurface(const surface_ptr& surface_); // TODO: bind arbitary textures
+
+	void CommandsBegin();
 	void CommandsEnd();
 	void FrameEnd();
 
@@ -179,11 +178,11 @@ public:
 
 	void BindUniformBuffer(int slot, Dx12UniformBuffer* buffer, SHADER_TYPE shaderType);
 	void BindTexture(int slot, Dx12CoreTexture* buffer, SHADER_TYPE shaderType);
-	void BindSRVStructuredBuffer(int slot, Dx12CoreBuffer* buffer, SHADER_TYPE shaderType);
-	void BindUAVStructuredBuffer(int slot, Dx12CoreBuffer* buffer, SHADER_TYPE shaderType);
+	void BindStructuredBuffer(int slot, Dx12CoreBuffer* buffer, SHADER_TYPE shaderType);
 
 	void UpdateUniformBuffer(Dx12UniformBuffer* buffer, const void* data, size_t offset, size_t size);
 
+	void BindUnorderedAccessStructuredBuffer(int slot, Dx12CoreBuffer* buffer, SHADER_TYPE shaderType);
 	void EmitUAVBarrier(Dx12CoreBuffer* buffer);
 
 	void TimerBegin(uint32_t timerID);

@@ -209,7 +209,7 @@ void Dx12GpuProfiler::DrawFont(int maxRecords)
 	context->BindUniformBuffer(1, transformUniformBuffer, SHADER_TYPE::SHADER_VERTEX);
 
 	context->BindTexture(1, fontTexture, SHADER_TYPE::SHADER_FRAGMENT);
-	context->BindSRVStructuredBuffer(0, fontDataStructuredBuffer, SHADER_TYPE::SHADER_VERTEX);
+	context->BindStructuredBuffer(0, fontDataStructuredBuffer, SHADER_TYPE::SHADER_VERTEX);
 
 	float t = 0;
 	for (int i = 0; i < maxRecords; ++i)

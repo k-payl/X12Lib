@@ -429,8 +429,7 @@ psomap_checksum_t CalculateChecksum(const GraphicPipelineState& pso)
 	// 35:38 (4)   src blend
 	// 39:42 (4)   dst blend
 
-	constexpr auto blends = static_cast<int>(BLEND_FACTOR::NUM);
-	static_assert(blends == 11);
+	static_assert(11 == static_cast<int>(BLEND_FACTOR::NUM));
 
 	auto* dx12buffer = static_cast<Dx12CoreVertexBuffer*>(pso.vb);
 	auto* dx12shader = static_cast<Dx12CoreShader*>(pso.shader);

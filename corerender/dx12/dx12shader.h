@@ -9,7 +9,7 @@ struct Dx12CoreShader final : public ICoreShader
 	void InitGraphic(const char* vertText, const char* fragText, const ConstantBuffersDesc* variabledesc, uint32_t varNum);
 	void InitCompute(const char* text, const ConstantBuffersDesc* variabledesc, uint32_t varNum);
 
-	enum class PARAMETER_TYPE
+	enum class ROOT_PARAMETER_TYPE
 	{
 		NONE,
 		TABLE,
@@ -20,14 +20,14 @@ struct Dx12CoreShader final : public ICoreShader
 	struct RootSignatueResource
 	{
 		int slot;
-		RESOURCE_BIND_FLAGS resources;
+		RESOURCE_DEFINITION resources;
 	};
 
 	struct RootSignatureParameter
 	{
-		PARAMETER_TYPE type;
+		ROOT_PARAMETER_TYPE type;
 		SHADER_TYPE shaderType;
-		int tableResourcesNum;
+		int tableResourcesNum; // cache for tableResources.size()
 		std::vector<RootSignatueResource> tableResources;
 		RootSignatueResource inlineResource;
 	};

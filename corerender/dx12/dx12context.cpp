@@ -9,10 +9,10 @@
 #include <chrono>
 
 #define ADD_DIRY_FLAGS(FLAGS, ADD) \
-	FLAGS = static_cast<RESOURCE_BIND_FLAGS>(FLAGS | ADD);
+	FLAGS = static_cast<RESOURCE_DEFINITION>(FLAGS | ADD);
 
 #define REMOVE_DIRY_FLAGS(FLAGS, _REMOVE) \
-	FLAGS = static_cast<RESOURCE_BIND_FLAGS>(FLAGS & ~_REMOVE);
+	FLAGS = static_cast<RESOURCE_DEFINITION>(FLAGS & ~_REMOVE);
 
 
 uint64_t Signal(ID3D12CommandQueue *d3dCommandQueue, ID3D12Fence *d3dFence, uint64_t& fenceValue)
@@ -37,13 +37,13 @@ void Dx12GraphicCommandContext::SetGraphicPipelineState(const GraphicPipelineSta
 {
 	auto checksum = CalculateChecksum(pso);
 
-	if (checksum == state.pso.graphicPsoChecksum && !state.pso.isCompute)
+	if (checksum == state.pso.PsoChecksum && !state.pso.isCompute)
 		return;
 
 	Dx12CoreShader* dx12Shader = static_cast<Dx12CoreShader*>(pso.shader);
 	Dx12CoreVertexBuffer* dx12vb = static_cast<Dx12CoreVertexBuffer*>(pso.vb);
 
-	resetPSOState();
+	resetOnlyPSOState();
 
 	state.pso.shader = dx12Shader;
 	state.pso.vb = dx12vb;
@@ -53,21 +53,21 @@ void Dx12GraphicCommandContext::SetGraphicPipelineState(const GraphicPipelineSta
 	setGraphicPipeline(checksum, d3dstate.Get());
 
 	if (!dx12Shader->HasResources())
-		state.pso.rootSignature = GetCoreRender()->GetDefaultRootSignature();
+		state.pso.d3drootSignature = GetCoreRender()->GetDefaultRootSignature();
 	else
-		state.pso.rootSignature = dx12Shader->resourcesRootSignature;
+		state.pso.d3drootSignature = dx12Shader->resourcesRootSignature;
 
-	d3dCmdList->SetGraphicsRootSignature(state.pso.rootSignature.Get());
+	d3dCmdList->SetGraphicsRootSignature(state.pso.d3drootSignature.Get());
 }
 
 void Dx12GraphicCommandContext::SetComputePipelineState(const ComputePipelineState& pso)
 {
 	auto checksum = CalculateChecksum(pso);
 
-	if (checksum == state.pso.computePsoChecksum && !state.pso.isCompute)
+	if (checksum == state.pso.PsoChecksum && !state.pso.isCompute)
 		return;
 
-	resetPSOState();
+	resetOnlyPSOState();
 
 	Dx12CoreShader* dx12Shader = static_cast<Dx12CoreShader*>(pso.shader);
 
@@ -84,16 +84,16 @@ void Dx12GraphicCommandContext::SetComputePipelineState(const ComputePipelineSta
 	//state.pso.d3dpso = std::move(d3dstate);
 
 	if (!dx12Shader->HasResources())
-		state.pso.rootSignature = GetCoreRender()->GetDefaultRootSignature();
+		state.pso.d3drootSignature = GetCoreRender()->GetDefaultRootSignature();
 	else
-		state.pso.rootSignature = dx12Shader->resourcesRootSignature;
+		state.pso.d3drootSignature = dx12Shader->resourcesRootSignature;
 
-	d3dCmdList->SetComputeRootSignature(state.pso.rootSignature.Get());
+	d3dCmdList->SetComputeRootSignature(state.pso.d3drootSignature.Get());
 }
 
 void Dx12GraphicCommandContext::SetVertexBuffer(Dx12CoreVertexBuffer* vb)// TODO add vb to tracked resources
 {
-	assert(state.pso.graphicPsoChecksum > 0 && "PSO is not set");
+	assert(state.pso.PsoChecksum > 0 && "PSO is not set");
 
 	state.pso.vb = vb;
 
@@ -137,9 +137,10 @@ void Dx12GraphicCommandContext::SetScissor(unsigned x, unsigned y, unsigned widt
 	}
 }
 
-void Dx12GraphicCommandContext::bindResources()
+void Dx12GraphicCommandContext::bindResourceCacheForDraw()
 {
 	assert(state.pso.shader && "Shader must be set");
+
 	static_assert(sizeof(state.shaderTypesUsedBits) * CHAR_BIT >= (size_t)SHADER_TYPE::NUM);
 
 	if (!state.shaderTypesUsedBits)
@@ -148,13 +149,13 @@ void Dx12GraphicCommandContext::bindResources()
 	uint32_t shaderTypesUsedBits = state.shaderTypesUsedBits;
 
 	using RootSignatureParameter = Dx12CoreShader::RootSignatureParameter;
-	using PARAMETER_TYPE = Dx12CoreShader::PARAMETER_TYPE;
+	using ROOT_PARAMETER_TYPE = Dx12CoreShader::ROOT_PARAMETER_TYPE;
 	
 	std::vector<RootSignatureParameter>& params = state.pso.shader->rootSignatureParameters;
 
-	for (int rootIdx = 0; rootIdx < params.size(); ++rootIdx)
+	for (UINT rootParameterIdx = 0; rootParameterIdx < params.size(); ++rootParameterIdx)
 	{
-		RootSignatureParameter& rootParam = params[rootIdx];
+		RootSignatureParameter& rootParam = params[rootParameterIdx];
 
 		decltype(state.shaderTypesUsedBits) shaderNum = 1 << int(rootParam.shaderType);
 
@@ -163,7 +164,7 @@ void Dx12GraphicCommandContext::bindResources()
 
 		auto& slotsData = state.binds[(int)rootParam.shaderType];
 		
-		if (rootParam.type == PARAMETER_TYPE::INLINE_DESCRIPTOR)
+		if (rootParam.type == ROOT_PARAMETER_TYPE::INLINE_DESCRIPTOR)
 		{
 			int slot = rootParam.inlineResource.slot;
 
@@ -180,11 +181,11 @@ void Dx12GraphicCommandContext::bindResources()
 					memcpy(alloc.ptr, buffer->cache, buffer->dataSize);
 
 					if (!state.pso.isCompute)
-						d3dCmdList->SetGraphicsRootConstantBufferView(rootIdx, alloc.gpuPtr);
+						d3dCmdList->SetGraphicsRootConstantBufferView(rootParameterIdx, alloc.gpuPtr);
 					else
-						d3dCmdList->SetComputeRootConstantBufferView(rootIdx, alloc.gpuPtr);
+						d3dCmdList->SetComputeRootConstantBufferView(rootParameterIdx, alloc.gpuPtr);
 
-					slotsData[slot].bindDirtyFlags = static_cast<RESOURCE_BIND_FLAGS>(slotsData[slot].bindDirtyFlags & ~RBF_UNIFORM_BUFFER);
+					slotsData[slot].bindDirtyFlags = static_cast<RESOURCE_DEFINITION>(slotsData[slot].bindDirtyFlags & ~RBF_UNIFORM_BUFFER);
 					buffer->dirty = false;
 				}
 					break;
@@ -194,7 +195,7 @@ void Dx12GraphicCommandContext::bindResources()
 			}
 		}
 
-		else if (rootParam.type == PARAMETER_TYPE::TABLE)
+		else if (rootParam.type == ROOT_PARAMETER_TYPE::TABLE)
 		{			
 			bool isDirty = false;
 
@@ -213,7 +214,7 @@ void Dx12GraphicCommandContext::bindResources()
 			if (!isDirty)
 				continue;
 				
-			D3D12_GPU_DESCRIPTOR_HANDLE gpuHadle{ cmdList->gpuDescriptorHeapStartGPU.ptr + cmdList->gpuDescriptorsOffset * descriptorSizeCBSRV };
+			D3D12_GPU_DESCRIPTOR_HANDLE gpuHadleTableStart{ cmdList->gpuDescriptorHeapStartGPU.ptr + cmdList->gpuDescriptorsOffset * descriptorSizeCBSRV };
 
 			for (int tableParamIdx = 0; tableParamIdx < rootParam.tableResourcesNum; ++tableParamIdx)
 			{
@@ -267,9 +268,9 @@ void Dx12GraphicCommandContext::bindResources()
 			cmdList->gpuDescriptorsOffset += rootParam.tableResourcesNum;
 
 			if (!state.pso.isCompute)
-				d3dCmdList->SetGraphicsRootDescriptorTable((UINT)rootIdx, gpuHadle);
+				d3dCmdList->SetGraphicsRootDescriptorTable(rootParameterIdx, gpuHadleTableStart);
 			else
-				d3dCmdList->SetComputeRootDescriptorTable((UINT)rootIdx, gpuHadle);
+				d3dCmdList->SetComputeRootDescriptorTable(rootParameterIdx, gpuHadleTableStart);
 		}
 	}
 }
@@ -281,8 +282,7 @@ void Dx12GraphicCommandContext::setComputePipeline(psomap_checksum_t newChecksum
 	++statistic.stateChanges;
 
 	state.pso.isCompute = true;
-	state.pso.computePsoChecksum = newChecksum;
-	state.pso.graphicPsoChecksum = 0;
+	state.pso.PsoChecksum = newChecksum;
 	state.pso.d3dpso = d3dpso;
 }
 
@@ -293,14 +293,13 @@ void Dx12GraphicCommandContext::setGraphicPipeline(psomap_checksum_t newChecksum
 	++statistic.stateChanges;
 
 	state.pso.isCompute = false;
-	state.pso.graphicPsoChecksum = newChecksum;
-	state.pso.computePsoChecksum = 0;
+	state.pso.PsoChecksum = newChecksum;
 	state.pso.d3dpso = d3dpso;
 }
 
 void Dx12GraphicCommandContext::Draw(Dx12CoreVertexBuffer* vb, uint32_t vertexCount, uint32_t vertexOffset)
 {
-	bindResources();
+	bindResourceCacheForDraw();
 
 	state.pso.vb = vb;
 	cmdList->TrackResource(const_cast<Dx12CoreVertexBuffer*>(vb));
@@ -326,15 +325,15 @@ void Dx12GraphicCommandContext::Draw(Dx12CoreVertexBuffer* vb, uint32_t vertexCo
 
 void Dx12GraphicCommandContext::Dispatch(uint32_t x, uint32_t y, uint32_t z)
 {
-	bindResources();
+	bindResourceCacheForDraw();
 	d3dCmdList->Dispatch(x, y, z);
 	++statistic.drawCalls;
 }
 
 void Dx12GraphicCommandContext::Clear()
 {
-	CD3DX12_CPU_DESCRIPTOR_HANDLE rtv(surface->descriptorHeapRTV->GetCPUDescriptorHandleForHeapStart(), frameIndex, CR_RTV_DescriptorsSize());
-	D3D12_CPU_DESCRIPTOR_HANDLE dsv = surface->descriptorHeapDSV->GetCPUDescriptorHandleForHeapStart();
+	CD3DX12_CPU_DESCRIPTOR_HANDLE rtv(state.surface->descriptorHeapRTV->GetCPUDescriptorHandleForHeapStart(), frameIndex, CR_RTV_DescriptorsSize());
+	D3D12_CPU_DESCRIPTOR_HANDLE dsv = state.surface->descriptorHeapDSV->GetCPUDescriptorHandleForHeapStart();
 
 	FLOAT depth = 1.0f;
 	d3dCmdList->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH, depth, 0, 0, nullptr);
@@ -369,7 +368,7 @@ void Dx12GraphicCommandContext::BindTexture(int slot, Dx12CoreTexture* tex, SHAD
 	ADD_DIRY_FLAGS(shaderData[slot].bindDirtyFlags, RBF_TEXTURE_SRV);
 }
 
-void Dx12GraphicCommandContext::BindSRVStructuredBuffer(int slot, Dx12CoreBuffer* buffer, SHADER_TYPE shaderType)
+void Dx12GraphicCommandContext::BindStructuredBuffer(int slot, Dx12CoreBuffer* buffer, SHADER_TYPE shaderType)
 {
 	int shaderNum = (int)shaderType;
 	state.shaderTypesUsedBits |= 1 << shaderNum;
@@ -383,7 +382,7 @@ void Dx12GraphicCommandContext::BindSRVStructuredBuffer(int slot, Dx12CoreBuffer
 	ADD_DIRY_FLAGS(shaderData[slot].bindDirtyFlags, RBF_BUFFER_SRV);
 }
 
-void Dx12GraphicCommandContext::BindUAVStructuredBuffer(int slot, Dx12CoreBuffer* buffer, SHADER_TYPE shaderType)
+void Dx12GraphicCommandContext::BindUnorderedAccessStructuredBuffer(int slot, Dx12CoreBuffer* buffer, SHADER_TYPE shaderType)
 {
 	int shaderNum = (int)shaderType;
 	state.shaderTypesUsedBits |= 1 << shaderNum;
@@ -601,11 +600,13 @@ void Dx12GraphicCommandContext::PopState()
 {
 	StateCache& state_ = statesStack.top();
 
+	bindSurface(state_.surface);
+
 	if (state_.pso.isCompute)
 	{
-		if (state.pso.computePsoChecksum != state_.pso.computePsoChecksum)
+		if (state.pso.PsoChecksum != state_.pso.PsoChecksum)
 		{
-			setComputePipeline(state_.pso.computePsoChecksum, state_.pso.d3dpso.Get());
+			setComputePipeline(state_.pso.PsoChecksum, state_.pso.d3dpso.Get());
 
 			state.pso.shader = state_.pso.shader; // TODO:remove  copy paste
 			state.pso.vb = state_.pso.vb;
@@ -614,9 +615,9 @@ void Dx12GraphicCommandContext::PopState()
 	}
 	else
 	{
-		if (state.pso.graphicPsoChecksum != state_.pso.graphicPsoChecksum)
+		if (state.pso.PsoChecksum != state_.pso.PsoChecksum)
 		{
-			setGraphicPipeline(state_.pso.graphicPsoChecksum, state_.pso.d3dpso.Get());
+			setGraphicPipeline(state_.pso.PsoChecksum, state_.pso.d3dpso.Get());
 
 			state.pso.shader = state_.pso.shader;
 			state.pso.vb = state_.pso.vb;
@@ -624,7 +625,7 @@ void Dx12GraphicCommandContext::PopState()
 		}
 	}
 
-	d3dCmdList->SetGraphicsRootSignature(state_.pso.rootSignature.Get());
+	d3dCmdList->SetGraphicsRootSignature(state_.pso.d3drootSignature.Get());
 
 	if (state_.pso.vb)
 		SetVertexBuffer(state_.pso.vb.get());
@@ -644,38 +645,30 @@ void Dx12GraphicCommandContext::PopState()
 	statesStack.pop();
 }
 
-void Dx12GraphicCommandContext::CommandsBegin(surface_ptr surface_)
+void Dx12GraphicCommandContext::CommandsBegin()
 {
-	if (surface_)
-		surface = surface_;
-
 	cmdList->d3dCommandAllocator->Reset();
 	d3dCmdList->Reset(cmdList->d3dCommandAllocator, nullptr);
 	cmdList->CommandsBegin();
-
-	if (needReBindSurface)
-		bindSurface();
 }
-void Dx12GraphicCommandContext::bindSurface()
+void Dx12GraphicCommandContext::bindSurface(const surface_ptr& surface_)
 {
-	ID3D12Resource* backBuffer = surface->colorBuffers[frameIndex].Get();
+	if (surface_ == state.surface)
+		return;
 
-	CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(backBuffer,
-																			D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	state.surface = surface_;
 
-	d3dCmdList->ResourceBarrier(1, &barrier);
+	ID3D12Resource* backBuffer = state.surface->colorBuffers[frameIndex].Get();
 
-	CD3DX12_CPU_DESCRIPTOR_HANDLE rtv(surface->descriptorHeapRTV->GetCPUDescriptorHandleForHeapStart(), frameIndex, CR_RTV_DescriptorsSize());
-	D3D12_CPU_DESCRIPTOR_HANDLE dsv = surface->descriptorHeapDSV->GetCPUDescriptorHandleForHeapStart();
+	transiteSurfaceToState(D3D12_RESOURCE_STATE_RENDER_TARGET);
+
+	CD3DX12_CPU_DESCRIPTOR_HANDLE rtv(state.surface->descriptorHeapRTV->GetCPUDescriptorHandleForHeapStart(), frameIndex, CR_RTV_DescriptorsSize());
+	D3D12_CPU_DESCRIPTOR_HANDLE dsv = state.surface->descriptorHeapDSV->GetCPUDescriptorHandleForHeapStart();
 
 	d3dCmdList->OMSetRenderTargets(1, &rtv, FALSE, &dsv);
-
-	needReBindSurface = false;
 }
 void Dx12GraphicCommandContext::CommandsEnd()
 {
-	needReBindSurface = true;
-
 	// Query
 	// Write to buffer current time on GPU
 	UINT64 resolveAddress = queryResolveToFrameID * maxNumQuerySlots * sizeof(UINT64);
@@ -701,15 +694,7 @@ void Dx12GraphicCommandContext::CommandsEnd()
 
 	// ---- Query
 
-	if (surface)
-	{
-		ID3D12Resource* backBuffer = surface->colorBuffers[frameIndex].Get();
-
-		CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(backBuffer,
-					D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
-
-		d3dCmdList->ResourceBarrier(1, &barrier);
-	}
+	transiteSurfaceToState(D3D12_RESOURCE_STATE_PRESENT);
 
 	ThrowIfFailed(d3dCmdList->Close());
 
@@ -722,12 +707,9 @@ void Dx12GraphicCommandContext::Submit()
 	d3dCommandQueue->ExecuteCommandLists(1, commandLists);
 }
 
-void Dx12GraphicCommandContext::resetPSOState()
+void Dx12GraphicCommandContext::resetOnlyPSOState()
 {
-	//state.viewport = {};
-	//state.scissor = {};
 	state.pso = {};
-	//state.primitiveTopology = {};
 	state.shaderTypesUsedBits = 0;
 	memset(&state.binds, 0, sizeof(state.binds));
 }
@@ -735,6 +717,24 @@ void Dx12GraphicCommandContext::resetPSOState()
 void Dx12GraphicCommandContext::resetFullState()
 {
 	state = {};
+}
+
+void Dx12GraphicCommandContext::transiteSurfaceToState(D3D12_RESOURCE_STATES newState)
+{
+	if (!state.surface)
+		return;
+
+	if (state.surface->state == newState)
+		return;
+
+	ID3D12Resource* backBuffer = state.surface->colorBuffers[frameIndex].Get();
+
+	CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(backBuffer,
+																			state.surface->state, newState);
+
+	d3dCmdList->ResourceBarrier(1, &barrier);
+
+	state.surface->state = newState;
 }
 
 void Dx12GraphicCommandContext::resetStatistic()

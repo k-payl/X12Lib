@@ -42,6 +42,7 @@ static steady_clock::time_point start;
 int APIENTRY wWinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPWSTR, _In_ int)
 {
 	Core *core = new Core();
+
 	core->AddRenderProcedure(Render);
 	core->AddInitProcedure(Init);
 
@@ -65,7 +66,8 @@ void Render()
 	surface_ptr surface = renderer->MakeCurrent(res->hwnd);
 	Dx12GraphicCommandContext* context = renderer->GetGraphicCommmandContext();
 
-	context->CommandsBegin(surface);
+	context->CommandsBegin();
+	context->bindSurface(surface);
 
 	context->Clear();
 
@@ -122,6 +124,7 @@ void Render()
 
 	drawCubes(vec4(1, 0, 0, 1), -6.0f);	
 
+	if (0)
 	{
 		context->PushState();
 
@@ -130,7 +133,7 @@ void Render()
 
 		context->SetComputePipelineState(cpso);
 		context->BindUniformBuffer(0, res->compCB, SHADER_TYPE::SHADER_COMPUTE);
-		context->BindUAVStructuredBuffer(1, res->compSB.get(), SHADER_TYPE::SHADER_COMPUTE);
+		context->BindUnorderedAccessStructuredBuffer(1, res->compSB.get(), SHADER_TYPE::SHADER_COMPUTE);
 
 		for (UINT i = 0; i< chunks; ++i)
 		{

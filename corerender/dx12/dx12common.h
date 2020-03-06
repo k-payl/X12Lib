@@ -24,6 +24,8 @@ struct Dx12WindowSurface
 	ComPtr<ID3D12DescriptorHeap> descriptorHeapRTV;
 	ComPtr<ID3D12DescriptorHeap> descriptorHeapDSV;
 
+	D3D12_RESOURCE_STATES state{};
+
 	void ResizeBuffers(unsigned width_, unsigned height_);
 	void Present();
 };

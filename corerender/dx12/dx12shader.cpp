@@ -26,18 +26,18 @@ static D3D12_DESCRIPTOR_RANGE_TYPE ResourceToView(D3D_SHADER_INPUT_TYPE resource
 	}
 }
 
-static RESOURCE_BIND_FLAGS ResourceToBindFlag(D3D_SHADER_INPUT_TYPE resource)
+static RESOURCE_DEFINITION ResourceToBindFlag(D3D_SHADER_INPUT_TYPE resource)
 {
 	switch (resource)
 	{
-		case D3D_SIT_CBUFFER: return RESOURCE_BIND_FLAGS::RBF_UNIFORM_BUFFER;
-		case D3D_SIT_TEXTURE: return RESOURCE_BIND_FLAGS::RBF_TEXTURE_SRV;
-		case D3D_SIT_STRUCTURED: return RESOURCE_BIND_FLAGS::RBF_BUFFER_SRV;
-		case D3D_SIT_UAV_RWSTRUCTURED: return RESOURCE_BIND_FLAGS::RBF_BUFFER_UAV;
-		case D3D_SIT_UAV_RWTYPED: return RESOURCE_BIND_FLAGS::RBF_TEXTURE_UAV;
+		case D3D_SIT_CBUFFER: return RESOURCE_DEFINITION::RBF_UNIFORM_BUFFER;
+		case D3D_SIT_TEXTURE: return RESOURCE_DEFINITION::RBF_TEXTURE_SRV;
+		case D3D_SIT_STRUCTURED: return RESOURCE_DEFINITION::RBF_BUFFER_SRV;
+		case D3D_SIT_UAV_RWSTRUCTURED: return RESOURCE_DEFINITION::RBF_BUFFER_UAV;
+		case D3D_SIT_UAV_RWTYPED: return RESOURCE_DEFINITION::RBF_TEXTURE_UAV;
 		default:
 			assert(0 && "Not impl");
-			return RESOURCE_BIND_FLAGS::RBF_NO_RESOURCE;
+			return RESOURCE_DEFINITION::RBF_NO_RESOURCE;
 			break;
 	}
 }
@@ -181,7 +181,7 @@ bool Dx12CoreShader::processShader(const ConstantBuffersDesc* buffersDesc,
 			resourcesForTable.push_back({ shaderResource.slot, ResourceToBindFlag(shaderResource.resourceType) });
 		}
 
-		rootSignatureParameters.push_back({ PARAMETER_TYPE::TABLE, shaderTypeIn, (int)resourcesForTable.size(), resourcesForTable, {-1} });
+		rootSignatureParameters.push_back({ ROOT_PARAMETER_TYPE::TABLE, shaderTypeIn, (int)resourcesForTable.size(), resourcesForTable, {-1} });
 
 		D3D12_ROOT_DESCRIPTOR_TABLE d3dTable;
 		d3dTable.NumDescriptorRanges = (UINT)d3dRangesOut.size();
@@ -242,7 +242,7 @@ void Dx12CoreShader::addInlineDescriptors(std::vector<D3D12_ROOT_PARAMETER>& d3d
 		r.slot = perDrawResources[i].slot;
 		r.resources = ResourceToBindFlag(perDrawResources[i].resourceType);
 
-		rootSignatureParameters.insert(rootSignatureParameters.begin(), { PARAMETER_TYPE::INLINE_DESCRIPTOR, perDrawResources[i].shader, {}, {}, r });
+		rootSignatureParameters.insert(rootSignatureParameters.begin(), { ROOT_PARAMETER_TYPE::INLINE_DESCRIPTOR, perDrawResources[i].shader, {}, {}, r });
 	}
 
 }
