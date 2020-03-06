@@ -174,7 +174,7 @@ void Dx12GpuProfiler::Begin()
 {
 	context = GetCoreRender()->GetGraphicCommmandContext();
 
-	GetCoreRender()->GetSurfaceSize(w, h);
+	context->GetViewport(w, h);
 }
 
 void Dx12GpuProfiler::BeginGraph()

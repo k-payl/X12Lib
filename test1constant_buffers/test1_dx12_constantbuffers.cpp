@@ -63,7 +63,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPWSTR, _In_ int)
 void Render()
 {
 	Dx12CoreRenderer* renderer = CORE->GetCoreRenderer();
-	surface_ptr surface = renderer->MakeCurrent(res->hwnd);
+	surface_ptr surface = renderer->GetWindowSurface(res->hwnd);
 	Dx12GraphicCommandContext* context = renderer->GetGraphicCommmandContext();
 
 	context->CommandsBegin();
@@ -164,9 +164,8 @@ void Render()
 	context->CommandsEnd();
 	context->Submit();
 	renderer->PresentSurfaces();
-	context->WaitGPUFrame();
 
-	context->FrameEnd();
+	context->WaitGPUFrame();
 }
 
 void Init()

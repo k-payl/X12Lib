@@ -59,7 +59,7 @@ void Allocator::ReclaimMemory(uint64_t fenceID)
 {
 	for (size_t i = 0; i < allPages.size(); ++i)
 	{
-		auto page = allPages[i];
+		auto& page = allPages[i];
 
 		page->ReleaseRetiredDescriptors(fenceID);
 

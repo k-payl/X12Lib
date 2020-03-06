@@ -9,7 +9,7 @@
 #include "dx12vertexbuffer.h"
 #include "dx12texture.h"
 #include "dx12descriptorheap.h"
-#include "dx12uploadheap.h"
+#include "dx12memory.h"
 #include <d3dcompiler.h>
 #include <algorithm>
 
@@ -150,13 +150,7 @@ void Dx12CoreRenderer::Init()
 
 void Dx12CoreRenderer::Free()
 {
-	{
-		std::scoped_lock lock(pagesMutex);
-
-		for(x12::fastdescriptorallocator::Page *p : avaliablePages)
-			delete p;
-		avaliablePages.clear();
-	}
+	x12::memory::fast::Free();
 
 	{
 		PresentSurfaces();
@@ -201,64 +195,7 @@ void Dx12CoreRenderer::Free()
 	Release(device);
 }
 
-x12::fastdescriptorallocator::Page* Dx12CoreRenderer::GetPage(UINT size)
-{
-	using namespace x12::fastdescriptorallocator;
-
-	std::unique_lock lock(pagesMutex);
-
-	if (!avaliablePages.empty())
-	{
-		auto ret = avaliablePages.back();
-		avaliablePages.pop_back();
-		return ret;
-	}
-
-	Page* page = new Page();
-	allocatedPages.push_back(page);
-
-	lock.unlock();
-
-	UINT alignedSize = alignConstnatBufferSize(size);
-	UINT pageSize = alignedSize * descriptorsInPage;
-
-	// Upload heap for dynamic resources
-	// For upload heap no need to put a fence to make sure the data is uploaded before you make a draw call
-	x12::memory::CreateCommittedBuffer(&page->d3d12resource, pageSize, D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_HEAP_TYPE_UPLOAD);
-
-	// It is ok be mappped as long as you use buffer
-	// because d3d11 driver does not version memory (d3d11 did) and cpu-pointer is always valid
-	page->d3d12resource->Map(0, nullptr, &page->ptr);
-
-	page->gpuPtr = page->d3d12resource->GetGPUVirtualAddress();
-
-	// Prepare descriptors for page
-	page->descriptors = GetCoreRender()->AllocateDescriptor(descriptorsInPage);
-	SIZE_T ptrStart = page->descriptors.descriptor.ptr;
-
-	D3D12_CONSTANT_BUFFER_VIEW_DESC desc;
-	desc.SizeInBytes = alignConstnatBufferSize(size);
-
-	auto descriptorIncrementSize = page->descriptors.descriptorIncrementSize;
-
-	for (UINT i = 0; i < descriptorsInPage; ++i)
-	{
-		desc.BufferLocation = page->gpuPtr + i * 256;
-		D3D12_CPU_DESCRIPTOR_HANDLE handle{ ptrStart + i * descriptorIncrementSize };
-
-		device->CreateConstantBufferView(&desc, handle);
-	}
-
-	return page;
-}
-
-void Dx12CoreRenderer::ReleasePage(x12::fastdescriptorallocator::Page* page)
-{
-	std::scoped_lock lock(pagesMutex);
-	avaliablePages.emplace_back(page);
-}
-
-auto Dx12CoreRenderer::FetchSurface(HWND hwnd) -> surface_ptr
+auto Dx12CoreRenderer::_FetchSurface(HWND hwnd) -> surface_ptr
 {
 	if (auto it = surfaces.find(hwnd); it == surfaces.end())
 	{
@@ -277,21 +214,16 @@ void Dx12CoreRenderer::RecreateBuffers(HWND hwnd, UINT newWidth, UINT newHeight)
 {
 	graphicCommandContext->WaitGPUAll();
 
-	surface_ptr surf = FetchSurface(hwnd);
+	surface_ptr surf = _FetchSurface(hwnd);
 	surf->ResizeBuffers(newWidth, newHeight);
 
 	// after recreating swapchain's buffers frameIndex should be 0??
 	graphicCommandContext->frameIndex = 0; // TODO: make frameIndex private
 }
 
-auto Dx12CoreRenderer::MakeCurrent(HWND hwnd) -> surface_ptr
+auto Dx12CoreRenderer::GetWindowSurface(HWND hwnd) -> surface_ptr
 {
-	surface_ptr surf = FetchSurface(hwnd);
-
-	currentSurface = surf;
-	currentSurfaceWidth = surf->width;
-	currentSurfaceHeight = surf->height;
-
+	surface_ptr surf = _FetchSurface(hwnd);
 	surfacesForPresenting.push_back(surf);
 
 	return surf;
@@ -302,7 +234,10 @@ auto Dx12CoreRenderer::PresentSurfaces() -> void
 	for (const auto& s : surfacesForPresenting)
 		s->Present();
 	surfacesForPresenting.clear();
-	currentSurface = nullptr;
+
+	graphicCommandContext->FrameEnd();
+
+	++frame;
 }
 
 bool Dx12CoreRenderer::CreateShader(Dx12CoreShader** out, const char* vertText, const char* fragText,

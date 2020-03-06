@@ -3,6 +3,7 @@
 #include "icorerender.h"
 #include "intrusiveptr.h"
 #include "dx12common.h"
+#include "dx12memory.h"
 
 using psomap_t = std::map<psomap_checksum_t, ComPtr<ID3D12PipelineState>> ;
 using uniformbuffers_t = std::vector<std::unique_ptr<Dx12UniformBuffer>>;
@@ -15,9 +16,9 @@ class Dx12CoreRenderer
 	device_t *device{nullptr};
 	adapter_t *adapter{nullptr};
 
+	uint64_t frame{};
+
 	std::map<HWND, surface_ptr> surfaces;
-	surface_ptr currentSurface;
-	unsigned currentSurfaceWidth{}, currentSurfaceHeight{};
 	std::vector<surface_ptr> surfacesForPresenting;
 
 	Dx12GraphicCommandContext* graphicCommandContext;
@@ -29,17 +30,13 @@ class Dx12CoreRenderer
 	std::mutex psoMutex;
 	psomap_t psoMap;										// All Pipeline State Objects. checksum -> PSO
 
-	x12::descriptorheap::Allocator* descriptorAllocator;			// Descriptors for static long-lived resources
+	x12::descriptorheap::Allocator* descriptorAllocator;	// Descriptors for static long-lived resources
 	ComPtr<ID3D12RootSignature> defaultRootSignature;		// Root signature for shaders without input resources
 	bool Vsync{false};
 	bool tearingSupported;
 	UINT descriptorSizeCBSRV;
 	UINT descriptorSizeRTV;
 	UINT descriptorSizeDSV;
-
-	std::mutex pagesMutex;
-	std::vector<x12::fastdescriptorallocator::Page*> allocatedPages;
-	std::vector<x12::fastdescriptorallocator::Page*> avaliablePages;
 
 	void ReleaseFrame(uint64_t fenceID);
 	static void sReleaseFrameCallback(uint64_t fenceID);
@@ -60,15 +57,10 @@ public:
 	auto GetGraphicCommmandContext() const -> Dx12GraphicCommandContext* { return graphicCommandContext; };
 	auto GetCopyCommandContext() const -> Dx12CopyCommandContext* { return copyCommandContext; }
 
-	// Pages
-	auto GetPage(UINT size = 256) -> x12::fastdescriptorallocator::Page*;
-	auto ReleasePage(x12::fastdescriptorallocator::Page* page) -> void;
-
 	// Surfaces
-	auto FetchSurface(HWND hwnd)->surface_ptr;
+	auto _FetchSurface(HWND hwnd) -> surface_ptr;
 	auto RecreateBuffers(HWND hwnd, UINT newWidth, UINT newHeight) -> void;
-	auto MakeCurrent(HWND hwnd) -> surface_ptr;
-	auto GetSurfaceSize(unsigned& w, unsigned& h) -> void { w = currentSurfaceWidth; h = currentSurfaceHeight; }
+	auto GetWindowSurface(HWND hwnd) -> surface_ptr;
 	auto PresentSurfaces() -> void;
 
 	// Statistic

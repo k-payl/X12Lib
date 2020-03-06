@@ -127,6 +127,12 @@ void Dx12GraphicCommandContext::SetViewport(unsigned width, unsigned heigth)
 	}
 }
 
+void Dx12GraphicCommandContext::GetViewport(unsigned& width, unsigned& heigth)
+{
+	width = (unsigned)state.viewport.Width;
+	heigth = (unsigned)state.viewport.Height;
+}
+
 void Dx12GraphicCommandContext::SetScissor(unsigned x, unsigned y, unsigned width, unsigned heigth)
 {
 	D3D12_RECT r{LONG(x), LONG(y), LONG(width), LONG(heigth)};
@@ -553,7 +559,7 @@ void Dx12GraphicCommandContext::CommandList::Init(Dx12GraphicCommandContext* par
 	gpuDescriptorHeapStart = gpuDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
 	gpuDescriptorHeapStartGPU = gpuDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
 
-	fastAllocator = new x12::fastdescriptorallocator::Allocator;
+	fastAllocator = new x12::memory::fast::Allocator;
 }
 
 void Dx12GraphicCommandContext::CommandList::Free()

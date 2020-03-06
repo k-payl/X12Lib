@@ -31,9 +31,6 @@
     <ClInclude Include="corerender\dx12\dx12descriptorheap.h">
       <Filter>x12lib\dx12</Filter>
     </ClInclude>
-    <ClInclude Include="corerender\dx12\dx12uploadheap.h">
-      <Filter>x12lib\dx12</Filter>
-    </ClInclude>
     <ClInclude Include="corerender\dx12\dx12context.h">
       <Filter>x12lib\dx12</Filter>
     </ClInclude>
@@ -61,6 +58,9 @@
       <Filter>3rdparty\DirectXTex</Filter>
     </ClInclude>
     <ClInclude Include="corerender\dx12\dx12buffer.h">
+      <Filter>x12lib\dx12</Filter>
+    </ClInclude>
+    <ClInclude Include="corerender\dx12\dx12memory.h">
       <Filter>x12lib\dx12</Filter>
     </ClInclude>
   </ItemGroup>
@@ -91,9 +91,6 @@
     <ClCompile Include="corerender\dx12\dx12descriptorheap.cpp">
       <Filter>x12lib\dx12</Filter>
     </ClCompile>
-    <ClCompile Include="corerender\dx12\dx12uploadheap.cpp">
-      <Filter>x12lib\dx12</Filter>
-    </ClCompile>
     <ClCompile Include="corerender\dx12\dx12context.cpp">
       <Filter>x12lib\dx12</Filter>
     </ClCompile>
@@ -115,6 +112,9 @@
       <Filter>3rdparty\DirectXTex</Filter>
     </ClCompile>
     <ClCompile Include="corerender\dx12\dx12buffer.cpp">
+      <Filter>x12lib\dx12</Filter>
+    </ClCompile>
+    <ClCompile Include="corerender\dx12\dx12memory.cpp">
       <Filter>x12lib\dx12</Filter>
     </ClCompile>
   </ItemGroup>

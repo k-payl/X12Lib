@@ -1,6 +1,7 @@
 #pragma once
 #include "common.h"
 #include "dx12common.h"
+#include "dx12memory.h"
 #include "icorerender.h"
 #include "intrusiveptr.h"
 
@@ -91,7 +92,7 @@ class Dx12GraphicCommandContext
 
 		uint64_t fenceOldValue{0};
 		std::vector<IResourceUnknown*> trakedResources;
-		x12::fastdescriptorallocator::Allocator *fastAllocator;
+		x12::memory::fast::Allocator *fastAllocator;
 
 		// GPU-visible descriptors
 		ID3D12DescriptorHeap* gpuDescriptorHeap{};
@@ -170,6 +171,7 @@ public:
 	void SetComputePipelineState(const ComputePipelineState& cpso);
 	void SetVertexBuffer(Dx12CoreVertexBuffer* vb);
 	void SetViewport(unsigned width, unsigned heigth);
+	void GetViewport(unsigned& width, unsigned& heigth);
 	void SetScissor(unsigned x, unsigned y, unsigned width, unsigned heigth);
 
 	void Draw(Dx12CoreVertexBuffer* vb, uint32_t vertexCount = 0, uint32_t vertexOffset = 0);

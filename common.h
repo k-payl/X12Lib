@@ -28,6 +28,7 @@ using namespace Microsoft::WRL;
 #include <cassert>
 #include <vector>
 #include <stack>
+#include <queue>
 #include <set>
 #include <functional>
 #include <map>
@@ -66,7 +67,7 @@ inline bool operator&(ENUM_NAME a, ENUM_NAME b) \
 	return static_cast<bool>(static_cast<int>(a) & static_cast<int>(b)); \
 }
 
-namespace x12::fastdescriptorallocator
+namespace x12::memory::fast
 {
 	struct Page;
 	struct Alloc;
