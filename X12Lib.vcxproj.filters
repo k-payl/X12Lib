@@ -22,9 +22,6 @@
     <ClInclude Include="corerender/dx12/dx12vertexbuffer.h">
       <Filter>x12lib\dx12</Filter>
     </ClInclude>
-    <ClInclude Include="corerender/dx12/d3dx12.h">
-      <Filter>x12lib\dx12</Filter>
-    </ClInclude>
     <ClInclude Include="dx11/dx11.h">
       <Filter>_dx11</Filter>
     </ClInclude>
@@ -62,6 +59,9 @@
     </ClInclude>
     <ClInclude Include="corerender\dx12\dx12memory.h">
       <Filter>x12lib\dx12</Filter>
+    </ClInclude>
+    <ClInclude Include="3rdparty\d3dx12.h">
+      <Filter>3rdparty</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
