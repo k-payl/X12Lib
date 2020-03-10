@@ -79,13 +79,19 @@ struct Dx12Graph : public Graph
 		if (graphVertexBuffer)
 			graphVertexBuffer = nullptr;
 
-		GetCoreRender()->CreateVertexBuffer(graphVertexBuffer.getAdressOf(), graphData, &desc, nullptr, nullptr, BUFFER_FLAGS::CPU_WRITE);
+		WCHAR name[256];
+		wsprintf(name, L"profiler graph vb screen width=%u", w);
+
+		GetCoreRender()->CreateVertexBuffer(graphVertexBuffer.getAdressOf(), name, graphData, &desc, nullptr, nullptr, BUFFER_FLAGS::CPU_WRITE);
 	}
 };
 
 struct Dx12RenderProfilerRecord : public RenderProfilerRecord
 {
 	Dx12CoreVertexBuffer* vertexBuffer{};
+	int num;
+
+	Dx12RenderProfilerRecord(int num_) : num(num_){}
 
 	~Dx12RenderProfilerRecord()
 	{
@@ -107,7 +113,10 @@ struct Dx12RenderProfilerRecord : public RenderProfilerRecord
 		desc.attributes = attr;
 		desc.vertexCount = 6 * ((uint32_t)text.size() + 10); // for numbers
 
-		GetCoreRender()->CreateVertexBuffer(&vertexBuffer, nullptr, &desc, nullptr, nullptr, BUFFER_FLAGS::CPU_WRITE);
+		WCHAR name[256];
+		wsprintf(name, L"profiler text buffer #%d len=%u", num, desc.vertexCount);
+
+		GetCoreRender()->CreateVertexBuffer(&vertexBuffer, name, nullptr, &desc, nullptr, nullptr, BUFFER_FLAGS::CPU_WRITE);
 	}
 
 	void UpdateBuffer(void* data) override
@@ -134,7 +143,7 @@ void Dx12GpuProfiler::Init()
 		{
 			"TransformCB",	CONSTANT_BUFFER_UPDATE_FRIQUENCY::PER_DRAW
 		};
-		GetCoreRender()->CreateShader(&fontShader, text.get(), text.get(), &buffersdesc[0], _countof(buffersdesc));
+		GetCoreRender()->CreateShader(&fontShader, L"gpuprofiler_font.shader", text.get(), text.get(), &buffersdesc[0], _countof(buffersdesc));
 	}
 
 	// Graph
@@ -143,7 +152,7 @@ void Dx12GpuProfiler::Init()
 		graphs[i] = new Dx12Graph;
 
 	for (int i = 0; i < recordsNum; ++i)
-		records[i] = new Dx12RenderProfilerRecord;
+		records[i] = new Dx12RenderProfilerRecord(i);
 
 	{
 		const ConstantBuffersDesc buffersdesc[1] =
@@ -152,7 +161,7 @@ void Dx12GpuProfiler::Init()
 		};
 
 		auto text = fs->LoadFile("gpuprofiler_graph.shader");
-		GetCoreRender()->CreateShader(&graphShader, text.get(), text.get(), &buffersdesc[0], _countof(buffersdesc));
+		GetCoreRender()->CreateShader(&graphShader, L"gpuprofiler_graph.shader", text.get(), text.get(), &buffersdesc[0], _countof(buffersdesc));
 	}
 
 	GetCoreRender()->CreateUniformBuffer(&viewportUniformBuffer, 16);
@@ -164,11 +173,11 @@ void Dx12GpuProfiler::Init()
 	ID3D12Resource* d3dtexture;
 	DirectX::LoadDDSTextureFromFile(CR_GetD3DDevice(), fontTexturePath, &d3dtexture, ddsData, subresources);
 
-	GetCoreRender()->CreateTexture(&fontTexture, std::move(ddsData), subresources, d3dtexture);
+	GetCoreRender()->CreateTexture(&fontTexture, fontTexturePath, std::move(ddsData), subresources, d3dtexture);
 
 	// Font
 	loadFont();
-	GetCoreRender()->CreateStructuredBuffer(&fontDataStructuredBuffer, sizeof(FontChar), fontData.size(), &fontData[0]);
+	GetCoreRender()->CreateStructuredBuffer(&fontDataStructuredBuffer, L"font's data", sizeof(FontChar), fontData.size(), &fontData[0]);
 }
 void Dx12GpuProfiler::Begin()
 {

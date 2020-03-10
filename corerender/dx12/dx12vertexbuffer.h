@@ -4,7 +4,7 @@
 
 struct Dx12CoreVertexBuffer final : public ICoreVertexBuffer
 {
-	void Init(const void* vbData, const VeretxBufferDesc* vbDesc, const void* idxData, const IndexBufferDesc* idxDesc, BUFFER_FLAGS usage = BUFFER_FLAGS::GPU_READ);
+	void Init(LPCWSTR name, const void* vbData, const VeretxBufferDesc* vbDesc, const void* idxData, const IndexBufferDesc* idxDesc, BUFFER_FLAGS usage = BUFFER_FLAGS::GPU_READ);
 	void SetData(const void* vbData, size_t vbSize, size_t vbOffset, const void* idxData, size_t idxSize, size_t idxOffset);
 
 	~Dx12CoreVertexBuffer();
@@ -32,4 +32,6 @@ private:
 
 	static IdGenerator<uint16_t> idGen;
 	uint16_t id;
+
+	std::wstring name;
 };

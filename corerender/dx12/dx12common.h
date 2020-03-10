@@ -30,5 +30,14 @@ struct Dx12WindowSurface
 
 using surface_ptr = std::shared_ptr<Dx12WindowSurface>;
 
+template<typename... Arguments>
+void set_name(ID3D12Object *obj, LPCWSTR format, Arguments ...args)
+{
+	WCHAR wstr[256];
+	wsprintf(wstr, format, args...);
+	obj->SetName(wstr);
+}
+
+
 
 

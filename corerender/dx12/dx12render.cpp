@@ -12,6 +12,7 @@
 #include "dx12memory.h"
 #include <d3dcompiler.h>
 #include <algorithm>
+#include <inttypes.h>
 
 Dx12CoreRenderer* _coreRender;
 
@@ -240,32 +241,32 @@ auto Dx12CoreRenderer::PresentSurfaces() -> void
 	++frame;
 }
 
-bool Dx12CoreRenderer::CreateShader(Dx12CoreShader** out, const char* vertText, const char* fragText,
+bool Dx12CoreRenderer::CreateShader(Dx12CoreShader** out, LPCWSTR name, const char* vertText, const char* fragText,
 											const ConstantBuffersDesc* variabledesc, uint32_t varNum)
 {
 	auto* ptr = new Dx12CoreShader{};
-	ptr->InitGraphic(vertText, fragText, variabledesc, varNum);
+	ptr->InitGraphic(name, vertText, fragText, variabledesc, varNum);
 	ptr->AddRef();
 	*out = ptr;
 
 	return ptr != nullptr;
 }
 
-bool Dx12CoreRenderer::CreateComputeShader(Dx12CoreShader** out, const char* text, const ConstantBuffersDesc* variabledesc, uint32_t varNum)
+bool Dx12CoreRenderer::CreateComputeShader(Dx12CoreShader** out, LPCWSTR name, const char* text, const ConstantBuffersDesc* variabledesc, uint32_t varNum)
 {
 	auto* ptr = new Dx12CoreShader{};
-	ptr->InitCompute(text, variabledesc, varNum);
+	ptr->InitCompute(name, text, variabledesc, varNum);
 	ptr->AddRef();
 	*out = ptr;
 
 	return ptr != nullptr;
 }
 
-bool Dx12CoreRenderer::CreateVertexBuffer(Dx12CoreVertexBuffer** out, const void* vbData, const VeretxBufferDesc* vbDesc,
+bool Dx12CoreRenderer::CreateVertexBuffer(Dx12CoreVertexBuffer** out, LPCWSTR name, const void* vbData, const VeretxBufferDesc* vbDesc,
 	const void* idxData, const IndexBufferDesc* idxDesc, BUFFER_FLAGS usage)
 {
 	auto* ptr = new Dx12CoreVertexBuffer{};
-	ptr->Init(vbData, vbDesc, idxData, idxDesc, usage);
+	ptr->Init(name, vbData, vbDesc, idxData, idxDesc, usage);
 	ptr->AddRef();
 	*out = ptr;
 
@@ -285,11 +286,11 @@ bool Dx12CoreRenderer::CreateUniformBuffer(Dx12UniformBuffer **out, size_t size)
 	return ptr != nullptr;
 }
 
-bool Dx12CoreRenderer::CreateStructuredBuffer(Dx12CoreBuffer** out, size_t structureSize,
+bool Dx12CoreRenderer::CreateStructuredBuffer(Dx12CoreBuffer** out, LPCWSTR name, size_t structureSize,
 											  size_t num, const void* data, BUFFER_FLAGS flags)
 {
 	auto* ptr = new Dx12CoreBuffer;
-	ptr->InitStructuredBuffer(structureSize, num, data, flags);
+	ptr->InitStructuredBuffer(structureSize, num, data, flags, name);
 	ptr->AddRef();
 	*out = ptr;
 
@@ -306,7 +307,7 @@ bool Dx12CoreRenderer::CreateRawBuffer(Dx12CoreBuffer** out, size_t size)
 	return ptr != nullptr;
 }
 
-bool Dx12CoreRenderer::CreateTexture(Dx12CoreTexture** out, std::unique_ptr<uint8_t[]> ddsData, std::vector<D3D12_SUBRESOURCE_DATA> subresources,
+bool Dx12CoreRenderer::CreateTexture(Dx12CoreTexture** out, LPCWSTR name, std::unique_ptr<uint8_t[]> ddsData, std::vector<D3D12_SUBRESOURCE_DATA> subresources,
 									 ID3D12Resource* d3dtexture)
 {
 	assert(subresources.size() == 1); // Not impl
@@ -324,6 +325,8 @@ bool Dx12CoreRenderer::CreateTexture(Dx12CoreTexture** out, std::unique_ptr<uint
 
 	// Create the GPU upload buffer.
 	x12::memory::CreateCommittedBuffer(&d3dTextureUploadHeap, uploadBufferSize, D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_HEAP_TYPE_UPLOAD);
+
+	set_name(d3dTextureUploadHeap.Get(), L"Upload buffer for cpu->gpu copying %u bytes for '%s' texture", uploadBufferSize, name);
 
 	copyCommandContext->CommandsBegin();
 		UpdateSubresources(copyCommandContext->GetD3D12CmdList(), d3dtexture, d3dTextureUploadHeap.Get(), 0, 0, 1, &subresources[0]);
@@ -444,11 +447,14 @@ ComPtr<ID3D12PipelineState> Dx12CoreRenderer::GetGraphicPSO(const GraphicPipelin
 	ComPtr<ID3D12PipelineState> d3dPipelineState;
 	ThrowIfFailed(device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(d3dPipelineState.GetAddressOf())));
 
+	set_name(d3dPipelineState.Get(), L"PSO (graphic) #" PRIu64, psoNum);
+
 	lock.lock();
 
 	if (auto it = psoMap.find(checksum); it == psoMap.end())
 	{
 		psoMap[checksum] = d3dPipelineState;
+		psoNum++;
 		return d3dPipelineState;
 	}
 	else
@@ -475,11 +481,14 @@ auto Dx12CoreRenderer::GetComputePSO(const ComputePipelineState& pso, psomap_che
 	ComPtr<ID3D12PipelineState> d3dPipelineState;
 	ThrowIfFailed(device->CreateComputePipelineState(&desc, IID_PPV_ARGS(d3dPipelineState.GetAddressOf())));
 
+	set_name(d3dPipelineState.Get(), L"PSO (compute) #" PRIu64, psoNum);
+
 	lock.lock();
 
 	if (auto it = psoMap.find(checksum); it == psoMap.end())
 	{
 		psoMap[checksum] = d3dPipelineState;
+		psoNum++;
 		return d3dPipelineState;
 	}
 	else
@@ -529,7 +538,10 @@ void Dx12WindowSurface::Init(HWND hwnd, ID3D12CommandQueue* queue)
 	ThrowIfFailed(swapChain1.As(&swapChain));
 
 	descriptorHeapRTV = CreateDescriptorHeap(CR_GetD3DDevice(), DeferredBuffers, D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+	set_name(descriptorHeapRTV.Get(), L"Descriptor heap for backbuffers buffer %u RTV descriptors", DeferredBuffers);
+
 	descriptorHeapDSV = CreateDescriptorHeap(CR_GetD3DDevice(), 1, D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+	set_name(descriptorHeapDSV.Get(), L"Descriptor heap for backbuffers buffer %u DSV descriptors", 1);
 	
 	ResizeBuffers(width, height);
 }
@@ -558,6 +570,8 @@ void Dx12WindowSurface::ResizeBuffers(unsigned width_, unsigned height_)
 
 		CR_GetD3DDevice()->CreateRenderTargetView(color.Get(), nullptr, rtvHandle);
 
+		set_name(color.Get(), L"Swapchain back buffer #%d", i);
+
 		colorBuffers[i] = color;
 
 		rtvHandle.Offset(CR_RTV_DescriptorsSize());
@@ -570,6 +584,8 @@ void Dx12WindowSurface::ResizeBuffers(unsigned width_, unsigned height_)
 
 	x12::memory::CreateCommitted2DTexture(&depthBuffer, width, height, 1, DXGI_FORMAT_D32_FLOAT,
 										  D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL, D3D12_RESOURCE_STATE_DEPTH_WRITE, &optimizedClearValue);
+
+	set_name(depthBuffer.Get(), L"Swapchain back depth buffer");
 
 	// Create handles for depth stencil
 	D3D12_DEPTH_STENCIL_VIEW_DESC dsv = {};

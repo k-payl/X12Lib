@@ -7,7 +7,7 @@
 
 IdGenerator<uint16_t> Dx12CoreVertexBuffer::idGen;
 
-static void UpdateBufferResource(ID3D12GraphicsCommandList* pCmdList,
+static void UpdateBufferResource(LPCWSTR name, ID3D12GraphicsCommandList* pCmdList,
 								 ID3D12Resource* dest, ID3D12Resource** intermediate,
 								 UINT64 size, const void* data, D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE);
 
@@ -45,9 +45,10 @@ bool Dx12CoreVertexBuffer::GetReadBarrier(UINT* numBarrires, D3D12_RESOURCE_BARR
 	return num > 0;
 }
 
-void Dx12CoreVertexBuffer::Init(const void* vbData, const VeretxBufferDesc* vbDesc,
+void Dx12CoreVertexBuffer::Init(LPCWSTR name_, const void* vbData, const VeretxBufferDesc* vbDesc,
 								const void* idxData, const IndexBufferDesc* idxDesc, BUFFER_FLAGS usage_)
 {
+	name = name_;
 	usage = usage_;
 	id = idGen.getId();
 
@@ -83,10 +84,14 @@ void Dx12CoreVertexBuffer::Init(const void* vbData, const VeretxBufferDesc* vbDe
 
 	x12::memory::CreateCommittedBuffer(vertexBuffer.GetAddressOf(), bufferSize, vbState, d3dheapProperties);
 
+	set_name(vertexBuffer.Get(), L"Vertex buffer '%s' %u bytes", name.c_str(), bufferSize);
+
 	if (hasIndexBuffer)
 	{
 		idxBufferSize = (UINT64)formatInBytes(idxDesc->format) * idxDesc->vertexCount;
 		x12::memory::CreateCommittedBuffer(indexBuffer.GetAddressOf(), idxBufferSize, ibState, d3dheapProperties);
+
+		set_name(vertexBuffer.Get(), L"Index buffer for veretx buffer '%s' %u bytes", name.c_str(), idxBufferSize);
 	}
 
 	if (vbData)
@@ -145,10 +150,10 @@ void Dx12CoreVertexBuffer::SetData(const void* vbData, size_t vbSize, size_t vbO
 
 		copyContext->CommandsBegin();
 
-		UpdateBufferResource(d3dcommandList, vertexBuffer.Get(), &uploadVertexBuffer, vbSize, vbData);
+		UpdateBufferResource(name.c_str(), d3dcommandList, vertexBuffer.Get(), &uploadVertexBuffer, vbSize, vbData);
 
 		if (indexBuffer)
-			UpdateBufferResource(d3dcommandList, indexBuffer.Get(), &uploadIndexBuffer, idxSize, idxData);
+			UpdateBufferResource(name.c_str(), d3dcommandList, indexBuffer.Get(), &uploadIndexBuffer, idxSize, idxData);
 
 		// Default heap
 		// For a default heap, you need to use a fence because the GPU can be doing copying from an 
@@ -176,13 +181,15 @@ void Dx12CoreVertexBuffer::SetData(const void* vbData, size_t vbSize, size_t vbO
 	}
 }
 
-static void UpdateBufferResource(ID3D12GraphicsCommandList* pCmdList,
+static void UpdateBufferResource(LPCWSTR name, ID3D12GraphicsCommandList* pCmdList,
 								 ID3D12Resource* dest, ID3D12Resource** intermediate,
 								 UINT64 size, const void* data, D3D12_RESOURCE_FLAGS flags)
 {
 	// Upload heap
 	// No need fence to track copying RAM -> VRAM
 	x12::memory::CreateCommittedBuffer(intermediate, size, D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_HEAP_TYPE_UPLOAD);
+
+	set_name(*intermediate, L"Intermediate buffer (gpu read) '%s' %u bytes", name, size);
 
 	D3D12_SUBRESOURCE_DATA subresourceData = {};
 	subresourceData.pData = data;

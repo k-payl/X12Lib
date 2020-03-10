@@ -14,6 +14,9 @@
 #define REMOVE_DIRY_FLAGS(FLAGS, _REMOVE) \
 	FLAGS = static_cast<RESOURCE_DEFINITION>(FLAGS & ~_REMOVE);
 
+int Dx12GraphicCommandContext::contextNum;
+int Dx12CopyCommandContext::contextNum;
+
 
 uint64_t Signal(ID3D12CommandQueue *d3dCommandQueue, ID3D12Fence *d3dFence, uint64_t& fenceValue)
 {
@@ -502,6 +505,7 @@ Dx12GraphicCommandContext::Dx12GraphicCommandContext(FinishFrameBroadcast finish
 	device = CR_GetD3DDevice();
 
 	ThrowIfFailed(device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&d3dFence)));
+	set_ctx_object_name(d3dFence, L"fence");
 
 	fenceEvent = ::CreateEvent(NULL, FALSE, FALSE, NULL);
 	assert(fenceEvent && "Failed to create fence event.");
@@ -510,10 +514,12 @@ Dx12GraphicCommandContext::Dx12GraphicCommandContext(FinishFrameBroadcast finish
 	D3D12_COMMAND_QUEUE_DESC queueDesc = {};
 	queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
 	queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
+
 	ThrowIfFailed(device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&d3dCommandQueue)));
+	set_ctx_object_name(d3dCommandQueue, L"queue");
 
 	for (int i = 0; i < DeferredBuffers; ++i)
-		cmdLists[i].Init(this);
+		cmdLists[i].Init(this, i);
 
 	cmdList = &cmdLists[0];
 	d3dCmdList = cmdList->d3dCmdList;
@@ -529,33 +535,42 @@ Dx12GraphicCommandContext::Dx12GraphicCommandContext(FinishFrameBroadcast finish
 	QueryHeapDesc.Count = maxNumQuerySlots;
 	QueryHeapDesc.NodeMask = 1;
 	QueryHeapDesc.Type = D3D12_QUERY_HEAP_TYPE_TIMESTAMP;
+
 	ThrowIfFailed(device->CreateQueryHeap(&QueryHeapDesc, IID_PPV_ARGS(&queryHeap)));
-	queryHeap->SetName(L"Dx12commanbuffer query timers query heap");
+	set_ctx_object_name(queryHeap, L"query heap for %u timers", contextNum, maxNumQuerySlots);
 
 	// We allocate MaxFrames + 1 instances as an instance is guaranteed to be written to if maxPresentFrameCount frames
 	// have been submitted since. This is due to a fact that Present stalls when none of the m_maxframeCount frames are done/available.
 	size_t FramesInstances = DeferredBuffers + 1;
 
 	UINT64 size = FramesInstances * maxNumQuerySlots * sizeof(UINT64);
+
 	x12::memory::CreateCommittedBuffer(&queryReadBackBuffer, size, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_HEAP_TYPE_READBACK);
 
-	queryReadBackBuffer->SetName(L"Dx12commandbuffer query timers readback buffer");
+	set_ctx_object_name(queryReadBackBuffer, L"query buffer for %u timers %u bytes", contextNum, maxNumQuerySlots, size);
 
 	descriptorSizeCBSRV = CR_CBSRV_DescriptorsSize();
 	descriptorSizeDSV = CR_DSV_DescriptorsSize();
 	descriptorSizeRTV = CR_RTV_DescriptorsSize();
+
+	contextNum++;
 }
 
-void Dx12GraphicCommandContext::CommandList::Init(Dx12GraphicCommandContext* parent_)
+void Dx12GraphicCommandContext::CommandList::Init(Dx12GraphicCommandContext* parent_, int num)
 {
 	parent = parent_;
 	device = CR_GetD3DDevice();
 
 	ThrowIfFailed(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&d3dCommandAllocator)));
+	Dx12GraphicCommandContext::set_ctx_object_name(d3dCommandAllocator, L"command allocator for #%d deferred frame", num);
+
 	ThrowIfFailed(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, d3dCommandAllocator, nullptr, IID_PPV_ARGS(&d3dCmdList)));
+	Dx12GraphicCommandContext::set_ctx_object_name(d3dCommandAllocator, L"command list for #%d deferred frame", num);
 	ThrowIfFailed(d3dCmdList->Close());
 
 	gpuDescriptorHeap = CreateDescriptorHeap(device, MaxBindedResourcesPerFrame, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
+	Dx12GraphicCommandContext::set_ctx_object_name(gpuDescriptorHeap, L"descriptor heap for #%d deferred frame %lu descriptors", num, MaxBindedResourcesPerFrame);
+
 	gpuDescriptorHeapStart = gpuDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
 	gpuDescriptorHeapStartGPU = gpuDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
 
@@ -796,10 +811,14 @@ Dx12CopyCommandContext::Dx12CopyCommandContext()
 	device = CR_GetD3DDevice();
 
 	ThrowIfFailed(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_COPY, IID_PPV_ARGS(&d3dCommandAllocator)));
+	set_ctx_object_name(d3dCommandAllocator, L"command allocator");
+
 	ThrowIfFailed(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_COPY, d3dCommandAllocator, nullptr, IID_PPV_ARGS(&d3dCommandList)));
+	set_ctx_object_name(d3dCommandAllocator, L"command list");
 	ThrowIfFailed(d3dCommandList->Close());
 
 	ThrowIfFailed(device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&d3dFence)));
+	set_ctx_object_name(d3dCommandAllocator, L"fence");
 
 	fenceEvent = ::CreateEvent(NULL, FALSE, FALSE, NULL);
 	assert(fenceEvent && "Failed to create fence event.");
@@ -809,6 +828,9 @@ Dx12CopyCommandContext::Dx12CopyCommandContext()
 	queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
 	queueDesc.Type = D3D12_COMMAND_LIST_TYPE_COPY;
 	ThrowIfFailed(device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&d3dCommandQueue)));
+	set_ctx_object_name(d3dCommandQueue, L"command queue");
+
+	contextNum++;
 }
 
 Dx12CopyCommandContext::~Dx12CopyCommandContext()

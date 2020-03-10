@@ -4,10 +4,10 @@
 
 struct Dx12CoreShader final : public ICoreShader
 {
-	Dx12CoreShader();;
+	Dx12CoreShader();
 
-	void InitGraphic(const char* vertText, const char* fragText, const ConstantBuffersDesc* variabledesc, uint32_t varNum);
-	void InitCompute(const char* text, const ConstantBuffersDesc* variabledesc, uint32_t varNum);
+	void InitGraphic(LPCWSTR name, const char* vertText, const char* fragText, const ConstantBuffersDesc* variabledesc, uint32_t varNum);
+	void InitCompute(LPCWSTR name, const char* text, const ConstantBuffersDesc* variabledesc, uint32_t varNum);
 
 	enum class ROOT_PARAMETER_TYPE
 	{
@@ -69,5 +69,7 @@ private:
 
 	static IdGenerator<uint16_t> idGen;
 	uint16_t id;
+
+	std::wstring name;
 };
 

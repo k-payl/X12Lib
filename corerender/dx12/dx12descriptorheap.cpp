@@ -137,6 +137,9 @@ Page::Page(D3D12_DESCRIPTOR_HEAP_TYPE type, uint32_t numDescriptors, Allocator& 
 #ifndef NTESTS
 
 	d3d12DescriptorHeap = CreateDescriptorHeap(CR_GetD3DDevice(), numDescriptorsInPage, heapType);
+
+	set_name(d3d12DescriptorHeap.Get(), L"Descriptor heap page for static resources %u descriptors", numDescriptorsInPage);
+
 	baseDescriptor = d3d12DescriptorHeap->GetCPUDescriptorHandleForHeapStart();
 #else
 	descriptorIncrementSize = 1;

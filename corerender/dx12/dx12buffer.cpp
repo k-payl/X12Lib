@@ -11,7 +11,7 @@ void Dx12CoreBuffer::_GPUCopyToStaging()
 	if (!stagingResource)
 	{
 		x12::memory::CreateCommittedBuffer(stagingResource.GetAddressOf(), size, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_HEAP_TYPE_READBACK);
-		stagingResource->SetName(L"Staging buffer");
+		set_name(stagingResource.Get(), L"Staging buffer for gpu->cpu copying %u bytes for '%s'", size, name.c_str());
 	}
 
 	{
@@ -63,8 +63,9 @@ Dx12CoreBuffer::Dx12CoreBuffer()
 }
 
 // TODO: BUFFER_FLAGS::CPU_WRITE
-void Dx12CoreBuffer::InitStructuredBuffer(size_t structureSize, size_t num, const void* data, BUFFER_FLAGS flags)
+void Dx12CoreBuffer::InitStructuredBuffer(size_t structureSize, size_t num, const void* data, BUFFER_FLAGS flags, LPCWSTR name_)
 {
+	name = name_;
 	size = structureSize * num;
 
 	D3D12_RESOURCE_FLAGS resFlags = D3D12_RESOURCE_FLAG_NONE;
@@ -77,7 +78,7 @@ void Dx12CoreBuffer::InitStructuredBuffer(size_t structureSize, size_t num, cons
 									   D3D12_HEAP_TYPE_DEFAULT, D3D12_HEAP_FLAG_NONE,
 									   resFlags);
 
-	resource->SetName(L"structured buffer");
+	set_name(resource.Get(), L"Structured buffer '%s'", name_);
 
 	// upload data
 	{
@@ -86,6 +87,8 @@ void Dx12CoreBuffer::InitStructuredBuffer(size_t structureSize, size_t num, cons
 		ComPtr<ID3D12Resource> uploadResource;
 		x12::memory::CreateCommittedBuffer(uploadResource.GetAddressOf(), size,
 										   stagingState, D3D12_HEAP_TYPE_UPLOAD);
+
+		set_name(uploadResource.Get(), L"Upload buffer for cpu->gpu copying %u bytes for '%s'", size, name_);
 	
 		D3D12_SUBRESOURCE_DATA initData = {};
 		initData.pData = data;

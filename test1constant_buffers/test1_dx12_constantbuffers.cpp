@@ -189,7 +189,7 @@ void Init()
 	idxDesc.format = INDEX_BUFFER_FORMAT::UNSIGNED_16;
 	idxDesc.vertexCount = idxCount;
 
-	renderer->CreateVertexBuffer(res->vertexBuffer.getAdressOf(), vertexData, &desc, indexData, &idxDesc);
+	renderer->CreateVertexBuffer(res->vertexBuffer.getAdressOf(), L"cube", vertexData, &desc, indexData, &idxDesc);
 
 	{
 		auto text = CORE->GetFS()->LoadFile("mesh.shader");
@@ -199,7 +199,7 @@ void Init()
 			"TransformCB",	CONSTANT_BUFFER_UPDATE_FRIQUENCY::PER_DRAW
 		};
 
-		renderer->CreateShader(res->shader.getAdressOf(), text.get(), text.get(), buffersdesc,
+		renderer->CreateShader(res->shader.getAdressOf(), L"mesh.shader", text.get(), text.get(), buffersdesc,
 											 _countof(buffersdesc));
 	}
 
@@ -207,14 +207,14 @@ void Init()
 		auto text = CORE->GetFS()->LoadFile("mipmap.shader");
 
 		
-		renderer->CreateComputeShader(res->comp.getAdressOf(), text.get());
+		renderer->CreateComputeShader(res->comp.getAdressOf(), L"mipmap.shader", text.get());
 	}
 
 	renderer->CreateUniformBuffer(&res->mvpCB, sizeof(MVPcb));
 	renderer->CreateUniformBuffer(&res->transformCB, sizeof(ColorCB));
 	renderer->CreateUniformBuffer(&res->compCB, 4);
 
-	renderer->CreateStructuredBuffer(res->compSB.getAdressOf(), 16, chunks, nullptr, BUFFER_FLAGS::UNORDERED_ACCESS);
+	renderer->CreateStructuredBuffer(res->compSB.getAdressOf(),  L"Unordered buffer for test barriers", 16, chunks, nullptr, BUFFER_FLAGS::UNORDERED_ACCESS);
 }
 
 

@@ -102,7 +102,7 @@ class Dx12GraphicCommandContext
 
 		inline D3D12_CPU_DESCRIPTOR_HANDLE newGPUHandle();
 
-		void Init(Dx12GraphicCommandContext* parent_);
+		void Init(Dx12GraphicCommandContext* parent_, int num);
 		void Free();
 		void TrackResource(IResourceUnknown* resource);
 		void ReleaseTrakedResources();
@@ -122,6 +122,8 @@ class Dx12GraphicCommandContext
 	std::vector<UINT64> queryTiming;
 	ID3D12QueryHeap* queryHeap;
 	ID3D12Resource* queryReadBackBuffer;
+
+	static int contextNum;
 
 	FinishFrameBroadcast finishFrameBroadcast;
 
@@ -149,6 +151,14 @@ public:
 	uint64_t triangles() const { return statistic.triangles; }
 	uint64_t uniformBufferUpdates() const { return statistic.uniformBufferUpdates; }
 	uint64_t stateChanges() const { return statistic.stateChanges; }
+
+	template<typename... Arguments>
+	static void set_ctx_object_name(ID3D12Object* obj, LPCWSTR format, Arguments ...args)
+	{
+		WCHAR wstr[256];
+		wsprintf(wstr, L"Graphic context #%d %s", contextNum, format);
+		set_name(obj, wstr, args...);
+	}
 
 public:
 	// API
@@ -201,6 +211,16 @@ class Dx12CopyCommandContext
 	HANDLE fenceEvent{};
 	uint64_t fenceValue{1}; // fence value ready to signal
 	device_t* device;
+
+	static int contextNum;
+
+	template<typename... Arguments>
+	static void set_ctx_object_name(ID3D12Object* obj, LPCWSTR format, Arguments ...args)
+	{
+		WCHAR wstr[256];
+		wsprintf(wstr, L"Copy context #%d %s", contextNum, format);
+		set_name(obj, wstr, args...);
+	}
 
 public:
 	Dx12CopyCommandContext();

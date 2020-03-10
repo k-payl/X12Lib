@@ -10,13 +10,15 @@ void x12::memory::CreateCommittedBuffer(ID3D12Resource** out, UINT64 size, D3D12
 										D3D12_HEAP_TYPE heap, D3D12_HEAP_FLAGS flags,
 										D3D12_RESOURCE_FLAGS resFlags)
 {
-	return ThrowIfFailed(CR_GetD3DDevice()->CreateCommittedResource(
+	ThrowIfFailed(CR_GetD3DDevice()->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(heap),
 		flags,
 		&CD3DX12_RESOURCE_DESC::Buffer(size, resFlags),
 		state,
 		nullptr,
 		IID_PPV_ARGS(out)));
+
+
 }
 
 void x12::memory::CreateCommitted2DTexture(ID3D12Resource** out, UINT width, UINT height,
@@ -34,7 +36,7 @@ void x12::memory::CreateCommitted2DTexture(ID3D12Resource** out, UINT width, UIN
 	desc.SampleDesc.Quality = 0;
 	desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
 
-	return ThrowIfFailed(CR_GetD3DDevice()->CreateCommittedResource(
+	ThrowIfFailed(CR_GetD3DDevice()->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(heap),
 		flags,
 		&desc,
@@ -128,6 +130,8 @@ x12::memory::fast::Page* x12::memory::fast::GetPage(UINT size)
 		return ret;
 	}
 
+	UINT num = (UINT)allocatedPages.size();
+
 	Page* page = new Page();
 	allocatedPages.push_back(page);
 
@@ -139,6 +143,8 @@ x12::memory::fast::Page* x12::memory::fast::GetPage(UINT size)
 	// Upload heap for dynamic resources
 	// For upload heap no need to put a fence to make sure the data is uploaded before you make a draw call
 	x12::memory::CreateCommittedBuffer(&page->d3d12resource, pageSize, D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_HEAP_TYPE_UPLOAD);
+
+	set_name(page->d3d12resource.Get(), L"Page #%u dynamic upload buffer %u bytes", num, pageSize);
 
 	// It is ok be mappped as long as you use buffer
 	// because d3d11 driver does not version memory (d3d11 did) and cpu-pointer is always valid

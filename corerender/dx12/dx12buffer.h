@@ -23,13 +23,15 @@ private:
 	static IdGenerator<uint16_t> idGen;
 	uint16_t id;
 
+	std::wstring name;
+
 public:
 	uint16_t ID() { return id; }
 
 	D3D12_CPU_DESCRIPTOR_HANDLE GetSRV() const { return SRVdescriptor.descriptor; }
 	D3D12_CPU_DESCRIPTOR_HANDLE GetUAV() const { return UAVdescriptor.descriptor; }
 
-	void InitStructuredBuffer(size_t structureSize, size_t num, const void *data, BUFFER_FLAGS flags);
+	void InitStructuredBuffer(size_t structureSize, size_t num, const void *data, BUFFER_FLAGS flags, LPCWSTR name);
 	void InitRawBuffer(size_t size);
 
 	ID3D12Resource* GetResource() const { return resource.Get(); }

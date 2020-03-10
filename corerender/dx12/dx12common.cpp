@@ -56,4 +56,3 @@ void IResourceUnknown::CheckResources()
 			throw std::exception("Resource is not released properly");
 	}
 }
-

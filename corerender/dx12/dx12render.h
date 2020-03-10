@@ -29,6 +29,7 @@ class Dx12CoreRenderer
 
 	std::mutex psoMutex;
 	psomap_t psoMap;										// All Pipeline State Objects. checksum -> PSO
+	uint64_t psoNum{};
 
 	x12::descriptorheap::Allocator* descriptorAllocator;	// Descriptors for static long-lived resources
 	ComPtr<ID3D12RootSignature> defaultRootSignature;		// Root signature for shaders without input resources
@@ -78,22 +79,22 @@ public:
 	auto GetDefaultRootSignature() -> ComPtr<ID3D12RootSignature>;
 
 	// Resurces
-	bool CreateShader(Dx12CoreShader **out, const char* vertText, const char* fragText,
+	bool CreateShader(Dx12CoreShader **out, LPCWSTR name, const char* vertText, const char* fragText,
 							const ConstantBuffersDesc *variabledesc = nullptr, uint32_t varNum = 0);
 
-	bool CreateComputeShader(Dx12CoreShader **out, const char* text,
+	bool CreateComputeShader(Dx12CoreShader **out, LPCWSTR name, const char* text,
 							const ConstantBuffersDesc *variabledesc = nullptr, uint32_t varNum = 0);
 
-	bool CreateVertexBuffer(Dx12CoreVertexBuffer** out, const void* vbData, const VeretxBufferDesc* vbDesc,
+	bool CreateVertexBuffer(Dx12CoreVertexBuffer** out, LPCWSTR name, const void* vbData, const VeretxBufferDesc* vbDesc,
 							const void* idxData, const IndexBufferDesc* idxDesc, BUFFER_FLAGS flags = BUFFER_FLAGS::GPU_READ);
 	bool CreateUniformBuffer(Dx12UniformBuffer** out, size_t size);
 
-	bool CreateStructuredBuffer(Dx12CoreBuffer **out, size_t structureSize, size_t num,
+	bool CreateStructuredBuffer(Dx12CoreBuffer **out, LPCWSTR name, size_t structureSize, size_t num,
 								const void* data = nullptr, BUFFER_FLAGS flags = BUFFER_FLAGS::NONE);
 
 	bool CreateRawBuffer(Dx12CoreBuffer **out, size_t size);
 
-	bool CreateTexture(Dx12CoreTexture **out, std::unique_ptr<uint8_t[]> ddsData,
+	bool CreateTexture(Dx12CoreTexture **out, LPCWSTR name, std::unique_ptr<uint8_t[]> ddsData,
 					   std::vector<D3D12_SUBRESOURCE_DATA> subresources, ID3D12Resource* d3dtexture);
 };
 

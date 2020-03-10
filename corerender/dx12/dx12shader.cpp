@@ -266,12 +266,14 @@ void Dx12CoreShader::initRootSignature(const std::vector<D3D12_ROOT_PARAMETER>& 
 		ThrowIfFailed(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, nullptr));
 
 		ThrowIfFailed(CR_GetD3DDevice()->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&resourcesRootSignature)));
+		set_name(resourcesRootSignature.Get(), L"Root signature for shader '%s'", name.c_str());
 	}
-
 }
 
-void Dx12CoreShader::InitGraphic(const char* vertText, const char* fragText, const ConstantBuffersDesc* buffersDesc, uint32_t descNum)
+void Dx12CoreShader::InitGraphic(LPCWSTR name_, const char* vertText, const char* fragText, const ConstantBuffersDesc* buffersDesc, uint32_t descNum)
 {
+	name = name_;
+
 	vs = compileShader(vertText, SHADER_TYPE::SHADER_VERTEX);
 	ps = compileShader(fragText, SHADER_TYPE::SHADER_FRAGMENT);	
 
@@ -299,8 +301,10 @@ void Dx12CoreShader::InitGraphic(const char* vertText, const char* fragText, con
 	initRootSignature(d3dRootParameters, flags);
 }
 
-void Dx12CoreShader::InitCompute(const char* text, const ConstantBuffersDesc* variabledesc, uint32_t varNum)
+void Dx12CoreShader::InitCompute(LPCWSTR name_, const char* text, const ConstantBuffersDesc* variabledesc, uint32_t varNum)
 {
+	name = name_;
+
 	cs = compileShader(text, SHADER_TYPE::SHADER_COMPUTE);
 
 	std::vector<ShaderReflectionResource> perDrawResources;
