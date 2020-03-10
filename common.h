@@ -67,7 +67,7 @@ inline bool operator&(ENUM_NAME a, ENUM_NAME b) \
 	return static_cast<bool>(static_cast<int>(a) & static_cast<int>(b)); \
 }
 
-namespace x12::memory::fast
+namespace x12::memory::dynamic
 {
 	struct Page;
 	struct Alloc;
@@ -215,7 +215,7 @@ inline void ThrowIfFailed(HRESULT hr)
 	assert((hr) == S_OK);
 }
 
-inline UINT alignConstnatBufferSize(UINT size)
+inline constexpr UINT alignConstnatBufferSize(UINT size)
 {
 	return (size + 255) & ~255;
 }

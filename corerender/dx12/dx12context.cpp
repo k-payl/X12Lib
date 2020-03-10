@@ -574,7 +574,7 @@ void Dx12GraphicCommandContext::CommandList::Init(Dx12GraphicCommandContext* par
 	gpuDescriptorHeapStart = gpuDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
 	gpuDescriptorHeapStartGPU = gpuDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
 
-	fastAllocator = new x12::memory::fast::Allocator;
+	fastAllocator = new x12::memory::dynamic::Allocator;
 }
 
 void Dx12GraphicCommandContext::CommandList::Free()

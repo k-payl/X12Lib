@@ -92,7 +92,7 @@ class Dx12GraphicCommandContext
 
 		uint64_t fenceOldValue{0};
 		std::vector<IResourceUnknown*> trakedResources;
-		x12::memory::fast::Allocator *fastAllocator;
+		x12::memory::dynamic::Allocator *fastAllocator;
 
 		// GPU-visible descriptors
 		ID3D12DescriptorHeap* gpuDescriptorHeap{};

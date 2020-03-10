@@ -17,10 +17,19 @@ namespace x12::memory
 								  D3D12_HEAP_TYPE heap = D3D12_HEAP_TYPE_DEFAULT,
 								  D3D12_HEAP_FLAGS flags = D3D12_HEAP_FLAG_NONE);
 
-
-	namespace fast
+	namespace dynamic
 	{
 		constexpr UINT descriptorsInPage = 500;
+		constexpr UINT ConstBufferSize = 256;
+		constexpr UINT PageSize = descriptorsInPage * alignConstnatBufferSize(ConstBufferSize);
+
+		Page* GetPage();
+		void ReleasePage(Page* page);
+		void Free();
+
+		size_t GetUsedVideoMemory();
+		size_t GetUsedSystemMemory();
+		size_t GetAllocatedPagesCount();
 
 		struct Alloc
 		{
@@ -50,9 +59,5 @@ namespace x12::memory
 			Page() = default;
 			~Page();
 		};
-
-		Page* GetPage(UINT size);
-		void ReleasePage(Page* page);
-		void Free();
 	}
 }

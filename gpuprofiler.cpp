@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "gpuprofiler.h"
+#include "dx12memory.h"
 #include "core.h"
 #include <fstream>
 #include <string>

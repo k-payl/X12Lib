@@ -3,8 +3,8 @@
 #include "dx12render.h"
 
 static std::mutex pagesMutex;
-static std::vector<x12::memory::fast::Page*> allocatedPages;
-static std::vector<x12::memory::fast::Page*> avaliablePages;
+static std::vector<x12::memory::dynamic::Page*> allocatedPages; // all pages fixed size descriptorsInPage * ConstBufferSize
+static std::vector<x12::memory::dynamic::Page*> avaliablePages;
 
 void x12::memory::CreateCommittedBuffer(ID3D12Resource** out, UINT64 size, D3D12_RESOURCE_STATES state,
 										D3D12_HEAP_TYPE heap, D3D12_HEAP_FLAGS flags,
@@ -17,8 +17,6 @@ void x12::memory::CreateCommittedBuffer(ID3D12Resource** out, UINT64 size, D3D12
 		state,
 		nullptr,
 		IID_PPV_ARGS(out)));
-
-
 }
 
 void x12::memory::CreateCommitted2DTexture(ID3D12Resource** out, UINT width, UINT height,
@@ -45,23 +43,41 @@ void x12::memory::CreateCommitted2DTexture(ID3D12Resource** out, UINT width, UIN
 		IID_PPV_ARGS(out)));
 }
 
-void x12::memory::fast::ReleasePage(x12::memory::fast::Page* page)
+void x12::memory::dynamic::ReleasePage(x12::memory::dynamic::Page* page)
 {
 	std::scoped_lock lock(pagesMutex);
 	avaliablePages.emplace_back(page);
 }
 
-void x12::memory::fast::Free()
+void x12::memory::dynamic::Free()
 {
 	std::scoped_lock lock(pagesMutex);
 
-	for (x12::memory::fast::Page* p : avaliablePages)
+	for (x12::memory::dynamic::Page* p : avaliablePages)
 		delete p;
 
 	avaliablePages.clear();
 }
 
-x12::memory::fast::Alloc x12::memory::fast::Allocator::Allocate()
+size_t x12::memory::dynamic::GetUsedVideoMemory()
+{
+	std::scoped_lock lock(pagesMutex);
+	return allocatedPages.size() * PageSize;
+}
+
+size_t x12::memory::dynamic::GetUsedSystemMemory()
+{
+	std::scoped_lock lock(pagesMutex);
+	return allocatedPages.size() * PageSize;
+}
+
+size_t x12::memory::dynamic::GetAllocatedPagesCount()
+{
+	std::scoped_lock lock(pagesMutex);
+	return allocatedPages.size();
+}
+
+x12::memory::dynamic::Alloc x12::memory::dynamic::Allocator::Allocate()
 {
 	if (offset >= descriptorsInPage)
 	{
@@ -75,14 +91,14 @@ x12::memory::fast::Alloc x12::memory::fast::Allocator::Allocate()
 
 	if (currentPage == nullptr)
 	{
-		currentPage = GetPage(256);
+		currentPage = GetPage();
 		offset = 0;
 	}
 
 	Alloc ret
 	{
-		(uint8_t*)currentPage->ptr + offset * 256,
-		currentPage->gpuPtr + offset * 256,
+		(uint8_t*)currentPage->ptr + offset * ConstBufferSize,
+		currentPage->gpuPtr + offset * ConstBufferSize,
 		currentPage->descriptors.descriptor.ptr + offset * currentPage->descriptors.descriptorIncrementSize
 	};
 
@@ -91,7 +107,7 @@ x12::memory::fast::Alloc x12::memory::fast::Allocator::Allocate()
 	return ret;
 }
 
-void x12::memory::fast::Allocator::Reset()
+void x12::memory::dynamic::Allocator::Reset()
 {
 	for (Page* p : retiredPages)
 		ReleasePage(p);
@@ -106,7 +122,7 @@ void x12::memory::fast::Allocator::Reset()
 	}
 }
 
-x12::memory::fast::Page::~Page()
+x12::memory::dynamic::Page::~Page()
 {
 	if (ptr)
 	{
@@ -116,10 +132,9 @@ x12::memory::fast::Page::~Page()
 	descriptors.Free();
 }
 
-
-x12::memory::fast::Page* x12::memory::fast::GetPage(UINT size)
+x12::memory::dynamic::Page* x12::memory::dynamic::GetPage()
 {
-	using namespace x12::memory::fast;
+	using namespace x12::memory::dynamic;
 
 	std::unique_lock lock(pagesMutex);
 
@@ -137,14 +152,11 @@ x12::memory::fast::Page* x12::memory::fast::GetPage(UINT size)
 
 	lock.unlock();
 
-	UINT alignedSize = alignConstnatBufferSize(size);
-	UINT pageSize = alignedSize * descriptorsInPage;
-
 	// Upload heap for dynamic resources
 	// For upload heap no need to put a fence to make sure the data is uploaded before you make a draw call
-	x12::memory::CreateCommittedBuffer(&page->d3d12resource, pageSize, D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_HEAP_TYPE_UPLOAD);
+	x12::memory::CreateCommittedBuffer(&page->d3d12resource, PageSize, D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_HEAP_TYPE_UPLOAD);
 
-	set_name(page->d3d12resource.Get(), L"Page #%u dynamic upload buffer %u bytes", num, pageSize);
+	set_name(page->d3d12resource.Get(), L"Page #%u dynamic upload buffer %u bytes", num, (UINT)PageSize);
 
 	// It is ok be mappped as long as you use buffer
 	// because d3d11 driver does not version memory (d3d11 did) and cpu-pointer is always valid
@@ -157,13 +169,13 @@ x12::memory::fast::Page* x12::memory::fast::GetPage(UINT size)
 	SIZE_T ptrStart = page->descriptors.descriptor.ptr;
 
 	D3D12_CONSTANT_BUFFER_VIEW_DESC desc;
-	desc.SizeInBytes = alignConstnatBufferSize(size);
+	desc.SizeInBytes = alignConstnatBufferSize(ConstBufferSize);
 
 	auto descriptorIncrementSize = page->descriptors.descriptorIncrementSize;
 
 	for (UINT i = 0; i < descriptorsInPage; ++i)
 	{
-		desc.BufferLocation = page->gpuPtr + i * 256;
+		desc.BufferLocation = page->gpuPtr + i * ConstBufferSize;
 		D3D12_CPU_DESCRIPTOR_HANDLE handle{ ptrStart + i * descriptorIncrementSize };
 
 		CR_GetD3DDevice()->CreateConstantBufferView(&desc, handle);

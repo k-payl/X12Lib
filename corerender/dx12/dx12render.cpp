@@ -151,7 +151,7 @@ void Dx12CoreRenderer::Init()
 
 void Dx12CoreRenderer::Free()
 {
-	x12::memory::fast::Free();
+	x12::memory::dynamic::Free();
 
 	{
 		PresentSurfaces();
