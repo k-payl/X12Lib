@@ -370,6 +370,14 @@ ComPtr<ID3D11Query> dx11::CreateQuery(D3D11_QUERY type)
 	return ret;
 }
 
+auto dx11::UpdateUniformBuffer(ID3D11Buffer* b, const void* data, UINT size) -> void
+{
+	D3D11_MAPPED_SUBRESOURCE mappedResource;
+	GetDx11Context()->Map(b, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
+	memcpy(mappedResource.pData, data, size);
+	GetDx11Context()->Unmap(b, 0);
+}
+
 void dx11::CreateVertexShader(std::shared_ptr<char[]> src, ComPtr<ID3D11VertexShader>& s)
 {
 	ComPtr<ID3DBlob> shader;

@@ -28,4 +28,6 @@ namespace dx11
 	auto CreateConstanBuffer(UINT size) -> ComPtr<ID3D11Buffer>;
 	auto CreateStructuredBuffer(ComPtr<ID3D11ShaderResourceView>& SRVOut, ComPtr<ID3D11Buffer>& bufferOut, size_t structureSize, size_t num, const void* data) -> void;
 	auto CreateQuery(D3D11_QUERY type) -> ComPtr<ID3D11Query>;
+
+	auto UpdateUniformBuffer(ID3D11Buffer* b, const void* data, UINT size) -> void;
 }

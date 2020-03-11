@@ -23,43 +23,18 @@ bool GpuProfiler::updateViewport(unsigned w, unsigned h)
 	return false;
 }
 
-void GpuProfiler::Render(const RenderPerfomanceData& ctx)
+void GpuProfiler::Render()
 {
 	Begin();
 
 	if (updateViewport(w, h))
 		UpdateViewportConstantBuffer();
 
-	records[0]->text = "====Core Render Profiler====";
-
-	char float_buff[100];
-
-	sprintf_s(float_buff, "CPU: %0.2f ms.", ctx.cpu_);
-	records[1]->text = float_buff;
-
-	sprintf_s(float_buff, "GPU: %0.2f ms.", ctx.gpu_);
-	records[2]->text = float_buff;
-
-	if (ctx.extended)
-	{
-		sprintf_s(float_buff, "Uniform buffer updates: %" PRId64, ctx.uniformUpdates);
-		records[3]->text = float_buff;
-
-		sprintf_s(float_buff, "State changes: %" PRId64, ctx.stateChanges);
-		records[4]->text = float_buff;
-
-		sprintf_s(float_buff, "Triangles: %" PRId64, ctx.triangles);
-		records[5]->text = float_buff;
-
-		sprintf_s(float_buff, "Draw calls: %" PRId64, ctx.draws);
-		records[6]->text = float_buff;
-	}
-
-	int maxRecords = ctx.extended ? recordsNum : 3;
-
-	for (int g = 0; g < maxRecords; ++g)
+	for (int g = 0; g < records.size(); ++g)
 	{
 		RenderProfilerRecord* r = records[g];
+		if (!r->dirty)
+			continue;
 
 		r->CreateBuffer();
 
@@ -89,10 +64,11 @@ void GpuProfiler::Render(const RenderPerfomanceData& ctx)
 			}
 
 			r->UpdateBuffer(graphData);
+			r->dirty = false;
 		}
 	}
 
-	DrawFont(maxRecords);
+	DrawRecords(records.size());
 
 	// Graphs.
 
@@ -102,8 +78,8 @@ void GpuProfiler::Render(const RenderPerfomanceData& ctx)
 
 	BeginGraph();
 
-	RenderGraph(graphs[0], ctx.cpu_ * 30, vec4(0, 0.5f, 0.5f, 1));
-	RenderGraph(graphs[1], ctx.gpu_ * 30, vec4(1, 0, 0.5f, 1));
+	//RenderGraph(graphs[0], ctx.cpu_ * 30, vec4(0, 0.5f, 0.5f, 1));
+	//RenderGraph(graphs[1], ctx.gpu_ * 30, vec4(1, 0, 0.5f, 1));
 
 	lastWidth = w;
 	lastHeight = h;
@@ -168,3 +144,4 @@ void GpuProfiler::RenderGraph(Graph* g, float value, const vec4& color)
 		g->graphRingBufferOffset = 0;
 	}
 }
+

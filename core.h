@@ -31,7 +31,8 @@ class Core
 	Dx12CoreRenderer* renderer{};
 	Input* input{};
 	Console* console{};
-	GpuProfiler* gpuprofiler{};
+	GpuProfiler* renderprofiler{};
+	GpuProfiler* memoryprofiler{};
 	FileSystem* fs{};
 
 	Signal<> onRender;
@@ -57,7 +58,7 @@ public:
 	void Init(GpuProfiler* gpuprofiler_, InitRendererProcedure initRenderer, INIT_FLAGS flags = INIT_FLAGS::NONE);
 	void Free();
 	void Start();
-	void RenderProfiler(float gpu_, float cpu_, bool extended);
+	void RenderProfiler(float gpu_, float cpu_);
 
 	void AddRenderProcedure(RenderProcedure fn);
 	void AddInitProcedure(InitProcedure fn);

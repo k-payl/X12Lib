@@ -50,7 +50,10 @@ struct Resources
 
 int APIENTRY wWinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPWSTR, _In_ int)
 {
-	Dx11GpuProfiler* gpuprofiler = new Dx11GpuProfiler;
+	Dx11GpuProfiler* gpuprofiler = new Dx11GpuProfiler(vec4(0.6f, 0.6f, 0.6f, 1.0f), 0.0f);
+	gpuprofiler->AddRecord("=== D3D11 Render ===");
+	gpuprofiler->AddRecord("CPU: % 0.2f ms.");
+	gpuprofiler->AddRecord("CPU: % 0.2f ms.");
 
 	Core* core = new Core{};
 	core->AddRenderProcedure(Render);
@@ -182,7 +185,7 @@ void Render()
 	auto micrs = duration_cast<microseconds>(duration).count();
 	float frameCPU = micrs * 1e-3f;
 
-	CORE->RenderProfiler(frameGPU, frameCPU, false);
+	CORE->RenderProfiler(frameGPU, frameCPU);
 
 	swapChain->Present(0, 0);
 }

@@ -160,7 +160,7 @@ void Render()
 	auto frameCPU = duration_cast<microseconds>(high_resolution_clock::now() - start).count() * 1e-3f;
 
 
-	CORE->RenderProfiler(frameGPU, frameCPU, true);
+	CORE->RenderProfiler(frameGPU, frameCPU);
 
 	context->CommandsEnd();
 	context->Submit();

@@ -102,6 +102,8 @@ struct Dx11RenderProfilerRecord : public RenderProfilerRecord
 	UINT size;
 	UINT stride;
 
+	Dx11RenderProfilerRecord(const char *format) : RenderProfilerRecord(format) {}
+
 	void CreateBuffer() override
 	{
 		if (vertexBuffer)
@@ -141,9 +143,6 @@ void Dx11GpuProfiler::Init()
 	for (int i = 0; i < GraphsCount; ++i)
 		graphs[i] = new Dx11Graph;
 
-	for (int i = 0; i < recordsNum; ++i)
-		records[i] = new Dx11RenderProfilerRecord;
-
 	{
 		auto text = fs->LoadFile("gpuprofiler_graph.shader");
 		dx11::CreateVertexShader(text, graphVertexShader);
@@ -152,6 +151,8 @@ void Dx11GpuProfiler::Init()
 
 	viewportUniformBuffer = dx11::CreateConstanBuffer(16);
 	transformUniformBuffer = dx11::CreateConstanBuffer(sizeof(TransformConstantBuffer));
+	colorUniformBuffer = dx11::CreateConstanBuffer(16);
+	dx11::UpdateUniformBuffer(colorUniformBuffer.Get(), &color, 16);
 
 	DirectX::CreateDDSTextureFromFile(
 		dx11::GetDx11Device(), dx11::GetDx11Context(),
@@ -200,12 +201,13 @@ void Dx11GpuProfiler::BeginGraph()
 }
 void Dx11GpuProfiler::UpdateViewportConstantBuffer()
 {
-	D3D11_MAPPED_SUBRESOURCE mappedResource;
-	context->Map(viewportUniformBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
-	memcpy(mappedResource.pData, &viewport, 16);
-	context->Unmap(viewportUniformBuffer.Get(), 0);
+	dx11::UpdateUniformBuffer(viewportUniformBuffer.Get(), &viewport, 16);
+	//D3D11_MAPPED_SUBRESOURCE mappedResource;
+	//context->Map(viewportUniformBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
+	//memcpy(mappedResource.pData, &viewport, 16);
+	//context->Unmap(viewportUniformBuffer.Get(), 0);
 }
-void Dx11GpuProfiler::DrawFont(int maxRecords)
+void Dx11GpuProfiler::DrawRecords(int maxRecords)
 {
 	//context->ClearState();
 
@@ -236,11 +238,12 @@ void Dx11GpuProfiler::DrawFont(int maxRecords)
 
 	context->VSSetConstantBuffers(0, 1, viewportUniformBuffer.GetAddressOf());
 	context->VSSetConstantBuffers(1, 1, transformUniformBuffer.GetAddressOf());
+	context->PSSetConstantBuffers(2, 1, colorUniformBuffer.GetAddressOf());
 
 	context->PSSetShaderResources(1, 1, textureView.GetAddressOf());
 	context->VSSetShaderResources(0, 1, fontSRV.GetAddressOf());
 
-	float t = 0;
+	float t = verticalOffset;
 	for (int i = 0; i < maxRecords; ++i)
 	{
 		auto* r = static_cast<Dx11RenderProfilerRecord*>(records[i]);
@@ -252,15 +255,22 @@ void Dx11GpuProfiler::DrawFont(int maxRecords)
 		context->IASetVertexBuffers(0, 1, r->vertexBuffer.GetAddressOf(), &r->stride, &offset);
 		t += fntLineHeight;
 
-		D3D11_MAPPED_SUBRESOURCE mappedResource;
-		context->Map(transformUniformBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
-		memcpy(mappedResource.pData, &t, 4);
-		context->Unmap(transformUniformBuffer.Get(), 0);
+		dx11::UpdateUniformBuffer(transformUniformBuffer.Get(), &t, 4);
+		//D3D11_MAPPED_SUBRESOURCE mappedResource;
+		//context->Map(transformUniformBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
+		//memcpy(mappedResource.pData, &t, 4);
+		//context->Unmap(transformUniformBuffer.Get(), 0);
 
 		context->Draw(r->size, 0);
 	}
 
 }
+void Dx11GpuProfiler::AddRecord(const char* format)
+{
+	records.push_back(nullptr);
+	records.back() = new Dx11RenderProfilerRecord(format);
+}
+
 void Dx11GpuProfiler::Free()
 {
 }

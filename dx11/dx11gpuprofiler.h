@@ -15,6 +15,7 @@ class Dx11GpuProfiler :	public GpuProfiler
 
 	ComPtr<ID3D11Buffer> viewportUniformBuffer;
 	ComPtr<ID3D11Buffer> transformUniformBuffer;
+	ComPtr<ID3D11Buffer> colorUniformBuffer;
 
 	ComPtr<ID3D11ShaderResourceView> fontSRV;
 	ComPtr<ID3D11Buffer> fontBuffer;
@@ -28,11 +29,13 @@ class Dx11GpuProfiler :	public GpuProfiler
 	void Begin() override;
 	void BeginGraph() override;
 	void UpdateViewportConstantBuffer() override;
-	void DrawFont(int maxRecords) override;
+	void DrawRecords(int maxRecords) override;
 	void* getContext() override { return context; }
 
 public:
+	Dx11GpuProfiler(vec4 color_, float verticalOffset_) : GpuProfiler(color_, verticalOffset_) {}
 	void Init() override;
 	void Free() override;
+	void AddRecord(const char* format) override;
 };
 

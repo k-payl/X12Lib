@@ -8,6 +8,7 @@
 #include "dx12gpuprofiler.h"
 #include <chrono>
 #include <string>
+#include <inttypes.h>
 
 using namespace std;
 
@@ -86,8 +87,15 @@ void Core::Init(GpuProfiler* gpuprofiler_, InitRendererProcedure initRenderer, I
 		renderer = new Dx12CoreRenderer;
 		renderer->Init();
 
-		assert(gpuprofiler == nullptr);
-		gpuprofiler = new Dx12GpuProfiler;
+		assert(renderprofiler == nullptr);
+		renderprofiler = new Dx12GpuProfiler(vec4(0.6f, 0.6f, 0.6f, 1.0f), 100.0f);
+		renderprofiler->AddRecord("=== D3D12 Render ===");
+		renderprofiler->AddRecord("CPU: % 0.2f ms.");
+		renderprofiler->AddRecord("CPU: % 0.2f ms.");
+		renderprofiler->AddRecord("Uniform buffer updates: %" PRId64);
+		renderprofiler->AddRecord("State changes: %" PRId64);
+		renderprofiler->AddRecord("Triangles: %" PRId64);
+		renderprofiler->AddRecord("Draw calls: %" PRId64);
 	}
 
 	if (!window && initRenderer)
@@ -97,10 +105,19 @@ void Core::Init(GpuProfiler* gpuprofiler_, InitRendererProcedure initRenderer, I
 		initRenderer(window->handle());
 
 	if (gpuprofiler_)
-		gpuprofiler = gpuprofiler_;
+		renderprofiler = gpuprofiler_;
 
-	if (gpuprofiler)
-		gpuprofiler->Init();
+	if (renderprofiler)
+		renderprofiler->Init();
+
+	if (renderer)
+	{
+		memoryprofiler = new Dx12GpuProfiler(vec4(0, 0.7f, 0.4f, 1.0f), 250.0f);
+		memoryprofiler->Init();
+		memoryprofiler->AddRecord("=== Memory ===");
+		memoryprofiler->AddRecord("Dynamic: %zu bytes");
+		memoryprofiler->AddRecord("Dynamic pages: %zu");
+	}
 
 	onInit.Invoke();
 }
@@ -109,11 +126,18 @@ void Core::Free()
 {
 	onFree.Invoke();
 
-	if (gpuprofiler)
+	if (renderprofiler)
 	{
-		gpuprofiler->Free();
-		delete gpuprofiler;
-		gpuprofiler = nullptr;
+		renderprofiler->Free();
+		delete renderprofiler;
+		renderprofiler = nullptr;
+	}
+
+	if (memoryprofiler)
+	{
+		memoryprofiler->Free();
+		delete memoryprofiler;
+		memoryprofiler = nullptr;
 	}
 
 	if (renderer)
@@ -190,23 +214,27 @@ void Core::Start()
 	window->StartMainLoop();
 }
 
-void Core::RenderProfiler(float gpu_, float cpu_, bool extended)
+void Core::RenderProfiler(float gpu_, float cpu_)
 {
-	RenderPerfomanceData ctx;
-	ctx.cpu_ = cpu_;
-	ctx.gpu_ = gpu_;
+	renderprofiler->UpdateRecord(1, cpu_);
+	renderprofiler->UpdateRecord(2, gpu_);
 
-	ctx.extended = extended;
-
-	if (extended)
+	if (dynamic_cast<Dx12GpuProfiler*>(renderprofiler))
 	{
-		ctx.uniformUpdates = GetCoreRender()->UniformBufferUpdates();
-		ctx.stateChanges = GetCoreRender()->StateChanges();
-		ctx.triangles = GetCoreRender()->Triangles();
-		ctx.draws = GetCoreRender()->DrawCalls();
+		renderprofiler->UpdateRecord(3, renderer->UniformBufferUpdates());
+		renderprofiler->UpdateRecord(4, renderer->StateChanges());
+		renderprofiler->UpdateRecord(5, renderer->Triangles());
+		renderprofiler->UpdateRecord(6, renderer->DrawCalls());
 	}
 
-	gpuprofiler->Render(ctx);
+	if (memoryprofiler)
+	{
+		memoryprofiler->UpdateRecord(1, x12::memory::dynamic::GetUsedVideoMemory());
+		memoryprofiler->UpdateRecord(2, x12::memory::dynamic::GetAllocatedPagesCount());
+		memoryprofiler->Render();
+	}
+
+	renderprofiler->Render();
 }
 
 void Core::AddRenderProcedure(RenderProcedure fn)

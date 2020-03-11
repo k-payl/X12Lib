@@ -89,9 +89,8 @@ struct Dx12Graph : public Graph
 struct Dx12RenderProfilerRecord : public RenderProfilerRecord
 {
 	Dx12CoreVertexBuffer* vertexBuffer{};
-	int num;
 
-	Dx12RenderProfilerRecord(int num_) : num(num_){}
+	Dx12RenderProfilerRecord(const char* format) : RenderProfilerRecord(format) {}
 
 	~Dx12RenderProfilerRecord()
 	{
@@ -115,7 +114,7 @@ struct Dx12RenderProfilerRecord : public RenderProfilerRecord
 		desc.vertexCount = 6 * ((uint32_t)text.size() + 10); // for numbers
 
 		WCHAR name[256];
-		wsprintf(name, L"profiler text buffer #%d len=%u", num, desc.vertexCount);
+		wsprintf(name, L"profiler text buffer '%s'", format.c_str());
 
 		GetCoreRender()->CreateVertexBuffer(&vertexBuffer, name, nullptr, &desc, nullptr, nullptr, BUFFER_FLAGS::CPU_WRITE);
 	}
@@ -152,9 +151,6 @@ void Dx12GpuProfiler::Init()
 	for (int i = 0; i < GraphsCount; ++i)
 		graphs[i] = new Dx12Graph;
 
-	for (int i = 0; i < recordsNum; ++i)
-		records[i] = new Dx12RenderProfilerRecord(i);
-
 	{
 		const ConstantBuffersDesc buffersdesc[1] =
 		{
@@ -167,6 +163,9 @@ void Dx12GpuProfiler::Init()
 
 	GetCoreRender()->CreateUniformBuffer(&viewportUniformBuffer, 16);
 	GetCoreRender()->CreateUniformBuffer(&transformUniformBuffer, sizeof(TransformConstantBuffer));
+	GetCoreRender()->CreateUniformBuffer(&colorUniformBuffer, 16);
+	context = GetCoreRender()->GetGraphicCommmandContext();
+	context->UpdateUniformBuffer(colorUniformBuffer, &color, 0, 16);
 
 	// Texture
 	std::unique_ptr<uint8_t[]> ddsData;
@@ -205,7 +204,7 @@ void Dx12GpuProfiler::UpdateViewportConstantBuffer()
 	context->UpdateUniformBuffer(viewportUniformBuffer, viewport, 0, 16);
 }
 
-void Dx12GpuProfiler::DrawFont(int maxRecords)
+void Dx12GpuProfiler::DrawRecords(int maxRecords)
 {
 	GraphicPipelineState pso{};
 	pso.primitiveTopology = PRIMITIVE_TOPOLOGY::TRIANGLE;
@@ -217,11 +216,12 @@ void Dx12GpuProfiler::DrawFont(int maxRecords)
 
 	context->BindUniformBuffer(0, viewportUniformBuffer, SHADER_TYPE::SHADER_VERTEX);
 	context->BindUniformBuffer(1, transformUniformBuffer, SHADER_TYPE::SHADER_VERTEX);
+	context->BindUniformBuffer(2, colorUniformBuffer, SHADER_TYPE::SHADER_FRAGMENT);
 
 	context->BindTexture(1, fontTexture, SHADER_TYPE::SHADER_FRAGMENT);
 	context->BindStructuredBuffer(0, fontDataStructuredBuffer, SHADER_TYPE::SHADER_VERTEX);
 
-	float t = 0;
+	float t = verticalOffset;
 	for (int i = 0; i < maxRecords; ++i)
 	{
 		auto* r = static_cast<Dx12RenderProfilerRecord*>(records[i]);
@@ -231,6 +231,12 @@ void Dx12GpuProfiler::DrawFont(int maxRecords)
 		context->UpdateUniformBuffer(transformUniformBuffer, &t, 0, 4);
 		context->Draw(r->vertexBuffer, r->size);
 	}
+}
+
+void Dx12GpuProfiler::AddRecord(const char* format)
+{
+	records.push_back(nullptr);
+	records.back() = new Dx12RenderProfilerRecord(format);
 }
 
 
