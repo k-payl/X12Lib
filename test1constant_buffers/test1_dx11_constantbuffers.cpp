@@ -138,11 +138,7 @@ void Render()
 
 	mvpcb.MVP = P * V;
 
-	D3D11_MAPPED_SUBRESOURCE mappedResource;
-
-	context->Map(res->MVPcb.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
-	memcpy(mappedResource.pData, &mvpcb, sizeof(MVPcb));
-	context->Unmap(res->MVPcb.Get(), 0);
+	dx11::UpdateUniformBuffer(res->MVPcb.Get(), &mvpcb, sizeof(MVPcb));
 
 	for (int i = 0; i < numCubesX; i++)
 	{
@@ -152,9 +148,7 @@ void Render()
 			colorCB.color_out = cubeColor(i, j);
 			colorCB.transform = cubePosition(i, j);
 
-			context->Map(res->colorCB.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
-			memcpy(mappedResource.pData, &colorCB, sizeof(ColorCB));
-			context->Unmap(res->colorCB.Get(), 0);
+			dx11::UpdateUniformBuffer(res->colorCB.Get(), &colorCB, sizeof(ColorCB));
 
 			context->DrawIndexed(idxCount, 0, 0);
 		}

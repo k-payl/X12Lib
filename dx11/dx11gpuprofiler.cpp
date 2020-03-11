@@ -35,27 +35,14 @@ struct Dx11Graph : public Graph
 
 		if (!lastColor.Aproximately(color))
 		{
-			D3D11_MAPPED_SUBRESOURCE mappedResource;
-			context->Map(colorUniformBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
-			memcpy(mappedResource.pData, &color, 16);
-			context->Unmap(colorUniformBuffer.Get(), 0);
-
+			dx11::UpdateUniformBuffer(colorUniformBuffer.Get(), &color, 16);
 			lastColor = color;
 		}
-
-		//vec4 cpuv[2];
-		//cpuv[0] = lastGraphValue;
-		//cpuv[1] = vec4((float)graphRingBufferOffset, h - value, 0, 0);
 
 		data[graphRingBufferOffset * 2] = lastGraphValue;
 		data[graphRingBufferOffset * 2 + 1] = vec4((float)graphRingBufferOffset, h - value, 0, 0);
 
-		D3D11_MAPPED_SUBRESOURCE mappedResource;
-		context->Map(vertexBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
-		memcpy(mappedResource.pData, data.data(), sizeof(vec4) * 2 * w);
-		context->Unmap(vertexBuffer.Get(), 0);
-
-		//graphVertexBuffer->SetData(&cpuv, sizeof(cpuv), graphRingBufferOffset * sizeof(cpuv), nullptr, 0, 0);
+		dx11::UpdateUniformBuffer(vertexBuffer.Get(), data.data(), sizeof(vec4) * 2 * w);
 
 		auto Draw = [this, context](float offset, uint32_t len, uint32_t o)
 		{
@@ -64,6 +51,7 @@ struct Dx11Graph : public Graph
 			memcpy(mappedResource.pData, &offset, 4);
 			context->Unmap(offsetUniformBuffer.Get(), 0);
 
+			dx11::UpdateUniformBuffer(offsetUniformBuffer.Get(), &offset, 4);
 			context->Draw(len, o);
 		};
 
@@ -112,16 +100,12 @@ struct Dx11RenderProfilerRecord : public RenderProfilerRecord
 		size = 6 * (uint32_t)text.size();
 
 		ComPtr<ID3D11Buffer> ib;
-		
 		dx11::CreateVertexBuffer(nullptr, nullptr, size, 0, vertexBuffer, ib, inputLayout, stride, true);
 	}
 
 	void UpdateBuffer(void* data) override
 	{
-		D3D11_MAPPED_SUBRESOURCE mappedResource{};
-		ThrowIfFailed(dx11::GetDx11Context()->Map(vertexBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource));
-		memcpy(mappedResource.pData, data, size * 16);
-		dx11::GetDx11Context()->Unmap(vertexBuffer.Get(), 0);
+		dx11::UpdateUniformBuffer(vertexBuffer.Get(), data, size * 16);
 	}
 };
 
@@ -202,10 +186,6 @@ void Dx11GpuProfiler::BeginGraph()
 void Dx11GpuProfiler::UpdateViewportConstantBuffer()
 {
 	dx11::UpdateUniformBuffer(viewportUniformBuffer.Get(), &viewport, 16);
-	//D3D11_MAPPED_SUBRESOURCE mappedResource;
-	//context->Map(viewportUniformBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
-	//memcpy(mappedResource.pData, &viewport, 16);
-	//context->Unmap(viewportUniformBuffer.Get(), 0);
 }
 void Dx11GpuProfiler::DrawRecords(int maxRecords)
 {
@@ -256,10 +236,6 @@ void Dx11GpuProfiler::DrawRecords(int maxRecords)
 		t += fntLineHeight;
 
 		dx11::UpdateUniformBuffer(transformUniformBuffer.Get(), &t, 4);
-		//D3D11_MAPPED_SUBRESOURCE mappedResource;
-		//context->Map(transformUniformBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
-		//memcpy(mappedResource.pData, &t, 4);
-		//context->Unmap(transformUniformBuffer.Get(), 0);
 
 		context->Draw(r->size, 0);
 	}
