@@ -10,8 +10,10 @@ extern Core* core__;
 enum class INIT_FLAGS
 {
 	NONE = 0,
-	SHOW_CONSOLE = 1 << 1,
-	BUILT_IN_DX12_RENDERER = 1 << 2,
+	NO_CONSOLE = 1 << 1,
+	NO_WINDOW = 1 << 2,
+	NO_INPUT = 1 << 2,
+	BUILT_IN_DX12_RENDERER = 1 << 3,
 };
 inline bool operator&(INIT_FLAGS a, INIT_FLAGS b)
 {

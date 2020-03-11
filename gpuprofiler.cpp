@@ -144,8 +144,11 @@ void GpuProfiler::loadFont()
 
 void GpuProfiler::free()
 {
-	for (RenderProfilerRecord* r : records)
+	for (RenderProfilerRecord* &r : records)
+	{
 		delete r;
+		r = 0;
+	}
 
 	for (Graph* g : graphs)
 		delete g;

@@ -6,7 +6,8 @@
 struct Dx12CoreTexture final : public ICoreTexture
 {
 public:
-	void InitFromExistingResource(ID3D12Resource* resource_);
+	void Init();
+	void InitFromExisting(ID3D12Resource* resource_);
 
 	D3D12_CPU_DESCRIPTOR_HANDLE GetSRV() const { return SRVdescriptor.descriptor; }
 
@@ -15,5 +16,6 @@ private:
 	ComPtr<ID3D12Resource> resource;
 
 	x12::descriptorheap::Alloc SRVdescriptor;
+	x12::descriptorheap::Alloc RTVdescriptor;
 };
 

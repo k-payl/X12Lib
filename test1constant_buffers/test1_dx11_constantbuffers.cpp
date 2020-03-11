@@ -56,7 +56,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPWSTR, _In_ int)
 	core->AddRenderProcedure(Render);
 
 	res = new Resources{};
-	core->Init(gpuprofiler, &dx11::InitDX11, INIT_FLAGS::NONE/*INIT_FLAGS::SHOW_CONSOLE*/);
+	core->Init(gpuprofiler, &dx11::InitDX11, INIT_FLAGS::NO_CONSOLE);
 
 	device = dx11::GetDx11Device();
 	context = dx11::GetDx11Context();

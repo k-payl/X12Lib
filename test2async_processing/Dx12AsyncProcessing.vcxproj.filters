@@ -11,6 +11,6 @@
     <ClInclude Include="Resource.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="main.cpp" />
+    <ClCompile Include="test2_dx12_asyncprocessing.cpp" />
   </ItemGroup>
 </Project>

@@ -6,6 +6,7 @@ using psomap_checksum_t = uint64_t;
 
 inline constexpr unsigned D3D12MaxRootParameters = 16;
 
+bool CheckTearingSupport();
 DXGI_FORMAT engineToDXGIFormat(VERTEX_BUFFER_FORMAT format);
 
 // Resources associated with window

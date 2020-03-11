@@ -28,6 +28,8 @@ err_compile.shader
 x64/
 obj/
 
+out/test*
+
 
 
 

@@ -94,8 +94,11 @@ public:
 
 	bool CreateRawBuffer(Dx12CoreBuffer **out, size_t size);
 
-	bool CreateTexture(Dx12CoreTexture **out, LPCWSTR name, std::unique_ptr<uint8_t[]> ddsData,
-					   std::vector<D3D12_SUBRESOURCE_DATA> subresources, ID3D12Resource* d3dtexture);
+	bool CreateTexture(Dx12CoreTexture** out, LPCWSTR name, std::unique_ptr<uint8_t[]> data, int32_t width, int32_t height,
+					   TEXTURE_TYPE type, TEXTURE_FORMAT format, TEXTURE_CREATE_FLAGS flags);
+
+	bool CreateTextureFrom(Dx12CoreTexture **out, LPCWSTR name, std::unique_ptr<uint8_t[]> ddsData,
+					   std::vector<D3D12_SUBRESOURCE_DATA> subresources, ID3D12Resource* d3dexistingtexture);
 };
 
 

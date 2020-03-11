@@ -11,6 +11,11 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Test1_dx11_constantbuffers"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Test2_dx12_asyncprocessing", "test2async_processing\Dx12AsyncProcessing.vcxproj", "{A510AFA0-CBE5-4167-8198-10934F1668CE}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Test3_dx12_uav_barriers", "test3_uav_barriers\Test3_dx12_uav_barriers.vcxproj", "{8E52D8D2-7540-4068-94F0-AE940986626C}"
+	ProjectSection(ProjectDependencies) = postProject
+		{F6418C00-CD6F-4821-A072-CDF89BF53B0B} = {F6418C00-CD6F-4821-A072-CDF89BF53B0B}
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -51,6 +56,14 @@ Global
 		{A510AFA0-CBE5-4167-8198-10934F1668CE}.Release|x64.Build.0 = Release|x64
 		{A510AFA0-CBE5-4167-8198-10934F1668CE}.Release|x86.ActiveCfg = Release|Win32
 		{A510AFA0-CBE5-4167-8198-10934F1668CE}.Release|x86.Build.0 = Release|Win32
+		{8E52D8D2-7540-4068-94F0-AE940986626C}.Debug|x64.ActiveCfg = Debug|x64
+		{8E52D8D2-7540-4068-94F0-AE940986626C}.Debug|x64.Build.0 = Debug|x64
+		{8E52D8D2-7540-4068-94F0-AE940986626C}.Debug|x86.ActiveCfg = Debug|Win32
+		{8E52D8D2-7540-4068-94F0-AE940986626C}.Debug|x86.Build.0 = Debug|Win32
+		{8E52D8D2-7540-4068-94F0-AE940986626C}.Release|x64.ActiveCfg = Release|x64
+		{8E52D8D2-7540-4068-94F0-AE940986626C}.Release|x64.Build.0 = Release|x64
+		{8E52D8D2-7540-4068-94F0-AE940986626C}.Release|x86.ActiveCfg = Release|Win32
+		{8E52D8D2-7540-4068-94F0-AE940986626C}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

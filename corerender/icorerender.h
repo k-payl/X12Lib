@@ -4,6 +4,77 @@
 inline constexpr size_t MaxBindedResourcesPerFrame = 100'000;
 inline constexpr unsigned MaxResourcesPerShader = 8;
 
+enum class TEXTURE_FORMAT
+{
+	// normalized
+	R8,
+	RG8,
+	RGBA8,
+	BGRA8,
+
+	// float
+	R16F,
+	RG16F,
+	RGBA16F,
+	R32F,
+	RG32F,
+	RGBA32F,
+
+	// integer
+	R32UI,
+
+	// compressed
+	DXT1,
+	DXT3,
+	DXT5,
+
+	// depth/stencil
+	D24S8,
+
+	UNKNOWN
+};
+
+enum class TEXTURE_CREATE_FLAGS : uint32_t
+{
+	NONE = 0x00000000,
+
+	FILTER = 0x0000000F,
+	FILTER_POINT = 1, // magn = point,	min = point,	mip = point
+	FILTER_BILINEAR = 2, // magn = linear,	min = linear,	mip = point
+	FILTER_TRILINEAR = 3, // magn = linear,	min = linear,	mip = lenear
+	FILTER_ANISOTROPY_2X = 4,
+	FILTER_ANISOTROPY_4X = 5,
+	FILTER_ANISOTROPY_8X = 6,
+	FILTER_ANISOTROPY_16X = 7,
+
+	COORDS = 0x00000F00,
+	COORDS_WRAP = 1 << 8,
+	//COORDS_MIRROR
+	//COORDS_CLAMP
+	//COORDS_BORDER
+
+	USAGE = 0x0000F000,
+	USAGE_RENDER_TARGET = 1 << 12,
+	USAGE_UNORDRED_ACCESS = 1 << 13,
+
+	MSAA = 0x000F0000,
+	MSAA_2x = 2 << 16,
+	MSAA_4x = 3 << 16,
+	MSAA_8x = 4 << 16,
+
+	MIPMAPS = 0xF0000000,
+	GENERATE_MIPMAPS = 1 << 28,
+	MIPMPAPS_PRESENTED = (1 << 28) + 1,
+};
+enum class TEXTURE_TYPE
+{
+	TYPE_2D = 0x00000001,
+	//TYPE_3D					= 0x00000001,
+	TYPE_CUBE = 0x00000002,
+	//TYPE_2D_ARRAY			= 0x00000003,
+	//TYPE_CUBE_ARRAY			= 0x00000004
+};
+
 enum class VERTEX_BUFFER_FORMAT
 {
 	FLOAT4,

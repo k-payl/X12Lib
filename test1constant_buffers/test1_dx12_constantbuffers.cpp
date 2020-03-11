@@ -1,18 +1,18 @@
-#include "common.h"
 #include "core.h"
+#include "camera.h"
+#include "mainwindow.h"
+#include "filesystem.h"
 #include "dx12render.h"
 #include "dx12shader.h"
 #include "dx12context.h"
 #include "dx12vertexbuffer.h"
 #include "dx12buffer.h"
-#include "camera.h"
-#include "mainwindow.h"
-#include "filesystem.h"
+
 #include "test1_shared.h"
 
 using namespace std::chrono;
 
-constexpr inline UINT chunks = 10;
+constexpr inline UINT float4chunks = 10;
 
 struct Resources
 {
@@ -23,7 +23,7 @@ struct Resources
 	Dx12UniformBuffer* transformCB;
 	HWND hwnd{};
 
-	//dbg
+	//dbg push/pop states
 	intrusive_ptr<Dx12CoreShader> comp;
 	Dx12UniformBuffer* compCB;
 	intrusive_ptr<Dx12CoreBuffer> compSB;
@@ -47,7 +47,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPWSTR, _In_ int)
 	core->AddInitProcedure(Init);
 
 	res = new Resources();
-	core->Init(nullptr, nullptr, /*INIT_FLAGS::SHOW_CONSOLE |*/ INIT_FLAGS::BUILT_IN_DX12_RENDERER);
+	core->Init(nullptr, nullptr, INIT_FLAGS::NO_CONSOLE | INIT_FLAGS::BUILT_IN_DX12_RENDERER);
 	res->hwnd = *core->GetWindow()->handle();
 
 	core->Start();
@@ -122,9 +122,9 @@ void Render()
 		}
 	};
 
-	drawCubes(vec4(1, 0, 0, 1), -6.0f);	
+	drawCubes(vec4(1, 0, 0, 1), -6.0f);
 
-	if (0)
+#if 0 // set 1 to test push/pop states
 	{
 		context->PushState();
 
@@ -135,14 +135,14 @@ void Render()
 		context->BindUniformBuffer(0, res->compCB, SHADER_TYPE::SHADER_COMPUTE);
 		context->BindUnorderedAccessStructuredBuffer(1, res->compSB.get(), SHADER_TYPE::SHADER_COMPUTE);
 
-		for (UINT i = 0; i< chunks; ++i)
+		for (UINT i = 0; i< float4chunks; ++i)
 		{
 			context->UpdateUniformBuffer(res->compCB, &i, 0, 4);
 			context->Dispatch(1, 1);
 			context->EmitUAVBarrier(res->compSB.get());
 		}
 
-		float ss[4 * chunks];
+		float ss[4 * float4chunks];
 		memset(ss, 0, sizeof(ss));
 
 		res->compSB->GetData(ss);
@@ -150,6 +150,7 @@ void Render()
 
 		context->PopState();
 	}
+#endif
 
 	drawCubes(vec4(1, 0, 0, 1), 6.0f);
 
@@ -204,17 +205,17 @@ void Init()
 	}
 
 	{
-		auto text = CORE->GetFS()->LoadFile("mipmap.shader");
+		auto text = CORE->GetFS()->LoadFile("uav.shader");
 
 		
-		renderer->CreateComputeShader(res->comp.getAdressOf(), L"mipmap.shader", text.get());
+		renderer->CreateComputeShader(res->comp.getAdressOf(), L"uav.shader", text.get());
 	}
 
 	renderer->CreateUniformBuffer(&res->mvpCB, sizeof(MVPcb));
 	renderer->CreateUniformBuffer(&res->transformCB, sizeof(ColorCB));
 	renderer->CreateUniformBuffer(&res->compCB, 4);
 
-	renderer->CreateStructuredBuffer(res->compSB.getAdressOf(),  L"Unordered buffer for test barriers", 16, chunks, nullptr, BUFFER_FLAGS::UNORDERED_ACCESS);
+	renderer->CreateStructuredBuffer(res->compSB.getAdressOf(),  L"Unordered buffer for test barriers", 16, float4chunks, nullptr, BUFFER_FLAGS::UNORDERED_ACCESS);
 }
 
 

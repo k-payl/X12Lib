@@ -57,23 +57,29 @@ Core::Core()
 
 void Core::Init(GpuProfiler* gpuprofiler_, InitRendererProcedure initRenderer, INIT_FLAGS flags)
 {
-	SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
-
 	fs = new FileSystem("..//");
 
-	if (flags & INIT_FLAGS::SHOW_CONSOLE)
+	if (!(flags & INIT_FLAGS::NO_CONSOLE))
 	{
 		console = new Console;
 		console->Create();
 	}
 
-	window = new MainWindow(&Core::sMainLoop);
-	window->Create();
-	window->AddMessageCallback(sMessageCallback);
-	window->SetCaption(L"Test DX12");
+	if (!(flags & INIT_FLAGS::NO_WINDOW))
+	{
+		SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
 
-	input = new Input;
-	input->Init();
+		window = new MainWindow(&Core::sMainLoop);
+		window->Create();
+		window->AddMessageCallback(sMessageCallback);
+		window->SetCaption(L"Test DX12");
+	}
+
+	if (!(flags & INIT_FLAGS::NO_INPUT))
+	{
+		input = new Input;
+		input->Init();
+	}
 
 	if (flags & INIT_FLAGS::BUILT_IN_DX12_RENDERER)
 	{
@@ -84,7 +90,10 @@ void Core::Init(GpuProfiler* gpuprofiler_, InitRendererProcedure initRenderer, I
 		gpuprofiler = new Dx12GpuProfiler;
 	}
 
-	if (initRenderer)
+	if (!window && initRenderer)
+		throw logic_error("External renderer without window is not implemented");
+	else
+	if (window && initRenderer)
 		initRenderer(window->handle());
 
 	if (gpuprofiler_)
@@ -121,9 +130,12 @@ void Core::Free()
 		console = nullptr;
 	}
 
-	window->Destroy();
-	delete window;
-	window = nullptr;
+	if (window)
+	{
+		window->Destroy();
+		delete window;
+		window = nullptr;
+	}
 
 	input->Free();
 	delete input;

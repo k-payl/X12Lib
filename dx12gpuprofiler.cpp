@@ -95,7 +95,8 @@ struct Dx12RenderProfilerRecord : public RenderProfilerRecord
 
 	~Dx12RenderProfilerRecord()
 	{
-		vertexBuffer->Release();
+		if (vertexBuffer)
+			vertexBuffer->Release();
 	}
 
 	void CreateBuffer() override
@@ -173,7 +174,7 @@ void Dx12GpuProfiler::Init()
 	ID3D12Resource* d3dtexture;
 	DirectX::LoadDDSTextureFromFile(CR_GetD3DDevice(), fontTexturePath, &d3dtexture, ddsData, subresources);
 
-	GetCoreRender()->CreateTexture(&fontTexture, fontTexturePath, std::move(ddsData), subresources, d3dtexture);
+	GetCoreRender()->CreateTextureFrom(&fontTexture, fontTexturePath, std::move(ddsData), subresources, d3dtexture);
 
 	// Font
 	loadFont();
