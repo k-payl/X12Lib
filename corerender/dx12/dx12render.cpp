@@ -153,10 +153,6 @@ void Dx12CoreRenderer::Free()
 	delete descriptorAllocator;
 	descriptorAllocator = nullptr;
 
-	// WTF?
-	adapter->Release();
-	adapter->Release();
-
 	Release(adapter);
 
 #ifdef _DEBUG

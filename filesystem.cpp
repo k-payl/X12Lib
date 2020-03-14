@@ -213,12 +213,12 @@ auto FileSystem::GetTime(std::string& path) -> int64_t
 
 auto FileSystem::LoadFile(const char* path) -> std::shared_ptr<char[]>
 {
-	File file = OpenFile(path, FILE_OPEN_MODE::READ);
+	File file = OpenFile(path, FILE_OPEN_MODE::READ | FILE_OPEN_MODE::BINARY);
 	size_t size = file.FileSize();
 	std::shared_ptr<char[]> ptr(new char[size + 1]);
 
 	file.Read((char*)ptr.get(), size);
-	ptr[size] = '\0';
+	ptr[size] = 0;
 
 	return ptr;
 }
