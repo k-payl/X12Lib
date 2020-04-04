@@ -6,7 +6,6 @@
 #include "dx12shader.h"
 #include "dx12texture.h"
 #include "dx12buffer.h"
-#include "dx12uniformbuffer.h"
 #include "dx12context.h"
 #include "filesystem.h"
 #include "core.h"
@@ -15,18 +14,20 @@
 struct Dx12Graph : public Graph
 {
 	intrusive_ptr<Dx12CoreVertexBuffer> graphVertexBuffer;
-	Dx12UniformBuffer* offsetUniformBuffer;
-	Dx12UniformBuffer* colorUniformBuffer;
+	intrusive_ptr<ICoreBuffer> offsetUniformBuffer;
+	intrusive_ptr<ICoreBuffer> colorUniformBuffer;
 
 	Dx12Graph()
 	{
-		GetCoreRender()->CreateUniformBuffer(&offsetUniformBuffer, 16);
-		GetCoreRender()->CreateUniformBuffer(&colorUniformBuffer, 16);
+		GetCoreRender()->CreateConstantBuffer(offsetUniformBuffer.getAdressOf(), L"Dx12Graph offsetUniformBuffer", 16);
+		GetCoreRender()->CreateConstantBuffer(colorUniformBuffer.getAdressOf(), L"Dx12Graph colorUniformBuffer", 16);
 	}
 
 	void Render(void* c, vec4 color, float value, unsigned w, unsigned h) override
 	{
+		/*
 		Dx12GraphicCommandContext* context = (Dx12GraphicCommandContext*)c;
+
 
 		context->SetVertexBuffer(graphVertexBuffer.get());
 		context->BindUniformBuffer(0, colorUniformBuffer, SHADER_TYPE::SHADER_FRAGMENT);
@@ -54,6 +55,7 @@ struct Dx12Graph : public Graph
 			Draw(float(graphRingBufferOffset), graphRingBufferOffset * 2, 0);
 
 		Draw(float(graphRingBufferOffset + w), (w - graphRingBufferOffset) * 2, graphRingBufferOffset * 2);
+		*/
 	}
 
 	void RecreateVB(unsigned w) override
@@ -126,11 +128,15 @@ struct Dx12RenderProfilerRecord : public RenderProfilerRecord
 };
 void Dx12GpuProfiler::Free()
 {
-	free();
-	fontShader->Release();
-	graphShader->Release();
-	fontDataStructuredBuffer->Release();
-	fontTexture->Release();
+	GpuProfiler::free();
+
+	fontShader.Reset();
+	graphShader.Reset();
+	fontDataStructuredBuffer.Reset();
+	fontTexture.Reset();
+	COLORCBUniformBuffer.Reset();
+	viewportUniformBuffer.Reset();
+	fontResourceSet.Reset();
 }
 void Dx12GpuProfiler::Init()
 {
@@ -139,11 +145,11 @@ void Dx12GpuProfiler::Init()
 	// Font shader
 	{
 		auto text = fs->LoadFile("gpuprofiler_font.shader");
-		const ConstantBuffersDesc buffersdesc[1] =
+		const ConstantBuffersDesc buffersdesc[] =
 		{
-			"TransformCB",	CONSTANT_BUFFER_UPDATE_FRIQUENCY::PER_DRAW
+			{"TransformCB",	CONSTANT_BUFFER_UPDATE_FRIQUENCY::PER_DRAW},
 		};
-		GetCoreRender()->CreateShader(&fontShader, L"gpuprofiler_font.shader", text.get(), text.get(), &buffersdesc[0], _countof(buffersdesc));
+		GetCoreRender()->CreateShader(fontShader.getAdressOf(), L"gpuprofiler_font.shader", text.get(), text.get(), &buffersdesc[0], _countof(buffersdesc));
 	}
 
 	// Graph
@@ -158,14 +164,13 @@ void Dx12GpuProfiler::Init()
 		};
 
 		auto text = fs->LoadFile("gpuprofiler_graph.shader");
-		GetCoreRender()->CreateShader(&graphShader, L"gpuprofiler_graph.shader", text.get(), text.get(), &buffersdesc[0], _countof(buffersdesc));
+		GetCoreRender()->CreateShader(graphShader.getAdressOf(), L"gpuprofiler_graph.shader", text.get(), text.get(), &buffersdesc[0], _countof(buffersdesc));
 	}
 
-	GetCoreRender()->CreateUniformBuffer(&viewportUniformBuffer, 16);
-	GetCoreRender()->CreateUniformBuffer(&transformUniformBuffer, sizeof(TransformConstantBuffer));
-	GetCoreRender()->CreateUniformBuffer(&colorUniformBuffer, 16);
+	GetCoreRender()->CreateConstantBuffer(viewportUniformBuffer.getAdressOf(), L"Dx12GpuProfiler viewport", 16);
+	GetCoreRender()->CreateConstantBuffer(COLORCBUniformBuffer.getAdressOf(), L"Dx12GpuProfiler COLORCBUniformBuffer", 16);
+	COLORCBUniformBuffer->SetData(&color, 16);
 	context = GetCoreRender()->GetGraphicCommmandContext();
-	context->UpdateUniformBuffer(colorUniformBuffer, &color, 0, 16);
 
 	// Texture
 	std::unique_ptr<uint8_t[]> ddsData;
@@ -173,11 +178,11 @@ void Dx12GpuProfiler::Init()
 	ID3D12Resource* d3dtexture;
 	DirectX::LoadDDSTextureFromFile(CR_GetD3DDevice(), fontTexturePath, &d3dtexture, ddsData, subresources);
 
-	GetCoreRender()->CreateTextureFrom(&fontTexture, fontTexturePath, std::move(ddsData), subresources, d3dtexture);
+	GetCoreRender()->CreateTextureFrom(fontTexture.getAdressOf(), fontTexturePath, std::move(ddsData), subresources, d3dtexture);
 
 	// Font
 	loadFont();
-	GetCoreRender()->CreateStructuredBuffer(&fontDataStructuredBuffer, L"font's data", sizeof(FontChar), fontData.size(), &fontData[0]);
+	GetCoreRender()->CreateStructuredBuffer(fontDataStructuredBuffer.getAdressOf(), L"font's data", sizeof(FontChar), fontData.size(), &fontData[0]);
 }
 void Dx12GpuProfiler::Begin()
 {
@@ -188,38 +193,47 @@ void Dx12GpuProfiler::Begin()
 
 void Dx12GpuProfiler::BeginGraph()
 {
-	GraphicPipelineState pso{};
-	pso.src = BLEND_FACTOR::SRC_ALPHA;
-	pso.dst = BLEND_FACTOR::ONE_MINUS_SRC_ALPHA;
-	pso.primitiveTopology = PRIMITIVE_TOPOLOGY::LINE;
-	pso.shader = graphShader;
-	pso.vb = static_cast<Dx12Graph*>(graphs[0])->graphVertexBuffer.get();
-	context->SetGraphicPipelineState(pso);
+	//GraphicPipelineState pso{};
+	//pso.src = BLEND_FACTOR::SRC_ALPHA;
+	//pso.dst = BLEND_FACTOR::ONE_MINUS_SRC_ALPHA;
+	//pso.primitiveTopology = PRIMITIVE_TOPOLOGY::LINE;
+	//pso.shader = graphShader;
+	//pso.vb = static_cast<Dx12Graph*>(graphs[0])->graphVertexBuffer.get();
+	//context->SetGraphicPipelineState(pso);
 
-	context->BindUniformBuffer(0, viewportUniformBuffer, SHADER_TYPE::SHADER_VERTEX);
+	//context->BindUniformBuffer(0, viewportUniformBuffer, SHADER_TYPE::SHADER_VERTEX);
 }
 
 void Dx12GpuProfiler::UpdateViewportConstantBuffer()
 {
-	context->UpdateUniformBuffer(viewportUniformBuffer, viewport, 0, 16);
+	viewportUniformBuffer->SetData(&viewport, 16);
 }
 
 void Dx12GpuProfiler::DrawRecords(int maxRecords)
 {
+	if (!fontResourceSet.get())
+	{
+		GetCoreRender()->CreateResourceSet(fontResourceSet.getAdressOf(), fontShader.get());
+
+		fontResourceSet->BindConstantBuffer("ViewportCB", viewportUniformBuffer.get());
+		fontResourceSet->BindStructuredBufferSRV("character_buffer", fontDataStructuredBuffer.get());
+		fontResourceSet->BindTextueSRV("texture_font", fontTexture.get());
+		fontResourceSet->BindConstantBuffer("COLORCB", COLORCBUniformBuffer.get());
+
+		context->BuildResourceSet(fontResourceSet.get());
+
+		transformIndex = fontResourceSet->FindInlineBufferIndex("TransformCB");
+	}
+
 	GraphicPipelineState pso{};
 	pso.primitiveTopology = PRIMITIVE_TOPOLOGY::TRIANGLE;
-	pso.shader = fontShader;
+	pso.shader = fontShader.get();
 	pso.vb = static_cast<Dx12RenderProfilerRecord*>(records[0])->vertexBuffer;
 	pso.src = BLEND_FACTOR::SRC_ALPHA;
 	pso.dst = BLEND_FACTOR::ONE_MINUS_SRC_ALPHA;
 	context->SetGraphicPipelineState(pso);
 
-	context->BindUniformBuffer(0, viewportUniformBuffer, SHADER_TYPE::SHADER_VERTEX);
-	context->BindUniformBuffer(1, transformUniformBuffer, SHADER_TYPE::SHADER_VERTEX);
-	context->BindUniformBuffer(2, colorUniformBuffer, SHADER_TYPE::SHADER_FRAGMENT);
-
-	context->BindTexture(1, fontTexture, SHADER_TYPE::SHADER_FRAGMENT);
-	context->BindStructuredBuffer(0, fontDataStructuredBuffer, SHADER_TYPE::SHADER_VERTEX);
+	context->BindResourceSet(fontResourceSet.get());
 
 	float t = verticalOffset;
 	for (int i = 0; i < maxRecords; ++i)
@@ -228,7 +242,8 @@ void Dx12GpuProfiler::DrawRecords(int maxRecords)
 
 		context->SetVertexBuffer(r->vertexBuffer);
 		t += fntLineHeight;
-		context->UpdateUniformBuffer(transformUniformBuffer, &t, 0, 4);
+		context->UpdateInlineConstantBuffer(transformIndex, &t, 4);
+
 		context->Draw(r->vertexBuffer, r->size);
 	}
 }

@@ -51,7 +51,7 @@ struct Dx12CoreBuffer;
 class Dx12BaseCommandList;
 class Dx12GraphicCommandContext;
 class Dx12CopyCommandContext;
-struct Dx12UniformBuffer;
+struct Dx12ResourceSet;
 struct Dx12CoreTexture;
 class Input;
 class Console;
@@ -111,6 +111,15 @@ class IdGenerator
 public:
 	T getId() { return id++; }
 };
+
+inline void unreacheble()
+{
+	throw std::runtime_error("Mustn't happen");
+}
+inline void notImplemented()
+{
+	throw std::runtime_error("Not implemented");
+}
 
 inline vec3 getRightDirection(const mat4& ModelMat) { return vec3(ModelMat.Column(0)); } // Returns local X vector in world space
 inline vec3 getForwardDirection(const mat4& ModelMat) { return vec3(ModelMat.Column(1)); }
@@ -215,7 +224,8 @@ inline void ThrowIfFailed(HRESULT hr)
 	assert((hr) == S_OK);
 }
 
-inline constexpr UINT alignConstnatBufferSize(UINT size)
+template<class T>
+inline constexpr T alignConstnatBufferSize(T size)
 {
 	return (size + 255) & ~255;
 }

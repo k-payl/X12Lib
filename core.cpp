@@ -99,7 +99,7 @@ void Core::Init(GpuProfiler* gpuprofiler_, InitRendererProcedure initRenderer, I
 	}
 
 	if (!window && initRenderer)
-		throw logic_error("External renderer without window is not implemented");
+		notImplemented();
 	else
 	if (window && initRenderer)
 		initRenderer(window->handle());
@@ -114,9 +114,13 @@ void Core::Init(GpuProfiler* gpuprofiler_, InitRendererProcedure initRenderer, I
 	{
 		memoryprofiler = new Dx12GpuProfiler(vec4(0, 0.7f, 0.4f, 1.0f), 250.0f);
 		memoryprofiler->Init();
-		memoryprofiler->AddRecord("=== Memory ===");
-		memoryprofiler->AddRecord("Dynamic: %zu bytes");
-		memoryprofiler->AddRecord("Dynamic pages: %zu");
+		memoryprofiler->AddRecord("=== GraphicMemory ===");
+		memoryprofiler->AddRecord("committedMemory: %zu bytes");		// Bytes of memory currently committed/in-flight
+		memoryprofiler->AddRecord("totalMemory: %zu bytes");			// Total bytes of memory used by the allocators
+		memoryprofiler->AddRecord("totalPages: %zu");					// Total page count
+		memoryprofiler->AddRecord("peakCommitedMemory: %zu bytes");		// Peak commited memory value since last reset
+		memoryprofiler->AddRecord("peakTotalMemory: %zu bytes");		// Peak total bytes
+		memoryprofiler->AddRecord("peakTotalPages: %zu");				// Peak total page count
 	}
 
 	onInit.Invoke();
@@ -226,15 +230,18 @@ void Core::RenderProfiler(float gpu_, float cpu_)
 		renderprofiler->UpdateRecord(5, renderer->Triangles());
 		renderprofiler->UpdateRecord(6, renderer->DrawCalls());
 	}
+	renderprofiler->Render();
 
 	if (memoryprofiler)
 	{
-		memoryprofiler->UpdateRecord(1, x12::memory::dynamic::GetUsedVideoMemory());
-		memoryprofiler->UpdateRecord(2, x12::memory::dynamic::GetAllocatedPagesCount());
+		memoryprofiler->UpdateRecord(1, renderer->committedMemory);
+		memoryprofiler->UpdateRecord(2, renderer->totalMemory);
+		memoryprofiler->UpdateRecord(3, renderer->totalPages);
+		memoryprofiler->UpdateRecord(4, renderer->peakCommitedMemory);
+		memoryprofiler->UpdateRecord(5, renderer->peakTotalMemory);
+		memoryprofiler->UpdateRecord(6, renderer->peakTotalPages);
 		memoryprofiler->Render();
 	}
-
-	renderprofiler->Render();
 }
 
 void Core::AddRenderProcedure(RenderProcedure fn)

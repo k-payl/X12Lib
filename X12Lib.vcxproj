@@ -109,7 +109,7 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);$(ProjectDir);$(ProjectDir)corerender\;$(ProjectDir)3rdparty\;$(ProjectDir)corerender\dx12\;</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);$(ProjectDir);$(ProjectDir)corerender\;$(ProjectDir)3rdparty\;$(ProjectDir)3rdparty\DirectXTK\Inc\;$(ProjectDir)corerender\dx12\</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -127,7 +127,7 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);$(ProjectDir);$(ProjectDir)corerender\;$(ProjectDir)3rdparty\;$(ProjectDir)corerender\dx12\;</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);$(ProjectDir);$(ProjectDir)corerender\;$(ProjectDir)3rdparty\;$(ProjectDir)3rdparty\DirectXTK\Inc\;$(ProjectDir)corerender\dx12\</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -147,7 +147,7 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);$(ProjectDir);$(ProjectDir)corerender\;$(ProjectDir)3rdparty\;$(ProjectDir)corerender\dx12\;</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);$(ProjectDir);$(ProjectDir)corerender\;$(ProjectDir)3rdparty\;$(ProjectDir)3rdparty\DirectXTK\Inc\;$(ProjectDir)corerender\dx12\</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -169,7 +169,7 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);$(ProjectDir);$(ProjectDir)corerender\;$(ProjectDir)3rdparty\;$(ProjectDir)corerender\dx12\;</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);$(ProjectDir);$(ProjectDir)corerender\;$(ProjectDir)3rdparty\;$(ProjectDir)3rdparty\DirectXTK\Inc\;$(ProjectDir)corerender\dx12\</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -183,6 +183,10 @@
     <ClInclude Include="3rdparty\d3dx12.h" />
     <ClInclude Include="3rdparty\DirectXTex\DDSTextureLoader.h" />
     <ClInclude Include="3rdparty\DirectXTex\DDSTextureLoader12.h" />
+    <ClInclude Include="3rdparty\DirectXTK\Inc\DirectXHelpers.h" />
+    <ClInclude Include="3rdparty\DirectXTK\Inc\GraphicsMemory.h" />
+    <ClInclude Include="3rdparty\DirectXTK\Src\LinearAllocator.h" />
+    <ClInclude Include="3rdparty\DirectXTK\Src\PlatformHelpers.h" />
     <ClInclude Include="camera.h" />
     <ClInclude Include="console.h" />
     <ClInclude Include="core.h" />
@@ -194,7 +198,6 @@
     <ClInclude Include="corerender\dx12\dx12texture.h" />
     <ClInclude Include="dx11/dx11.h" />
     <ClInclude Include="corerender\dx12\dx12context.h" />
-    <ClInclude Include="corerender/dx12/dx12uniformbuffer.h" />
     <ClInclude Include="corerender/dx12/dx12shader.h" />
     <ClInclude Include="corerender/dx12/dx12vertexbuffer.h" />
     <ClInclude Include="dx11/dx11gpuprofiler.h" />
@@ -222,6 +225,9 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Use</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Use</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="3rdparty\DirectXTK\Src\DirectXHelpers.cpp" />
+    <ClCompile Include="3rdparty\DirectXTK\Src\GraphicsMemory.cpp" />
+    <ClCompile Include="3rdparty\DirectXTK\Src\LinearAllocator.cpp" />
     <ClCompile Include="camera.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Use</PrecompiledHeader>
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">pch.h</PrecompiledHeaderFile>
@@ -303,16 +309,6 @@
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">pch.h</PrecompiledHeaderFile>
     </ClCompile>
     <ClCompile Include="corerender\dx12\dx12context.cpp">
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Use</PrecompiledHeader>
-      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">pch.h</PrecompiledHeaderFile>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Use</PrecompiledHeader>
-      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">pch.h</PrecompiledHeaderFile>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Use</PrecompiledHeader>
-      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">pch.h</PrecompiledHeaderFile>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Use</PrecompiledHeader>
-      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">pch.h</PrecompiledHeaderFile>
-    </ClCompile>
-    <ClCompile Include="corerender/dx12/dx12uniformbuffer.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Use</PrecompiledHeader>
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">pch.h</PrecompiledHeaderFile>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Use</PrecompiledHeader>

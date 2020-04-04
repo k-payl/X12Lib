@@ -2,13 +2,6 @@
 #include "common.h"
 #include "icorerender.h"
 
-using psomap_checksum_t = uint64_t;
-
-inline constexpr unsigned D3D12MaxRootParameters = 16;
-
-bool CheckTearingSupport();
-DXGI_FORMAT engineToDXGIFormat(VERTEX_BUFFER_FORMAT format);
-
 // Resources associated with window
 struct Dx12WindowSurface
 {
@@ -30,14 +23,48 @@ struct Dx12WindowSurface
 };
 
 using surface_ptr = std::shared_ptr<Dx12WindowSurface>;
+using psomap_checksum_t = uint64_t;
 
-template<typename... Arguments>
-void set_name(ID3D12Object *obj, LPCWSTR format, Arguments ...args)
+namespace x12::impl
 {
-	WCHAR wstr[256];
-	wsprintf(wstr, format, args...);
-	obj->SetName(wstr);
+	bool CheckTearingSupport();
+	DXGI_FORMAT engineToDXGIFormat(VERTEX_BUFFER_FORMAT format);
+
+	template<typename... Arguments>
+	void set_name(ID3D12Object *obj, LPCWSTR format, Arguments ...args)
+	{
+		WCHAR wstr[256];
+		wsprintf(wstr, format, args...);
+		obj->SetName(wstr);
+	}
 }
+
+enum class ROOT_PARAMETER_TYPE
+{
+	NONE,
+	TABLE,
+	INLINE_DESCRIPTOR,
+	//INLINE_CONSTANT // TODO
+};
+
+struct ResourceDefinition
+{
+	int slot;
+	std::string name;
+	RESOURCE_DEFINITION resources;
+};
+
+template<class T>
+struct RootSignatureParameter
+{
+	ROOT_PARAMETER_TYPE type;
+	SHADER_TYPE shaderType;
+	int tableResourcesNum; // cache for tableResources.size()
+	std::vector<T> tableResources;
+	T inlineResource;
+};
+
+
 
 
 

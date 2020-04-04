@@ -84,14 +84,14 @@ void Dx12CoreVertexBuffer::Init(LPCWSTR name_, const void* vbData, const VeretxB
 
 	x12::memory::CreateCommittedBuffer(vertexBuffer.GetAddressOf(), bufferSize, vbState, d3dheapProperties);
 
-	set_name(vertexBuffer.Get(), L"Vertex buffer '%s' %u bytes", name.c_str(), bufferSize);
+	x12::impl::set_name(vertexBuffer.Get(), L"Vertex buffer '%s' %u bytes", name.c_str(), bufferSize);
 
 	if (hasIndexBuffer)
 	{
 		idxBufferSize = (UINT64)formatInBytes(idxDesc->format) * idxDesc->vertexCount;
 		x12::memory::CreateCommittedBuffer(indexBuffer.GetAddressOf(), idxBufferSize, ibState, d3dheapProperties);
 
-		set_name(vertexBuffer.Get(), L"Index buffer for veretx buffer '%s' %u bytes", name.c_str(), idxBufferSize);
+		x12::impl::set_name(vertexBuffer.Get(), L"Index buffer for veretx buffer '%s' %u bytes", name.c_str(), idxBufferSize);
 	}
 
 	if (vbData)
@@ -120,7 +120,7 @@ void Dx12CoreVertexBuffer::Init(LPCWSTR name_, const void* vbData, const VeretxB
 
 		v.SemanticName = vbDesc->attributes[i].semanticName;
 		v.SemanticIndex = 0;
-		v.Format = engineToDXGIFormat(vbDesc->attributes[i].format);
+		v.Format = x12::impl::engineToDXGIFormat(vbDesc->attributes[i].format);
 		v.InputSlot = i;
 		v.AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
 		v.InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
@@ -189,7 +189,7 @@ static void UpdateBufferResource(LPCWSTR name, ID3D12GraphicsCommandList* pCmdLi
 	// No need fence to track copying RAM -> VRAM
 	x12::memory::CreateCommittedBuffer(intermediate, size, D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_HEAP_TYPE_UPLOAD);
 
-	set_name(*intermediate, L"Intermediate buffer (gpu read) '%s' %u bytes", name, size);
+	x12::impl::set_name(*intermediate, L"Intermediate buffer (gpu read) '%s' %u bytes", name, size);
 
 	D3D12_SUBRESOURCE_DATA subresourceData = {};
 	subresourceData.pData = data;

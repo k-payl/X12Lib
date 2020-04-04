@@ -1,42 +1,81 @@
 #pragma once
-#include "common.h"
 #include "dx12common.h"
 #include "dx12memory.h"
-#include "icorerender.h"
 #include "intrusiveptr.h"
 
+namespace DirectX {
+	class GraphicsMemory;
+}
+
+// Prebuild combination of static resources.
+//	that binds to context fast.
+//	Dynamic resources can be updated through CommandContext.
+//
+struct Dx12ResourceSet : IResourceSet
+{
+	Dx12ResourceSet(const Dx12CoreShader *shader);
+
+	bool dirty{false};
+
+	struct BindedResource : ResourceDefinition
+	{
+		intrusive_ptr<Dx12CoreBuffer> constntBuffer;
+		intrusive_ptr<Dx12CoreTexture> texture;
+		intrusive_ptr<Dx12CoreBuffer> structuredBuffer;
+
+		BindedResource& operator=(const ResourceDefinition& r)
+		{
+			static_cast<ResourceDefinition&>(*this) = r;
+			return *this;
+		}
+	};
+
+	std::unordered_map<std::string, std::pair<int, int>> resourcesMap; // {parameter index, table index}. (table index=-1 if inline)
+
+	size_t parametresNum;
+
+	// parallel arrays
+	std::vector<RootSignatureParameter<BindedResource>> resources;
+	std::vector<bool> resourcesDirty;
+	std::vector<D3D12_GPU_DESCRIPTOR_HANDLE> gpuDescriptors;
+
+	void BindConstantBuffer(const char* name, ICoreBuffer *buffer) override;
+	void BindStructuredBufferSRV(const char* name, ICoreBuffer *buffer) override;
+	void BindStructuredBufferUAV(const char* name, ICoreBuffer *buffer) override;
+	void BindTextueSRV(const char* name, ICoreTexture *texture) override;
+
+	std::pair<int, int>& findResourceIndex(const char* name);
+	size_t FindInlineBufferIndex(const char* name) override;
+};
+
+// Graphic comands interface.
+//	Can be created multiplie instance of it in Dx12CoreRenderer.
+//	Can be recorded only in one thread.
+//
 class Dx12GraphicCommandContext
 {
 	ID3D12CommandQueue *d3dCommandQueue{};
+
 	ID3D12Fence* d3dFence{};
 	HANDLE fenceEvent{};
 	uint64_t fenceValue{1}; // fence value ready to signal
+
 	device_t* device;
+
 	UINT descriptorSizeCBSRV;
 	UINT descriptorSizeRTV;
 	UINT descriptorSizeDSV;
 
 	/* --- State ---- */
-
-	struct SlotDataCache
-	{
-		RESOURCE_DEFINITION bindFlags;
-		RESOURCE_DEFINITION bindDirtyFlags;
-
-		Dx12UniformBuffer* CBV;
-
-		union
-		{
-			Dx12CoreTexture* texture;
-			Dx12CoreBuffer* buffer;
-		} SRV;
-
-		union
-		{
-			Dx12CoreTexture* texture;
-			Dx12CoreBuffer* buffer;
-		} UAV;
-	};
+	/*
+		* PSO
+		   * root signature
+		   * resource set
+		   * vertex buffer
+		* render target
+		* scissor
+		* viewport
+	*/
 
 	struct StateCache
 	{
@@ -58,9 +97,8 @@ class Dx12GraphicCommandContext
 		}pso;
 
 		PRIMITIVE_TOPOLOGY primitiveTopology;
+		intrusive_ptr<Dx12ResourceSet> set_;
 
-		uint8_t shaderTypesUsedBits;
-		SlotDataCache binds[(int)SHADER_TYPE::NUM][MaxResourcesPerShader];
 	} state;
 	std::stack<StateCache> statesStack;
 
@@ -94,25 +132,24 @@ class Dx12GraphicCommandContext
 		std::vector<IResourceUnknown*> trakedResources;
 		x12::memory::dynamic::Allocator *fastAllocator;
 
-		// GPU-visible descriptors
-		ID3D12DescriptorHeap* gpuDescriptorHeap{};
-		UINT gpuDescriptorsOffset{};
-		D3D12_CPU_DESCRIPTOR_HANDLE gpuDescriptorHeapStart{0};
-		D3D12_GPU_DESCRIPTOR_HANDLE gpuDescriptorHeapStartGPU{0};
-
-		inline D3D12_CPU_DESCRIPTOR_HANDLE newGPUHandle();
-
 		void Init(Dx12GraphicCommandContext* parent_, int num);
 		void Free();
 		void TrackResource(IResourceUnknown* resource);
 		void ReleaseTrakedResources();
 		void CompleteGPUFrame(uint64_t nextFenceID);
-		void CommandsBegin();
 	};
 
 	CommandList cmdLists[DeferredBuffers];
 	CommandList* cmdList{nullptr};
 	ID3D12GraphicsCommandList* d3dCmdList;
+
+	std::unique_ptr<DirectX::GraphicsMemory> frameMemory;
+
+	// GPU descriptors
+	ComPtr<ID3D12DescriptorHeap> gpuDescriptorHeap;
+	UINT gpuDescriptorsOffset{};
+	D3D12_CPU_DESCRIPTOR_HANDLE gpuDescriptorHeapStart{0};
+	D3D12_GPU_DESCRIPTOR_HANDLE gpuDescriptorHeapStartGPU{0};
 
 	// Query
 	const UINT maxNumTimers = 3;
@@ -131,7 +168,6 @@ class Dx12GraphicCommandContext
 	void resetStatistic();
 	void resetOnlyPSOState(); // reset PSO and shader bindings
 	void resetFullState();
-	void bindResourceCacheForDraw();
 	void setComputePipeline(psomap_checksum_t newChecksum, ID3D12PipelineState* d3dpso);
 	void setGraphicPipeline(psomap_checksum_t newChecksum, ID3D12PipelineState* d3dpso);
 
@@ -144,6 +180,9 @@ public:
 	void Free();
 	ID3D12CommandQueue* GetD3D12CmdQueue() { return d3dCommandQueue; }
 	ID3D12GraphicsCommandList* GetD3D12CmdList() { return d3dCmdList; }
+	std::pair<D3D12_CPU_DESCRIPTOR_HANDLE, D3D12_GPU_DESCRIPTOR_HANDLE> newGPUHandle(UINT num = 1);
+
+	DirectX::GraphicsMemory* memory() { return frameMemory.get(); }
 
 	inline uint64_t CurentFrame() const { return fenceValue; }
 
@@ -157,13 +196,13 @@ public:
 	{
 		WCHAR wstr[256];
 		wsprintf(wstr, L"Graphic context #%d %s", contextNum, format);
-		set_name(obj, wstr, args...);
+		x12::impl::set_name(obj, wstr, args...);
 	}
 
 public:
 	// API
 
-	void bindSurface(const surface_ptr& surface_); // TODO: bind arbitary textures
+	void BindSurface(const surface_ptr& surface_); // TODO: bind arbitary textures
 
 	void CommandsBegin();
 	void CommandsEnd();
@@ -184,18 +223,15 @@ public:
 	void GetViewport(unsigned& width, unsigned& heigth);
 	void SetScissor(unsigned x, unsigned y, unsigned width, unsigned heigth);
 
-	void Draw(Dx12CoreVertexBuffer* vb, uint32_t vertexCount = 0, uint32_t vertexOffset = 0);
+	void Draw(const Dx12CoreVertexBuffer* vb, uint32_t vertexCount = 0, uint32_t vertexOffset = 0);
 	void Dispatch(uint32_t x, uint32_t y, uint32_t z = 1);
 	void Clear();
 
-	void BindUniformBuffer(int slot, Dx12UniformBuffer* buffer, SHADER_TYPE shaderType);
-	void BindTexture(int slot, Dx12CoreTexture* buffer, SHADER_TYPE shaderType);
-	void BindStructuredBuffer(int slot, Dx12CoreBuffer* buffer, SHADER_TYPE shaderType);
+	void BuildResourceSet(IResourceSet* set_);
+	void BindResourceSet(IResourceSet* set_);
+	void UpdateInlineConstantBuffer(uint32_t idx, const void* data, size_t size);
 
-	void UpdateUniformBuffer(Dx12UniformBuffer* buffer, const void* data, size_t offset, size_t size);
-
-	void BindUnorderedAccessStructuredBuffer(int slot, Dx12CoreBuffer* buffer, SHADER_TYPE shaderType);
-	void EmitUAVBarrier(Dx12CoreBuffer* buffer);
+	void EmitUAVBarrier(ICoreBuffer* buffer);
 
 	void TimerBegin(uint32_t timerID);
 	void TimerEnd(uint32_t timerID);
@@ -219,7 +255,7 @@ class Dx12CopyCommandContext
 	{
 		WCHAR wstr[256];
 		wsprintf(wstr, L"Copy context #%d %s", contextNum, format);
-		set_name(obj, wstr, args...);
+		x12::impl::set_name(obj, wstr, args...);
 	}
 
 public:

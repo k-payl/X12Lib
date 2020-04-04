@@ -1,6 +1,5 @@
 #pragma once
-#include "common.h"
-#include "icorerender.h"
+#include "dx12common.h"
 
 struct Dx12CoreShader final : public ICoreShader
 {
@@ -9,30 +8,8 @@ struct Dx12CoreShader final : public ICoreShader
 	void InitGraphic(LPCWSTR name, const char* vertText, const char* fragText, const ConstantBuffersDesc* variabledesc, uint32_t varNum);
 	void InitCompute(LPCWSTR name, const char* text, const ConstantBuffersDesc* variabledesc, uint32_t varNum);
 
-	enum class ROOT_PARAMETER_TYPE
-	{
-		NONE,
-		TABLE,
-		INLINE_DESCRIPTOR,
-		//INLINE_CONSTANT // TODO
-	};
-
-	struct RootSignatueResource
-	{
-		int slot;
-		RESOURCE_DEFINITION resources;
-	};
-
-	struct RootSignatureParameter
-	{
-		ROOT_PARAMETER_TYPE type;
-		SHADER_TYPE shaderType;
-		int tableResourcesNum; // cache for tableResources.size()
-		std::vector<RootSignatueResource> tableResources;
-		RootSignatueResource inlineResource;
-	};
-
-	std::vector<RootSignatureParameter> rootSignatureParameters;
+	std::unordered_map<std::string, std::pair<int, int>> resourcesMap;
+	std::vector<RootSignatureParameter<ResourceDefinition>> rootSignatureParameters;
 
 	ComPtr<ID3DBlob> vs;
 	ComPtr<ID3DBlob> ps;
@@ -64,6 +41,7 @@ private:
 
 	void addInlineDescriptors(std::vector<D3D12_ROOT_PARAMETER>& d3dRootParameters, const std::vector<ShaderReflectionResource>& perDrawResources);
 	void initRootSignature(const std::vector<D3D12_ROOT_PARAMETER>& d3dRootParameters, D3D12_ROOT_SIGNATURE_FLAGS flags);
+	void initResourcesMap();
 
 	bool hasResources{false};
 

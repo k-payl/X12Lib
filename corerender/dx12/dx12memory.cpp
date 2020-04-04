@@ -156,7 +156,7 @@ x12::memory::dynamic::Page* x12::memory::dynamic::GetPage()
 	// For upload heap no need to put a fence to make sure the data is uploaded before you make a draw call
 	x12::memory::CreateCommittedBuffer(&page->d3d12resource, PageSize, D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_HEAP_TYPE_UPLOAD);
 
-	set_name(page->d3d12resource.Get(), L"Page #%u dynamic upload buffer %u bytes", num, (UINT)PageSize);
+	x12::impl::set_name(page->d3d12resource.Get(), L"Page #%u dynamic upload buffer %u bytes", num, (UINT)PageSize);
 
 	// It is ok be mappped as long as you use buffer
 	// because d3d11 driver does not version memory (d3d11 did) and cpu-pointer is always valid

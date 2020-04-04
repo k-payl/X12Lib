@@ -64,6 +64,7 @@ struct VertexShaderOutput
 	{
 		float4 tex = texture_font.Load(int3(IN.Rect, 0));
 		return float4(color.rgb, tex.r);
+		//return float4(1,1,1, 1);
 	}
 
 #endif

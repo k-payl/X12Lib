@@ -140,19 +140,25 @@ void Render()
 
 	dx11::UpdateUniformBuffer(res->MVPcb.Get(), &mvpcb, sizeof(MVPcb));
 
-	for (int i = 0; i < numCubesX; i++)
+	auto drawCubes = [](vec4 color, float x)
 	{
-		for (int j = 0; j < numCubesY; j++)
+		for (int i = 0; i < numCubesX; i++)
 		{
-			ColorCB colorCB;
-			colorCB.color_out = cubeColor(i, j);
-			colorCB.transform = cubePosition(i, j);
+			for (int j = 0; j < numCubesY; j++)
+			{
+				DynamicCB colorCB;
+				colorCB.color_out = cubeColor(i, j);
+				colorCB.transform = cubePosition(i, j);
+				colorCB.transform.z += x;
 
-			dx11::UpdateUniformBuffer(res->colorCB.Get(), &colorCB, sizeof(ColorCB));
+				dx11::UpdateUniformBuffer(res->colorCB.Get(), &colorCB, sizeof(DynamicCB));
 
-			context->DrawIndexed(idxCount, 0, 0);
+				context->DrawIndexed(idxCount, 0, 0);
+			}
 		}
-	}
+	};
+	drawCubes(vec4(1, 0, 0, 1), 0.0f);
+	//drawCubes(vec4(1, 0, 0, 1), 10.0f);
 
 	context->End(res->endQuery[queryFrame].Get());
 	context->End(res->disjontQuery[queryFrame].Get());
@@ -195,7 +201,7 @@ void Init()
 	res->vertex = veretxCount;
 
 	res->MVPcb = dx11::CreateConstanBuffer(sizeof(MVPcb));
-	res->colorCB = dx11::CreateConstanBuffer(sizeof(ColorCB));
+	res->colorCB = dx11::CreateConstanBuffer(sizeof(DynamicCB));
 
 	D3D11_DEPTH_STENCIL_DESC depthStencilDesc{};
 	depthStencilDesc.DepthEnable = TRUE;

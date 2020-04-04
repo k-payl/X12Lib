@@ -3,7 +3,6 @@
 #include "dx12render.h"
 #include "dx12render.h"
 #include "dx12shader.h"
-#include "dx12uniformbuffer.h"
 #include "dx12buffer.h"
 #include "dx12context.h"
 #include "dx12vertexbuffer.h"
@@ -13,6 +12,7 @@
 #include <d3dcompiler.h>
 #include <algorithm>
 #include <inttypes.h>
+#include "GraphicsMemory.h"
 
 Dx12CoreRenderer* _coreRender;
 
@@ -117,7 +117,7 @@ void Dx12CoreRenderer::Init()
 	graphicCommandContext = new Dx12GraphicCommandContext(sReleaseFrameCallback);
 	copyCommandContext = new Dx12CopyCommandContext();
 
-	tearingSupported = CheckTearingSupport();
+	tearingSupported = x12::impl::CheckTearingSupport();
 
 	auto frameFn = std::bind(&Dx12GraphicCommandContext::CurentFrame, graphicCommandContext);
 	descriptorAllocator = new x12::descriptorheap::Allocator(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, frameFn);
@@ -136,11 +136,6 @@ void Dx12CoreRenderer::Free()
 	copyCommandContext->Free();
 
 	IResourceUnknown::CheckResources();
-
-	{
-		std::scoped_lock guard(uniformBufferMutex);
-		uniformBufferVec.clear();
-	}
 
 	delete graphicCommandContext;
 	graphicCommandContext = nullptr;
@@ -207,11 +202,21 @@ auto Dx12CoreRenderer::PresentSurfaces() -> void
 	surfacesForPresenting.clear();
 
 	graphicCommandContext->FrameEnd();
+	
+	DirectX::GraphicsMemory* memory = graphicCommandContext->memory();
+	DirectX::GraphicsMemoryStatistics memStat = memory->GetStatistics();
+
+	committedMemory = memStat.committedMemory;
+	totalMemory = memStat.totalMemory;
+	totalPages = memStat.totalPages;
+	peakCommitedMemory = memStat.peakCommitedMemory;
+	peakTotalMemory = memStat.peakTotalMemory;
+	peakTotalPages = memStat.peakTotalPages;
 
 	++frame;
 }
 
-bool Dx12CoreRenderer::CreateShader(Dx12CoreShader** out, LPCWSTR name, const char* vertText, const char* fragText,
+bool Dx12CoreRenderer::CreateShader(ICoreShader** out, LPCWSTR name, const char* vertText, const char* fragText,
 											const ConstantBuffersDesc* variabledesc, uint32_t varNum)
 {
 	auto* ptr = new Dx12CoreShader{};
@@ -222,7 +227,7 @@ bool Dx12CoreRenderer::CreateShader(Dx12CoreShader** out, LPCWSTR name, const ch
 	return ptr != nullptr;
 }
 
-bool Dx12CoreRenderer::CreateComputeShader(Dx12CoreShader** out, LPCWSTR name, const char* text, const ConstantBuffersDesc* variabledesc, uint32_t varNum)
+bool Dx12CoreRenderer::CreateComputeShader(ICoreShader** out, LPCWSTR name, const char* text, const ConstantBuffersDesc* variabledesc, uint32_t varNum)
 {
 	auto* ptr = new Dx12CoreShader{};
 	ptr->InitCompute(name, text, variabledesc, varNum);
@@ -243,41 +248,44 @@ bool Dx12CoreRenderer::CreateVertexBuffer(Dx12CoreVertexBuffer** out, LPCWSTR na
 	return ptr != nullptr;
 }
 
-bool Dx12CoreRenderer::CreateUniformBuffer(Dx12UniformBuffer **out, size_t size)
+bool Dx12CoreRenderer::CreateConstantBuffer(ICoreBuffer**out, LPCWSTR name, size_t size, bool FastGPUread)
 {
-	std::scoped_lock guard(uniformBufferMutex);
+	BUFFER_FLAGS flags = BUFFER_FLAGS::CONSTNAT_BUFFER;
+	if (FastGPUread)
+		flags = flags| BUFFER_FLAGS::GPU_READ;
+	else
+		flags = flags | BUFFER_FLAGS::CPU_WRITE;
 
-	auto idx = uniformBufferVec.size();
-	auto ptr = new Dx12UniformBuffer((UINT)size, idx);
+	auto* ptr = new Dx12CoreBuffer;
+	ptr->InitBuffer(size, 1, nullptr, flags, name);
+	ptr->AddRef();
 	*out = ptr;
-
-	uniformBufferVec.emplace_back(ptr);
 
 	return ptr != nullptr;
 }
 
-bool Dx12CoreRenderer::CreateStructuredBuffer(Dx12CoreBuffer** out, LPCWSTR name, size_t structureSize,
+bool Dx12CoreRenderer::CreateStructuredBuffer(ICoreBuffer** out, LPCWSTR name, size_t structureSize,
 											  size_t num, const void* data, BUFFER_FLAGS flags)
 {
 	auto* ptr = new Dx12CoreBuffer;
-	ptr->InitStructuredBuffer(structureSize, num, data, flags, name);
+	ptr->InitBuffer(structureSize, num, data, flags, name);
 	ptr->AddRef();
 	*out = ptr;
 
 	return ptr != nullptr;
 }
 
-bool Dx12CoreRenderer::CreateRawBuffer(Dx12CoreBuffer** out, size_t size)
+bool Dx12CoreRenderer::CreateRawBuffer(Dx12CoreBuffer** out, LPCWSTR name, size_t size)
 {
 	auto* ptr = new Dx12CoreBuffer;
-	ptr->InitRawBuffer(size);
+	ptr->InitBuffer(size, 1, nullptr, BUFFER_FLAGS::RAW_BUFFER, name);
 	ptr->AddRef();
 	*out = ptr;
 
 	return ptr != nullptr;
 }
 
-bool Dx12CoreRenderer::CreateTextureFrom(Dx12CoreTexture** out, LPCWSTR name, std::unique_ptr<uint8_t[]> ddsData,
+bool Dx12CoreRenderer::CreateTextureFrom(ICoreTexture** out, LPCWSTR name, std::unique_ptr<uint8_t[]> ddsData,
 									 std::vector<D3D12_SUBRESOURCE_DATA> subresources,
 									 ID3D12Resource* d3dexistingtexture)
 {
@@ -297,7 +305,7 @@ bool Dx12CoreRenderer::CreateTextureFrom(Dx12CoreTexture** out, LPCWSTR name, st
 	// Create the GPU upload buffer.
 	x12::memory::CreateCommittedBuffer(&d3dTextureUploadHeap, uploadBufferSize, D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_HEAP_TYPE_UPLOAD);
 
-	set_name(d3dTextureUploadHeap.Get(), L"Upload buffer for cpu->gpu copying %u bytes for '%s' texture", uploadBufferSize, name);
+	x12::impl::set_name(d3dTextureUploadHeap.Get(), L"Upload buffer for cpu->gpu copying %u bytes for '%s' texture", uploadBufferSize, name);
 
 	copyCommandContext->CommandsBegin();
 		UpdateSubresources(copyCommandContext->GetD3D12CmdList(), d3dexistingtexture, d3dTextureUploadHeap.Get(), 0, 0, 1, &subresources[0]);
@@ -307,6 +315,18 @@ bool Dx12CoreRenderer::CreateTextureFrom(Dx12CoreTexture** out, LPCWSTR name, st
 
 	auto* ptr = new Dx12CoreTexture();
 	ptr->InitFromExisting(d3dexistingtexture);
+	ptr->AddRef();
+
+	*out = ptr;
+
+	return ptr != nullptr;
+}
+
+bool Dx12CoreRenderer::CreateResourceSet(IResourceSet** out, const ICoreShader* shader)
+{
+	auto* dxShader = static_cast<const Dx12CoreShader*>(shader);
+
+	auto* ptr = new Dx12ResourceSet(dxShader);
 	ptr->AddRef();
 
 	*out = ptr;
@@ -418,7 +438,7 @@ ComPtr<ID3D12PipelineState> Dx12CoreRenderer::GetGraphicPSO(const GraphicPipelin
 	ComPtr<ID3D12PipelineState> d3dPipelineState;
 	ThrowIfFailed(device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(d3dPipelineState.GetAddressOf())));
 
-	set_name(d3dPipelineState.Get(), L"PSO (graphic) #" PRIu64, psoNum);
+	x12::impl::set_name(d3dPipelineState.Get(), L"PSO (graphic) #" PRIu64, psoNum);
 
 	lock.lock();
 
@@ -452,7 +472,7 @@ auto Dx12CoreRenderer::GetComputePSO(const ComputePipelineState& pso, psomap_che
 	ComPtr<ID3D12PipelineState> d3dPipelineState;
 	ThrowIfFailed(device->CreateComputePipelineState(&desc, IID_PPV_ARGS(d3dPipelineState.GetAddressOf())));
 
-	set_name(d3dPipelineState.Get(), L"PSO (compute) #" PRIu64, psoNum);
+	x12::impl::set_name(d3dPipelineState.Get(), L"PSO (compute) #" PRIu64, psoNum);
 
 	lock.lock();
 
@@ -491,3 +511,4 @@ uint64_t Dx12CoreRenderer::DrawCalls()
 {
 	return graphicCommandContext->drawCalls();
 }
+

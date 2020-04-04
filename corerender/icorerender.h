@@ -1,7 +1,7 @@
 #pragma once
 #include "common.h"
 
-inline constexpr size_t MaxBindedResourcesPerFrame = 100'000;
+inline constexpr size_t MaxBindedResourcesPerFrame = 1'024;
 inline constexpr unsigned MaxResourcesPerShader = 8;
 
 enum class TEXTURE_FORMAT
@@ -121,7 +121,7 @@ struct ConstantBuffersDesc
 struct IResourceUnknown
 {
 private:
-	int refs{};
+	mutable int refs{};
 
 	static std::vector<IResourceUnknown*> resources;
 	static void ReleaseResource(int& refs, IResourceUnknown* ptr);
@@ -129,7 +129,7 @@ private:
 public:
 	IResourceUnknown();
 
-	void AddRef() { refs++; }
+	void AddRef() const { refs++; }
 	int GetRefs() { return refs; }
 	void Release();
 	virtual ~IResourceUnknown() = default;
@@ -151,6 +151,17 @@ struct ICoreTexture : public IResourceUnknown
 
 struct ICoreBuffer : public IResourceUnknown
 {
+	virtual void GetData(void* data) = 0;
+	virtual void SetData(const void* data, size_t size) = 0;
+};
+
+struct IResourceSet : public IResourceUnknown
+{
+	virtual void BindConstantBuffer(const char* name, ICoreBuffer* buffer) = 0;
+	virtual void BindStructuredBufferSRV(const char* name, ICoreBuffer* buffer) = 0;
+	virtual void BindStructuredBufferUAV(const char* name, ICoreBuffer* buffer) = 0;
+	virtual void BindTextueSRV(const char* name, ICoreTexture* texture) = 0;
+	virtual size_t FindInlineBufferIndex(const char* name) = 0;
 };
 
 enum class PRIMITIVE_TOPOLOGY
@@ -197,7 +208,9 @@ enum class BUFFER_FLAGS
 	NONE = 0,
 	CPU_WRITE = 1 << 0,
 	GPU_READ = 1 << 1,
-	UNORDERED_ACCESS = 1 << 2
+	UNORDERED_ACCESS = 1 << 2,
+	CONSTNAT_BUFFER = 1 << 3,
+	RAW_BUFFER = 1 << 4,
 };
 DEFINE_ENUM_OPERATORS(BUFFER_FLAGS)
 

@@ -11,7 +11,7 @@ void Dx12CoreBuffer::_GPUCopyToStaging()
 	if (!stagingResource)
 	{
 		x12::memory::CreateCommittedBuffer(stagingResource.GetAddressOf(), size, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_HEAP_TYPE_READBACK);
-		set_name(stagingResource.Get(), L"Staging buffer for gpu->cpu copying %u bytes for '%s'", size, name.c_str());
+		x12::impl::set_name(stagingResource.Get(), L"Staging buffer for gpu->cpu copying %u bytes for '%s'", size, name.c_str());
 	}
 
 	{
@@ -57,30 +57,67 @@ void Dx12CoreBuffer::GetData(void* data)
 	context->PopState();
 }
 
+void Dx12CoreBuffer::SetData(const void* data, size_t size)
+{
+	if (flags & BUFFER_FLAGS::CPU_WRITE)
+	{
+		memcpy(ptr, data, size);
+	}
+	else
+		notImplemented();
+}
+
 Dx12CoreBuffer::Dx12CoreBuffer()
 {
 	id = idGen.getId();
 }
 
-// TODO: BUFFER_FLAGS::CPU_WRITE
-void Dx12CoreBuffer::InitStructuredBuffer(size_t structureSize, size_t num, const void* data, BUFFER_FLAGS flags, LPCWSTR name_)
+Dx12CoreBuffer::~Dx12CoreBuffer()
+{
+	if (flags & BUFFER_FLAGS::CPU_WRITE)
+	{
+		if (ptr)
+		{
+			resource->Unmap(0, nullptr);
+			ptr = 0;
+		}
+	}
+}
+
+void Dx12CoreBuffer::InitBuffer(size_t structureSize, size_t num, const void* data, BUFFER_FLAGS flags_, LPCWSTR name_)
 {
 	name = name_;
-	size = structureSize * num;
+	flags = flags_;
 
-	D3D12_RESOURCE_FLAGS resFlags = D3D12_RESOURCE_FLAG_NONE;
-	if (flags & BUFFER_FLAGS::UNORDERED_ACCESS)
-		resFlags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+	if (flags_ & BUFFER_FLAGS::CONSTNAT_BUFFER)
+		size = alignConstnatBufferSize(structureSize);
+	else
+		size = structureSize * num;
 
+	D3D12_HEAP_TYPE heap = D3D12_HEAP_TYPE_DEFAULT;
+	D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE;
 	state = D3D12_RESOURCE_STATE_COPY_DEST;
 
-	x12::memory::CreateCommittedBuffer(resource.GetAddressOf(), size, state,
-									   D3D12_HEAP_TYPE_DEFAULT, D3D12_HEAP_FLAG_NONE,
-									   resFlags);
+	if (flags_ & BUFFER_FLAGS::CPU_WRITE)
+	{
+		state = D3D12_RESOURCE_STATE_GENERIC_READ;
+		heap = D3D12_HEAP_TYPE_UPLOAD;
+	}
+	else if (flags_ & BUFFER_FLAGS::UNORDERED_ACCESS)
+	{
+		flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+	}
 
-	set_name(resource.Get(), L"Structured buffer '%s'", name_);
+	x12::memory::CreateCommittedBuffer(resource.GetAddressOf(), size, state, heap,
+									   D3D12_HEAP_FLAG_NONE, flags);
+
+	if (flags_ & BUFFER_FLAGS::CPU_WRITE)
+	{
+		resource->Map(0, nullptr, &ptr);
+	}
 
 	// upload data
+	if (!(flags_ & BUFFER_FLAGS::CPU_WRITE))
 	{
 		stagingState = D3D12_RESOURCE_STATE_GENERIC_READ;
 
@@ -88,7 +125,7 @@ void Dx12CoreBuffer::InitStructuredBuffer(size_t structureSize, size_t num, cons
 		x12::memory::CreateCommittedBuffer(uploadResource.GetAddressOf(), size,
 										   stagingState, D3D12_HEAP_TYPE_UPLOAD);
 
-		set_name(uploadResource.Get(), L"Upload buffer for cpu->gpu copying %u bytes for '%s'", size, name_);
+		x12::impl::set_name(uploadResource.Get(), L"Upload buffer for cpu->gpu copying %u bytes for '%s'", size, name_);
 	
 		D3D12_SUBRESOURCE_DATA initData = {};
 		initData.pData = data;
@@ -99,7 +136,7 @@ void Dx12CoreBuffer::InitStructuredBuffer(size_t structureSize, size_t num, cons
 		copyContext->CommandsBegin();
 	
 		UpdateSubresources<1>(copyContext->GetD3D12CmdList(), resource.Get(),
-							  uploadResource.Get(), 0, 0, data?1:0, data? &initData : nullptr);
+							  uploadResource.Get(), 0, 0, data ? 1 : 0, data? &initData : nullptr);
 
 		copyContext->CommandsEnd();
 		copyContext->Submit();
@@ -108,17 +145,22 @@ void Dx12CoreBuffer::InitStructuredBuffer(size_t structureSize, size_t num, cons
 
 	initSRV((UINT)num, (UINT)structureSize, D3D12_BUFFER_SRV_FLAG_NONE, DXGI_FORMAT_UNKNOWN);
 
-	if (flags & BUFFER_FLAGS::UNORDERED_ACCESS)
+	if (flags_ & BUFFER_FLAGS::UNORDERED_ACCESS)
 		initUAV((UINT)num, (UINT)structureSize, D3D12_BUFFER_UAV_FLAG_NONE, DXGI_FORMAT_UNKNOWN);
-}
-void Dx12CoreBuffer::InitRawBuffer(size_t size_)
-{
-	size = size_;
 
-	x12::memory::CreateCommittedBuffer(resource.GetAddressOf(), size_,
-									   D3D12_RESOURCE_STATE_COPY_DEST, D3D12_HEAP_TYPE_DEFAULT);
+	if (flags_ & BUFFER_FLAGS::CONSTNAT_BUFFER)
+	{
+		initCBV((UINT)size);
+		name = L"(constant buffer)" + name;
+	}
+	else if (flags_ & BUFFER_FLAGS::RAW_BUFFER)
+	{
+		initSRV((UINT)size, 1, D3D12_BUFFER_SRV_FLAG_RAW, DXGI_FORMAT_UNKNOWN); //crash wtf?
+		name = L"(raw buffer)" + name;
+	} else
+		name = L"(structured buffer)" + name;
 
-	initSRV((UINT)size_, 1, D3D12_BUFFER_SRV_FLAG_RAW, DXGI_FORMAT_UNKNOWN); //crash wtf?
+	x12::impl::set_name(resource.Get(), name.c_str());
 }
 
 void Dx12CoreBuffer::initSRV(UINT num, UINT structireSize, D3D12_BUFFER_SRV_FLAGS flag, DXGI_FORMAT format)
@@ -148,4 +190,15 @@ void Dx12CoreBuffer::initUAV(UINT num, UINT structireSize, D3D12_BUFFER_UAV_FLAG
 	UAVdescriptor = GetCoreRender()->AllocateDescriptor();
 
 	CR_GetD3DDevice()->CreateUnorderedAccessView(resource.Get(), nullptr, &srvDesc, UAVdescriptor.descriptor);
+}
+
+void Dx12CoreBuffer::initCBV(UINT size)
+{
+	CBVdescriptor = GetCoreRender()->AllocateDescriptor();
+
+	D3D12_CONSTANT_BUFFER_VIEW_DESC desc;
+	desc.SizeInBytes = alignConstnatBufferSize(size);
+	desc.BufferLocation = resource->GetGPUVirtualAddress();
+
+	CR_GetD3DDevice()->CreateConstantBufferView(&desc, CBVdescriptor.descriptor);
 }

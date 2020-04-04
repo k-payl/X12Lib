@@ -16,9 +16,6 @@
     <ClInclude Include="corerender/dx12/dx12shader.h">
       <Filter>x12lib\dx12</Filter>
     </ClInclude>
-    <ClInclude Include="corerender/dx12/dx12uniformbuffer.h">
-      <Filter>x12lib\dx12</Filter>
-    </ClInclude>
     <ClInclude Include="corerender/dx12/dx12vertexbuffer.h">
       <Filter>x12lib\dx12</Filter>
     </ClInclude>
@@ -63,6 +60,18 @@
     <ClInclude Include="3rdparty\d3dx12.h">
       <Filter>3rdparty</Filter>
     </ClInclude>
+    <ClInclude Include="3rdparty\DirectXTK\Inc\GraphicsMemory.h">
+      <Filter>3rdparty\DirectXTK\Inc</Filter>
+    </ClInclude>
+    <ClInclude Include="3rdparty\DirectXTK\Src\LinearAllocator.h">
+      <Filter>3rdparty\DirectXTK\Src</Filter>
+    </ClInclude>
+    <ClInclude Include="3rdparty\DirectXTK\Src\PlatformHelpers.h">
+      <Filter>3rdparty\DirectXTK\Src</Filter>
+    </ClInclude>
+    <ClInclude Include="3rdparty\DirectXTK\Inc\DirectXHelpers.h">
+      <Filter>3rdparty\DirectXTK\Inc</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="core.cpp" />
@@ -77,9 +86,6 @@
       <Filter>x12lib\dx12</Filter>
     </ClCompile>
     <ClCompile Include="corerender/dx12/dx12shader.cpp">
-      <Filter>x12lib\dx12</Filter>
-    </ClCompile>
-    <ClCompile Include="corerender/dx12/dx12uniformbuffer.cpp">
       <Filter>x12lib\dx12</Filter>
     </ClCompile>
     <ClCompile Include="corerender/dx12/dx12vertexbuffer.cpp">
@@ -117,6 +123,15 @@
     <ClCompile Include="corerender\dx12\dx12memory.cpp">
       <Filter>x12lib\dx12</Filter>
     </ClCompile>
+    <ClCompile Include="3rdparty\DirectXTK\Src\GraphicsMemory.cpp">
+      <Filter>3rdparty\DirectXTK\Src</Filter>
+    </ClCompile>
+    <ClCompile Include="3rdparty\DirectXTK\Src\LinearAllocator.cpp">
+      <Filter>3rdparty\DirectXTK\Src</Filter>
+    </ClCompile>
+    <ClCompile Include="3rdparty\DirectXTK\Src\DirectXHelpers.cpp">
+      <Filter>3rdparty\DirectXTK\Src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="mesh.shader" />
@@ -138,6 +153,15 @@
     </Filter>
     <Filter Include="x12lib\dx12">
       <UniqueIdentifier>{f9e91744-f179-4542-a887-fde8eb0e4efa}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="3rdparty\DirectXTK">
+      <UniqueIdentifier>{bb8e2c7f-1671-470f-a74e-9c18e2b6f33f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="3rdparty\DirectXTK\Src">
+      <UniqueIdentifier>{0adad5a2-c82b-4361-a26e-4b087ffc90ce}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="3rdparty\DirectXTK\Inc">
+      <UniqueIdentifier>{1d6fc0d9-3128-4166-927b-237f5caf82e6}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

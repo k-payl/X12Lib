@@ -1,7 +1,6 @@
 #include "pch.h"
 #include "dx12shader.h"
 #include "dx12render.h"
-#include "dx12uniformbuffer.h"
 #include <d3dcompiler.h>
 #include <algorithm>
 
@@ -20,7 +19,7 @@ static D3D12_DESCRIPTOR_RANGE_TYPE ResourceToView(D3D_SHADER_INPUT_TYPE resource
 		case D3D_SIT_UAV_RWSTRUCTURED: return D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
 		case D3D_SIT_UAV_RWTYPED: return D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
 		default:
-			assert(0 && "Not impl");
+			notImplemented();
 			return D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
 			break;
 	}
@@ -36,7 +35,7 @@ static RESOURCE_DEFINITION ResourceToBindFlag(D3D_SHADER_INPUT_TYPE resource)
 		case D3D_SIT_UAV_RWSTRUCTURED: return RESOURCE_DEFINITION::RBF_BUFFER_UAV;
 		case D3D_SIT_UAV_RWTYPED: return RESOURCE_DEFINITION::RBF_TEXTURE_UAV;
 		default:
-			assert(0 && "Not impl");
+			notImplemented();
 			return RESOURCE_DEFINITION::RBF_NO_RESOURCE;
 			break;
 	}
@@ -166,7 +165,7 @@ bool Dx12CoreShader::processShader(const ConstantBuffersDesc* buffersDesc,
 	if (!tableResources.empty())
 	{
 		d3dRangesOut.resize(tableResources.size());
-		std::vector<RootSignatueResource> resourcesForTable;
+		std::vector<ResourceDefinition> resourcesForTable;
 
 		for (auto i = 0; i < tableResources.size(); i++)
 		{
@@ -178,7 +177,7 @@ bool Dx12CoreShader::processShader(const ConstantBuffersDesc* buffersDesc,
 			d3dRangesOut[i].RegisterSpace = 0;
 			d3dRangesOut[i].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-			resourcesForTable.push_back({ shaderResource.slot, ResourceToBindFlag(shaderResource.resourceType) });
+			resourcesForTable.push_back({ shaderResource.slot, shaderResource.name, ResourceToBindFlag(shaderResource.resourceType) });
 		}
 
 		rootSignatureParameters.push_back({ ROOT_PARAMETER_TYPE::TABLE, shaderTypeIn, (int)resourcesForTable.size(), resourcesForTable, {-1} });
@@ -214,7 +213,7 @@ void Dx12CoreShader::addInlineDescriptors(std::vector<D3D12_ROOT_PARAMETER>& d3d
 				break;
 
 			default:
-				assert(0 && "Not impl");
+				notImplemented();
 				break;
 		}
 
@@ -238,9 +237,10 @@ void Dx12CoreShader::addInlineDescriptors(std::vector<D3D12_ROOT_PARAMETER>& d3d
 
 		d3dRootParameters.insert(d3dRootParameters.begin(), d3dParam);
 
-		RootSignatueResource r;
+		ResourceDefinition r;
 		r.slot = perDrawResources[i].slot;
 		r.resources = ResourceToBindFlag(perDrawResources[i].resourceType);
+		r.name = perDrawResources[i].name;
 
 		rootSignatureParameters.insert(rootSignatureParameters.begin(), { ROOT_PARAMETER_TYPE::INLINE_DESCRIPTOR, perDrawResources[i].shader, {}, {}, r });
 	}
@@ -266,7 +266,29 @@ void Dx12CoreShader::initRootSignature(const std::vector<D3D12_ROOT_PARAMETER>& 
 		ThrowIfFailed(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, nullptr));
 
 		ThrowIfFailed(CR_GetD3DDevice()->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&resourcesRootSignature)));
-		set_name(resourcesRootSignature.Get(), L"Root signature for shader '%s'", name.c_str());
+		x12::impl::set_name(resourcesRootSignature.Get(), L"Root signature for shader '%s'", name.c_str());
+	}
+}
+
+void Dx12CoreShader::initResourcesMap()
+{
+	resourcesMap.clear();
+
+	for (size_t i = 0; i < rootSignatureParameters.size(); ++i)
+	{
+		const RootSignatureParameter<ResourceDefinition>& in = rootSignatureParameters[i];
+
+		if (in.type == ROOT_PARAMETER_TYPE::INLINE_DESCRIPTOR)
+		{
+			resourcesMap[in.inlineResource.name] = {i, -1};
+		}
+		else if (in.type == ROOT_PARAMETER_TYPE::TABLE)
+		{
+			for (int j = 0; j < in.tableResources.size(); ++j)
+				resourcesMap[in.tableResources[j].name] = { i, j };
+		}
+		else
+			unreacheble();
 	}
 }
 
@@ -299,6 +321,8 @@ void Dx12CoreShader::InitGraphic(LPCWSTR name_, const char* vertText, const char
 	addInlineDescriptors(d3dRootParameters, perDrawResources);
 
 	initRootSignature(d3dRootParameters, flags);
+
+	initResourcesMap();
 }
 
 void Dx12CoreShader::InitCompute(LPCWSTR name_, const char* text, const ConstantBuffersDesc* variabledesc, uint32_t varNum)
@@ -323,4 +347,5 @@ void Dx12CoreShader::InitCompute(LPCWSTR name_, const char* text, const Constant
 
 	initRootSignature(d3dRootParameters, flags);
 
+	initResourcesMap();
 }

@@ -10,7 +10,6 @@ constexpr inline UINT float4chunks = 15;
 
 std::vector<float> ExecuteGPU();
 
-
 int main()
 {
 	Core *core = new Core();
@@ -44,43 +43,51 @@ int main()
 
 std::vector<float> ExecuteGPU()
 {
-	intrusive_ptr<Dx12CoreShader> comp;
-	intrusive_ptr<Dx12CoreBuffer> compSB;
-	Dx12UniformBuffer* compCB;
+	intrusive_ptr<ICoreShader> shader;
+	intrusive_ptr<ICoreBuffer> buffer;
+	intrusive_ptr<IResourceSet> resources;
+
 	Dx12CoreRenderer* renderer = CORE->GetCoreRenderer();
-	Dx12GraphicCommandContext* context = renderer->GetGraphicCommmandContext();
+	Dx12GraphicCommandContext* context = renderer->GetGraphicCommmandContext();	
 
 	{
 		auto text = CORE->GetFS()->LoadFile("uav.shader");
 
-
-		renderer->CreateComputeShader(comp.getAdressOf(), L"uav.shader", text.get());
+		const ConstantBuffersDesc buffersdesc[] =
+		{
+			"ChunkNumber",	CONSTANT_BUFFER_UPDATE_FRIQUENCY::PER_DRAW
+		};
+		renderer->CreateComputeShader(shader.getAdressOf(), L"uav.shader", text.get(), buffersdesc,
+									  _countof(buffersdesc));
 	}
 
-	renderer->CreateUniformBuffer(&compCB, 4);
+	renderer->CreateStructuredBuffer(buffer.getAdressOf(), L"Unordered buffer for test barriers", 16, float4chunks, nullptr, BUFFER_FLAGS::UNORDERED_ACCESS);
 
-	renderer->CreateStructuredBuffer(compSB.getAdressOf(), L"Unordered buffer for test barriers", 16, float4chunks, nullptr, BUFFER_FLAGS::UNORDERED_ACCESS);
+	renderer->CreateResourceSet(resources.getAdressOf(), shader.get());
+	resources->BindStructuredBufferUAV("tex_out", buffer.get());
+	context->BuildResourceSet(resources.get());
+	size_t chunkIdx = resources->FindInlineBufferIndex("ChunkNumber");
 
 	context->CommandsBegin();
 
 		ComputePipelineState cpso{};
-		cpso.shader = comp.get();
+		cpso.shader = shader.get();
 
 		context->SetComputePipelineState(cpso);
-		context->BindUniformBuffer(0, compCB, SHADER_TYPE::SHADER_COMPUTE);
-		context->BindUnorderedAccessStructuredBuffer(1, compSB.get(), SHADER_TYPE::SHADER_COMPUTE);
+
+		context->BindResourceSet(resources.get());
 
 		for (UINT i = 0; i< float4chunks; ++i)
 		{
-			context->UpdateUniformBuffer(compCB, &i, 0, 4);
+			context->UpdateInlineConstantBuffer(chunkIdx, &i, 4);
 			context->Dispatch(1, 1);
 
-			// comment this and you'll get random values
-			context->EmitUAVBarrier(compSB.get());
+			// Comment this and you'll get random values
+			context->EmitUAVBarrier(buffer.get());
 		}
 
 		std::vector<float> ret(4 * float4chunks);
-		compSB->GetData(ret.data());
+		buffer->GetData(ret.data());
 
 	context->CommandsEnd();
 	context->Submit();
