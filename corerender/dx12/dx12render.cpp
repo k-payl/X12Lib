@@ -237,7 +237,7 @@ bool Dx12CoreRenderer::CreateComputeShader(ICoreShader** out, LPCWSTR name, cons
 	return ptr != nullptr;
 }
 
-bool Dx12CoreRenderer::CreateVertexBuffer(Dx12CoreVertexBuffer** out, LPCWSTR name, const void* vbData, const VeretxBufferDesc* vbDesc,
+bool Dx12CoreRenderer::CreateVertexBuffer(ICoreVertexBuffer** out, LPCWSTR name, const void* vbData, const VeretxBufferDesc* vbDesc,
 	const void* idxData, const IndexBufferDesc* idxDesc, BUFFER_FLAGS usage)
 {
 	auto* ptr = new Dx12CoreVertexBuffer{};

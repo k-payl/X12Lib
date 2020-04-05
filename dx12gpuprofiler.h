@@ -13,14 +13,15 @@ class Dx12GpuProfiler : public GpuProfiler
 	intrusive_ptr<ICoreBuffer> COLORCBUniformBuffer;
 	intrusive_ptr<ICoreBuffer> viewportUniformBuffer;
 	intrusive_ptr<IResourceSet> fontResourceSet;
-	size_t transformIndex;
+	size_t transformFontIndex;
+	intrusive_ptr<ICoreVertexBuffer> dymmyVertexBuffer;
 
 	void Begin() override;
 	void BeginGraph() override;
 	void UpdateViewportConstantBuffer() override;
 	void DrawRecords(int maxRecords) override;
 	void* getContext() override { return context; }
-	void AddRecord(const char* format) override;
+	void AddRecord(const char* format, bool isFloat, bool renderGraph_) override;
 
 public:
 	Dx12GpuProfiler(vec4 color_, float verticalOffset_) : GpuProfiler(color_, verticalOffset_) {}

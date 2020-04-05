@@ -110,11 +110,13 @@ void Dx12GraphicCommandContext::SetComputePipelineState(const ComputePipelineSta
 	d3dCmdList->SetComputeRootSignature(state.pso.d3drootSignature.Get());
 }
 
-void Dx12GraphicCommandContext::SetVertexBuffer(Dx12CoreVertexBuffer* vb)// TODO add vb to tracked resources
+void Dx12GraphicCommandContext::SetVertexBuffer(ICoreVertexBuffer* vb)// TODO add vb to tracked resources
 {
 	assert(state.pso.PsoChecksum > 0 && "PSO is not set");
 
-	state.pso.vb = vb;
+	Dx12CoreVertexBuffer* dxBuffer = resource_cast(vb);
+
+	state.pso.vb = dxBuffer;
 
 	D3D12_PRIMITIVE_TOPOLOGY d3dtopology;
 	switch (state.primitiveTopology)
@@ -129,12 +131,12 @@ void Dx12GraphicCommandContext::SetVertexBuffer(Dx12CoreVertexBuffer* vb)// TODO
 	UINT numBarriers;
 	D3D12_RESOURCE_BARRIER barriers[2];
 
-	if (vb->GetReadBarrier(&numBarriers, barriers))
+	if (dxBuffer->GetReadBarrier(&numBarriers, barriers))
 		d3dCmdList->ResourceBarrier(numBarriers, barriers);
 
 	d3dCmdList->IASetPrimitiveTopology(d3dtopology);
-	d3dCmdList->IASetVertexBuffers(0, 1, &vb->vertexBufferView);
-	d3dCmdList->IASetIndexBuffer(vb->pIndexBufferVew());
+	d3dCmdList->IASetVertexBuffers(0, 1, &dxBuffer->vertexBufferView);
+	d3dCmdList->IASetIndexBuffer(dxBuffer->pIndexBufferVew());
 }
 
 void Dx12GraphicCommandContext::SetViewport(unsigned width, unsigned heigth)
@@ -185,25 +187,27 @@ void Dx12GraphicCommandContext::setGraphicPipeline(psomap_checksum_t newChecksum
 	state.pso.d3dpso = d3dpso;
 }
 
-void Dx12GraphicCommandContext::Draw(const Dx12CoreVertexBuffer* vb, uint32_t vertexCount, uint32_t vertexOffset)
+void Dx12GraphicCommandContext::Draw(const ICoreVertexBuffer* vb, uint32_t vertexCount, uint32_t vertexOffset)
 {
-	state.pso.vb = const_cast<Dx12CoreVertexBuffer*>(vb);
-	cmdList->TrackResource(const_cast<Dx12CoreVertexBuffer*>(vb));
+	const Dx12CoreVertexBuffer* dx12Vb = resource_cast(vb);
+
+	state.pso.vb = const_cast<Dx12CoreVertexBuffer*>(dx12Vb);
+	cmdList->TrackResource(const_cast<Dx12CoreVertexBuffer*>(dx12Vb));
 
 	if (vertexCount > 0)
 	{
-		assert(vertexCount <= vb->vertexCount);
+		assert(vertexCount <= dx12Vb->vertexCount);
 	}
 
-	if (vb->indexBuffer)
+	if (dx12Vb->indexBuffer)
 	{
-		d3dCmdList->DrawIndexedInstanced(vertexCount > 0 ? vertexCount : vb->indexCount, 1, vertexOffset, 0, 0);
-		statistic.triangles += vb->indexCount / 3;
+		d3dCmdList->DrawIndexedInstanced(vertexCount > 0 ? vertexCount : dx12Vb->indexCount, 1, vertexOffset, 0, 0);
+		statistic.triangles += dx12Vb->indexCount / 3;
 	}
 	else
 	{
-		d3dCmdList->DrawInstanced(vertexCount > 0 ? vertexCount : vb->vertexCount, 1, vertexOffset, 0);
-		statistic.triangles += vb->vertexCount / 3;
+		d3dCmdList->DrawInstanced(vertexCount > 0 ? vertexCount : dx12Vb->vertexCount, 1, vertexOffset, 0);
+		statistic.triangles += dx12Vb->vertexCount / 3;
 	}
 
 	++statistic.drawCalls;

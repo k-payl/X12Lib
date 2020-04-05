@@ -5,7 +5,7 @@
 #include "dx11.h"
 #include "3rdparty/DirectXTex/DDSTextureLoader.h"
 
-struct Dx11Graph : public Graph
+struct Dx11Graph : public GraphRenderer
 {
 	ComPtr<ID3D11Buffer> offsetUniformBuffer;
 	ComPtr<ID3D11Buffer> colorUniformBuffer;
@@ -90,7 +90,8 @@ struct Dx11RenderProfilerRecord : public RenderProfilerRecord
 	UINT size;
 	UINT stride;
 
-	Dx11RenderProfilerRecord(const char *format) : RenderProfilerRecord(format) {}
+	Dx11RenderProfilerRecord(const char *format, bool isFloat_, bool renderGraph_)
+		: RenderProfilerRecord(format, isFloat_, renderGraph_) {}
 
 	void CreateBuffer() override
 	{
@@ -122,11 +123,6 @@ void Dx11GpuProfiler::Init()
 		dx11::CreatePixelShader(text, pixelShader);
 	}
 
-	// Graph
-	graphs.resize(GraphsCount);
-	for (int i = 0; i < GraphsCount; ++i)
-		graphs[i] = new Dx11Graph;
-
 	{
 		auto text = fs->LoadFile("gpuprofiler_graph.shader");
 		dx11::CreateVertexShader(text, graphVertexShader);
@@ -136,7 +132,7 @@ void Dx11GpuProfiler::Init()
 	viewportUniformBuffer = dx11::CreateConstanBuffer(16);
 	transformUniformBuffer = dx11::CreateConstanBuffer(sizeof(TransformConstantBuffer));
 	colorUniformBuffer = dx11::CreateConstanBuffer(16);
-	dx11::UpdateUniformBuffer(colorUniformBuffer.Get(), &color, 16);
+	//dx11::UpdateUniformBuffer(colorUniformBuffer.Get(), &color, 16);
 
 	DirectX::CreateDDSTextureFromFile(
 		dx11::GetDx11Device(), dx11::GetDx11Context(),
@@ -241,10 +237,18 @@ void Dx11GpuProfiler::DrawRecords(int maxRecords)
 	}
 
 }
-void Dx11GpuProfiler::AddRecord(const char* format)
+void Dx11GpuProfiler::AddRecord(const char* format, bool isFloat, bool renderGraph)
 {
+	size_t index = records.size();
+
 	records.push_back(nullptr);
-	records.back() = new Dx11RenderProfilerRecord(format);
+	records.back() = new Dx11RenderProfilerRecord(format, isFloat, renderGraph);
+	renderRecords.resize(records.size());
+	renderRecords[index] = renderGraph;
+
+	graphs.resize(records.size());
+	if (renderGraph)
+		graphs[index] = new Dx11Graph;
 }
 
 void Dx11GpuProfiler::Free()

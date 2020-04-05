@@ -11,33 +11,50 @@
 #include "core.h"
 #include "3rdparty/DirectXTex/DDSTextureLoader12.h"
 
-struct Dx12Graph : public Graph
+struct Dx12GraphRenderer : public GraphRenderer
 {
-	intrusive_ptr<Dx12CoreVertexBuffer> graphVertexBuffer;
+	intrusive_ptr<ICoreVertexBuffer> graphVertexBuffer;
 	intrusive_ptr<ICoreBuffer> offsetUniformBuffer;
-	intrusive_ptr<ICoreBuffer> colorUniformBuffer;
+	//intrusive_ptr<ICoreBuffer> colorUniformBuffer;
+	intrusive_ptr<IResourceSet> graphResourceSet;
+	size_t transformGraphIndex;
+	size_t colorGraphIndex;
+	intrusive_ptr<ICoreShader> graphShader;
+	intrusive_ptr<ICoreBuffer> viewportUniformBuffer;
 
-	Dx12Graph()
+	Dx12GraphRenderer(intrusive_ptr<ICoreShader> graphShader_, intrusive_ptr<ICoreBuffer> viewportUniformBuffer_)
+		: graphShader(graphShader_),
+		viewportUniformBuffer(viewportUniformBuffer_)
 	{
-		GetCoreRender()->CreateConstantBuffer(offsetUniformBuffer.getAdressOf(), L"Dx12Graph offsetUniformBuffer", 16);
-		GetCoreRender()->CreateConstantBuffer(colorUniformBuffer.getAdressOf(), L"Dx12Graph colorUniformBuffer", 16);
+		GetCoreRender()->CreateConstantBuffer(offsetUniformBuffer.getAdressOf(), L"Dx12GraphRenderer offsetUniformBuffer", 16);
+		//GetCoreRender()->CreateConstantBuffer(colorUniformBuffer.getAdressOf(), L"Dx12GraphRenderer colorUniformBuffer", 16/*, true*/);
 	}
 
 	void Render(void* c, vec4 color, float value, unsigned w, unsigned h) override
 	{
-		/*
 		Dx12GraphicCommandContext* context = (Dx12GraphicCommandContext*)c;
 
+		//if (!lastColor.Aproximately(color))
+		//{
+		//	colorUniformBuffer->SetData(&color, 16);
+		//	lastColor = color;
+		//}
 
-		context->SetVertexBuffer(graphVertexBuffer.get());
-		context->BindUniformBuffer(0, colorUniformBuffer, SHADER_TYPE::SHADER_FRAGMENT);
-		context->BindUniformBuffer(1, offsetUniformBuffer, SHADER_TYPE::SHADER_VERTEX);
-
-		if (!lastColor.Aproximately(color))
+		if (!graphResourceSet.get())
 		{
-			context->UpdateUniformBuffer(colorUniformBuffer, &color, 0, 16);
-			lastColor = color;
+			GetCoreRender()->CreateResourceSet(graphResourceSet.getAdressOf(), graphShader.get());
+
+			graphResourceSet->BindConstantBuffer("ViewportCB", viewportUniformBuffer.get());
+			//graphResourceSet->BindConstantBuffer("GraphColor", colorUniformBuffer.get());
+			context->BuildResourceSet(graphResourceSet.get());
+
+			transformGraphIndex = graphResourceSet->FindInlineBufferIndex("GraphTransform");
+			colorGraphIndex = graphResourceSet->FindInlineBufferIndex("GraphColor");
 		}
+
+		context->BindResourceSet(graphResourceSet.get());
+		context->SetVertexBuffer(graphVertexBuffer.get());
+		context->UpdateInlineConstantBuffer(colorGraphIndex, &color, 16);
 
 		vec4 cpuv[2];
 		cpuv[0] = lastGraphValue;
@@ -47,7 +64,7 @@ struct Dx12Graph : public Graph
 
 		auto Draw = [this, context](float offset, uint32_t len, uint32_t o)
 		{
-			context->UpdateUniformBuffer(offsetUniformBuffer, &offset, 0, 4);
+			context->UpdateInlineConstantBuffer(transformGraphIndex, &offset, 4);
 			context->Draw(graphVertexBuffer.get(), len, o);
 		};
 
@@ -55,7 +72,6 @@ struct Dx12Graph : public Graph
 			Draw(float(graphRingBufferOffset), graphRingBufferOffset * 2, 0);
 
 		Draw(float(graphRingBufferOffset + w), (w - graphRingBufferOffset) * 2, graphRingBufferOffset * 2);
-		*/
 	}
 
 	void RecreateVB(unsigned w) override
@@ -90,9 +106,10 @@ struct Dx12Graph : public Graph
 
 struct Dx12RenderProfilerRecord : public RenderProfilerRecord
 {
-	Dx12CoreVertexBuffer* vertexBuffer{};
+	ICoreVertexBuffer* vertexBuffer{};
 
-	Dx12RenderProfilerRecord(const char* format) : RenderProfilerRecord(format) {}
+	Dx12RenderProfilerRecord(const char* format, bool isFloat, bool renderGraph_)
+		: RenderProfilerRecord(format, isFloat, renderGraph_) {}
 
 	~Dx12RenderProfilerRecord()
 	{
@@ -152,15 +169,11 @@ void Dx12GpuProfiler::Init()
 		GetCoreRender()->CreateShader(fontShader.getAdressOf(), L"gpuprofiler_font.shader", text.get(), text.get(), &buffersdesc[0], _countof(buffersdesc));
 	}
 
-	// Graph
-	graphs.resize(GraphsCount);
-	for (int i = 0; i < GraphsCount; ++i)
-		graphs[i] = new Dx12Graph;
-
 	{
-		const ConstantBuffersDesc buffersdesc[1] =
+		const ConstantBuffersDesc buffersdesc[] =
 		{
-			"GraphTransform", CONSTANT_BUFFER_UPDATE_FRIQUENCY::PER_DRAW
+			{"GraphTransform", CONSTANT_BUFFER_UPDATE_FRIQUENCY::PER_DRAW},
+			{"GraphColor", CONSTANT_BUFFER_UPDATE_FRIQUENCY::PER_DRAW}
 		};
 
 		auto text = fs->LoadFile("gpuprofiler_graph.shader");
@@ -183,6 +196,21 @@ void Dx12GpuProfiler::Init()
 	// Font
 	loadFont();
 	GetCoreRender()->CreateStructuredBuffer(fontDataStructuredBuffer.getAdressOf(), L"font's data", sizeof(FontChar), fontData.size(), &fontData[0]);
+
+	// Vertex buffer
+	VertexAttributeDesc attr[1];
+	attr[0].format = VERTEX_BUFFER_FORMAT::FLOAT4;
+	attr[0].offset = 0;
+	attr[0].semanticName = "POSITION";
+
+	VeretxBufferDesc desc;
+	desc.attributesCount = _countof(attr);
+	desc.attributes = attr;
+	desc.vertexCount = 1;
+
+	GetCoreRender()->CreateVertexBuffer(dymmyVertexBuffer.getAdressOf(), L"Dx12GpuProfiler dymmyVertexBuffer",
+										nullptr, &desc, nullptr, nullptr, BUFFER_FLAGS::GPU_READ);
+
 }
 void Dx12GpuProfiler::Begin()
 {
@@ -193,15 +221,13 @@ void Dx12GpuProfiler::Begin()
 
 void Dx12GpuProfiler::BeginGraph()
 {
-	//GraphicPipelineState pso{};
-	//pso.src = BLEND_FACTOR::SRC_ALPHA;
-	//pso.dst = BLEND_FACTOR::ONE_MINUS_SRC_ALPHA;
-	//pso.primitiveTopology = PRIMITIVE_TOPOLOGY::LINE;
-	//pso.shader = graphShader;
-	//pso.vb = static_cast<Dx12Graph*>(graphs[0])->graphVertexBuffer.get();
-	//context->SetGraphicPipelineState(pso);
-
-	//context->BindUniformBuffer(0, viewportUniformBuffer, SHADER_TYPE::SHADER_VERTEX);
+	GraphicPipelineState pso{};
+	pso.src = BLEND_FACTOR::SRC_ALPHA;
+	pso.dst = BLEND_FACTOR::ONE_MINUS_SRC_ALPHA;
+	pso.primitiveTopology = PRIMITIVE_TOPOLOGY::LINE;
+	pso.shader = graphShader.get();
+	pso.vb = static_cast<ICoreVertexBuffer*>(dymmyVertexBuffer.get());
+	context->SetGraphicPipelineState(pso);
 }
 
 void Dx12GpuProfiler::UpdateViewportConstantBuffer()
@@ -222,7 +248,7 @@ void Dx12GpuProfiler::DrawRecords(int maxRecords)
 
 		context->BuildResourceSet(fontResourceSet.get());
 
-		transformIndex = fontResourceSet->FindInlineBufferIndex("TransformCB");
+		transformFontIndex = fontResourceSet->FindInlineBufferIndex("TransformCB");
 	}
 
 	GraphicPipelineState pso{};
@@ -242,16 +268,25 @@ void Dx12GpuProfiler::DrawRecords(int maxRecords)
 
 		context->SetVertexBuffer(r->vertexBuffer);
 		t += fntLineHeight;
-		context->UpdateInlineConstantBuffer(transformIndex, &t, 4);
+		context->UpdateInlineConstantBuffer(transformFontIndex, &t, 4);
 
 		context->Draw(r->vertexBuffer, r->size);
 	}
 }
 
-void Dx12GpuProfiler::AddRecord(const char* format)
+void Dx12GpuProfiler::AddRecord(const char* format, bool isFloat, bool renderGraph_)
 {
+	size_t index = records.size();
+
 	records.push_back(nullptr);
-	records.back() = new Dx12RenderProfilerRecord(format);
+	records.back() = new Dx12RenderProfilerRecord(format, isFloat, renderGraph_);
+
+	renderRecords.resize(records.size());
+	renderRecords[index] = renderGraph_;
+
+	graphs.resize(records.size());
+	if (renderGraph_)
+		graphs[index] = new Dx12GraphRenderer(graphShader, viewportUniformBuffer);
 }
 
 

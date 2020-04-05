@@ -23,13 +23,8 @@ bool GpuProfiler::updateViewport(unsigned w, unsigned h)
 	return false;
 }
 
-void GpuProfiler::Render()
+void GpuProfiler::ProcessRecords()
 {
-	Begin();
-
-	if (updateViewport(w, h))
-		UpdateViewportConstantBuffer();
-
 	for (int g = 0; g < records.size(); ++g)
 	{
 		RenderProfilerRecord* r = records[g];
@@ -49,7 +44,7 @@ void GpuProfiler::Render()
 
 			r->size = (uint32_t)r->text.size() * 6;
 			int i = 0;
-			for (uint32_t j = 0; j < r->size; j+=6, ++i)
+			for (uint32_t j = 0; j < r->size; j += 6, ++i)
 			{
 				int ascii = r->text[i];
 				FontChar& char_ = fontData[ascii];
@@ -67,18 +62,40 @@ void GpuProfiler::Render()
 			r->dirty = false;
 		}
 	}
+}
+
+void GpuProfiler::Render()
+{
+	Begin();
+
+	if (updateViewport(w, h))
+		UpdateViewportConstantBuffer();
+
+	ProcessRecords();
 
 	DrawRecords(records.size());
-
-	// Graphs.
-
-	if (w != lastWidth)
-		for(int i = 0; i < GraphsCount; ++i)
-			graphs[i]->RecreateVB(w);
+	
+	//if (w != lastWidth)
+	//	for(int i = 0; i < graphs.size(); ++i)
+	//	{
+	//		if (graphs[i])
+	//			graphs[i]->RecreateVB(w);
+	//	}
 
 	BeginGraph();
 
-	//RenderGraph(graphs[0], ctx.cpu_ * 30, vec4(0, 0.5f, 0.5f, 1));
+	for (int i = 0; i < renderRecords.size(); ++i)
+	{
+		if (!renderRecords[i])
+			continue;
+
+		if (w != lastWidth)
+			graphs[i]->RecreateVB(w);
+
+		RenderGraph(graphs[i], records[i]->floatValue * 30, records[i]->color);
+	}
+
+	
 	//RenderGraph(graphs[1], ctx.gpu_ * 30, vec4(1, 0, 0.5f, 1));
 
 	lastWidth = w;
@@ -126,18 +143,19 @@ void GpuProfiler::free()
 		r = 0;
 	}
 
-	for (Graph* g : graphs)
+	for (GraphRenderer* g : graphs)
 		delete g;
 
 	graphs.clear();
 }
 
-void GpuProfiler::RenderGraph(Graph* g, float value, const vec4& color)
+void GpuProfiler::RenderGraph(GraphRenderer* g, float value, const vec4& color)
 {
 	g->Render(getContext(), color, value, w, h);
 
 	g->lastGraphValue = vec4((float)g->graphRingBufferOffset, h - value, 0, 0);
 	g->graphRingBufferOffset++;
+
 	if (g->graphRingBufferOffset >= w)
 	{
 		g->lastGraphValue.x = 0;

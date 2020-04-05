@@ -91,7 +91,7 @@ public:
 	bool CreateComputeShader(ICoreShader **out, LPCWSTR name, const char* text,
 							const ConstantBuffersDesc *variabledesc = nullptr, uint32_t varNum = 0);
 
-	bool CreateVertexBuffer(Dx12CoreVertexBuffer** out, LPCWSTR name, const void* vbData, const VeretxBufferDesc* vbDesc,
+	bool CreateVertexBuffer(ICoreVertexBuffer** out, LPCWSTR name, const void* vbData, const VeretxBufferDesc* vbDesc,
 							const void* idxData, const IndexBufferDesc* idxDesc, BUFFER_FLAGS flags = BUFFER_FLAGS::GPU_READ);
 
 	bool CreateConstantBuffer(ICoreBuffer** out, LPCWSTR name, size_t size, bool FastGPUread = false);

@@ -143,6 +143,7 @@ struct ICoreShader : public IResourceUnknown
 
 struct ICoreVertexBuffer : public IResourceUnknown
 {
+	virtual void SetData(const void* vbData, size_t vbSize, size_t vbOffset, const void* idxData, size_t idxSize, size_t idxOffset) = 0;
 };
 
 struct ICoreTexture : public IResourceUnknown

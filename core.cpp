@@ -88,14 +88,16 @@ void Core::Init(GpuProfiler* gpuprofiler_, InitRendererProcedure initRenderer, I
 		renderer->Init();
 
 		assert(renderprofiler == nullptr);
-		renderprofiler = new Dx12GpuProfiler(vec4(0.6f, 0.6f, 0.6f, 1.0f), 100.0f);
-		renderprofiler->AddRecord("=== D3D12 Render ===");
-		renderprofiler->AddRecord("CPU: % 0.2f ms.");
-		renderprofiler->AddRecord("CPU: % 0.2f ms.");
-		renderprofiler->AddRecord("Uniform buffer updates: %" PRId64);
-		renderprofiler->AddRecord("State changes: %" PRId64);
-		renderprofiler->AddRecord("Triangles: %" PRId64);
-		renderprofiler->AddRecord("Draw calls: %" PRId64);
+		renderprofiler = new Dx12GpuProfiler({ 0.6f, 0.6f, 0.6f, 1.0f }, 0.0f);
+		renderprofiler->Init();
+		renderprofiler->AddRecord("=== D3D12 Render ===",				true, false);
+		renderprofiler->AddRecord("CPU: % 0.2f ms.",					true, true);
+		renderprofiler->AddRecord("GPU: % 0.2f ms.",					true, true);
+		renderprofiler->AddRecord("Uniform buffer updates: %" PRId64,	false, false);
+		renderprofiler->AddRecord("State changes: %" PRId64,			false, false);
+		renderprofiler->AddRecord("Triangles: %" PRId64,				false, false);
+		renderprofiler->AddRecord("Draw calls: %" PRId64,				false, false);
+		renderprofiler->SetRecordColor(2, { 1,0,0,1 });
 	}
 
 	if (!window && initRenderer)
@@ -107,20 +109,17 @@ void Core::Init(GpuProfiler* gpuprofiler_, InitRendererProcedure initRenderer, I
 	if (gpuprofiler_)
 		renderprofiler = gpuprofiler_;
 
-	if (renderprofiler)
-		renderprofiler->Init();
-
 	if (renderer)
 	{
-		memoryprofiler = new Dx12GpuProfiler(vec4(0, 0.7f, 0.4f, 1.0f), 250.0f);
+		memoryprofiler = new Dx12GpuProfiler({ 0.6f, 0.6f, 0.6f, 1.0f }, 140.0f);
 		memoryprofiler->Init();
-		memoryprofiler->AddRecord("=== GraphicMemory ===");
-		memoryprofiler->AddRecord("committedMemory: %zu bytes");		// Bytes of memory currently committed/in-flight
-		memoryprofiler->AddRecord("totalMemory: %zu bytes");			// Total bytes of memory used by the allocators
-		memoryprofiler->AddRecord("totalPages: %zu");					// Total page count
-		memoryprofiler->AddRecord("peakCommitedMemory: %zu bytes");		// Peak commited memory value since last reset
-		memoryprofiler->AddRecord("peakTotalMemory: %zu bytes");		// Peak total bytes
-		memoryprofiler->AddRecord("peakTotalPages: %zu");				// Peak total page count
+		memoryprofiler->AddRecord("=== GraphicMemory ===",			false, false);
+		memoryprofiler->AddRecord("committedMemory: %zu bytes",		false, false);		// Bytes of memory currently committed/in-flight
+		memoryprofiler->AddRecord("totalMemory: %zu bytes",			false, false);		// Total bytes of memory used by the allocators
+		memoryprofiler->AddRecord("totalPages: %zu",				false, false);		// Total page count
+		memoryprofiler->AddRecord("peakCommitedMemory: %zu bytes",	false, false);		// Peak commited memory value since last reset
+		memoryprofiler->AddRecord("peakTotalMemory: %zu bytes",		false, false);		// Peak total bytes
+		memoryprofiler->AddRecord("peakTotalPages: %zu",			false, false);		// Peak total page count
 	}
 
 	onInit.Invoke();

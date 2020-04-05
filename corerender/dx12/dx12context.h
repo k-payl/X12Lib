@@ -218,12 +218,12 @@ public:
 
 	void SetGraphicPipelineState(const GraphicPipelineState& gpso);
 	void SetComputePipelineState(const ComputePipelineState& cpso);
-	void SetVertexBuffer(Dx12CoreVertexBuffer* vb);
+	void SetVertexBuffer(ICoreVertexBuffer* vb);
 	void SetViewport(unsigned width, unsigned heigth);
 	void GetViewport(unsigned& width, unsigned& heigth);
 	void SetScissor(unsigned x, unsigned y, unsigned width, unsigned heigth);
 
-	void Draw(const Dx12CoreVertexBuffer* vb, uint32_t vertexCount = 0, uint32_t vertexOffset = 0);
+	void Draw(const ICoreVertexBuffer* vb, uint32_t vertexCount = 0, uint32_t vertexOffset = 0);
 	void Dispatch(uint32_t x, uint32_t y, uint32_t z = 1);
 	void Clear();
 

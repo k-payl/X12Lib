@@ -23,7 +23,7 @@ static size_t transformIdx;
 struct Resources
 {
 	intrusive_ptr<ICoreShader> shader;
-	intrusive_ptr<Dx12CoreVertexBuffer> vertexBuffer;
+	intrusive_ptr<ICoreVertexBuffer> vertexBuffer;
 	std::unique_ptr<Camera> cam;
 	intrusive_ptr<IResourceSet> cubeResources;
 
