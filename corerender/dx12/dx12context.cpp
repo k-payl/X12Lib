@@ -67,10 +67,26 @@ void Dx12GraphicCommandContext::SetGraphicPipelineState(const GraphicPipelineSta
 
 	state.pso.shader = dx12Shader;
 	state.pso.vb = dx12vb;
-	state.primitiveTopology = pso.primitiveTopology;
 
 	auto d3dstate = GetCoreRender()->GetGraphicPSO(pso, checksum);
 	setGraphicPipeline(checksum, d3dstate.Get());
+
+	if (state.primitiveTopology != pso.primitiveTopology)
+	{
+		state.primitiveTopology = pso.primitiveTopology;
+
+		D3D12_PRIMITIVE_TOPOLOGY d3dtopology;
+		switch (state.primitiveTopology)
+		{
+			case PRIMITIVE_TOPOLOGY::LINE: d3dtopology = D3D_PRIMITIVE_TOPOLOGY_LINELIST; break;
+			case PRIMITIVE_TOPOLOGY::POINT: d3dtopology = D3D_PRIMITIVE_TOPOLOGY_POINTLIST; break;
+			case PRIMITIVE_TOPOLOGY::TRIANGLE: d3dtopology = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST; break;
+			default:
+				notImplemented();
+		}
+		d3dCmdList->IASetPrimitiveTopology(d3dtopology);
+	}
+
 
 	if (!dx12Shader->HasResources())
 		state.pso.d3drootSignature = GetCoreRender()->GetDefaultRootSignature();
@@ -119,23 +135,13 @@ void Dx12GraphicCommandContext::SetVertexBuffer(ICoreVertexBuffer* vb)// TODO ad
 
 	state.pso.vb = dxBuffer;
 
-	D3D12_PRIMITIVE_TOPOLOGY d3dtopology;
-	switch (state.primitiveTopology)
-	{
-		case PRIMITIVE_TOPOLOGY::LINE: d3dtopology = D3D_PRIMITIVE_TOPOLOGY_LINELIST; break;
-		case PRIMITIVE_TOPOLOGY::POINT: d3dtopology = D3D_PRIMITIVE_TOPOLOGY_POINTLIST; break;
-		case PRIMITIVE_TOPOLOGY::TRIANGLE: d3dtopology = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST; break;
-		default:
-			notImplemented();
-	}
-
 	UINT numBarriers;
 	D3D12_RESOURCE_BARRIER barriers[2];
 
 	if (dxBuffer->GetReadBarrier(&numBarriers, barriers))
 		d3dCmdList->ResourceBarrier(numBarriers, barriers);
 
-	d3dCmdList->IASetPrimitiveTopology(d3dtopology);
+	
 	d3dCmdList->IASetVertexBuffers(0, 1, &dxBuffer->vertexBufferView);
 	d3dCmdList->IASetIndexBuffer(dxBuffer->pIndexBufferVew());
 }
@@ -239,7 +245,7 @@ void Dx12GraphicCommandContext::BuildResourceSet(IResourceSet* set_)
 	if (!dx12set->dirty)
 		return;
 
-	for (int i = 0; i < dx12set->parametresNum; ++i)
+	for (int i = 0; i < dx12set->parametersNum; ++i)
 	{
 		const RootSignatureParameter<Dx12ResourceSet::BindedResource>& param = dx12set->resources[i];
 
@@ -291,7 +297,7 @@ void Dx12GraphicCommandContext::BindResourceSet(IResourceSet* set_)
 
 	assert(state.set_.get());
 
-	for (int i = 0; i < dx12set->parametresNum; ++i)
+	for (int i = 0; i < dx12set->parametersNum; ++i)
 	{
 		const RootSignatureParameter<Dx12ResourceSet::BindedResource>& param = dx12set->resources[i];
 
@@ -310,16 +316,16 @@ void Dx12GraphicCommandContext::BindResourceSet(IResourceSet* set_)
 	}
 }
 
-void Dx12GraphicCommandContext::UpdateInlineConstantBuffer(uint32_t rootParameterIdx, const void* data, size_t size)
+void Dx12GraphicCommandContext::UpdateInlineConstantBuffer(size_t rootParameterIdx, const void* data, size_t size)
 {
 	DirectX::GraphicsResource alloc = frameMemory->Allocate(size);
 
 	memcpy(alloc.Memory(), data, size);
 
 	if (!state.pso.isCompute)
-		d3dCmdList->SetGraphicsRootConstantBufferView(rootParameterIdx, alloc.GpuAddress());
+		d3dCmdList->SetGraphicsRootConstantBufferView((UINT)rootParameterIdx, alloc.GpuAddress());
 	else
-		d3dCmdList->SetComputeRootConstantBufferView(rootParameterIdx, alloc.GpuAddress());
+		d3dCmdList->SetComputeRootConstantBufferView((UINT)rootParameterIdx, alloc.GpuAddress());
 }
 
 void Dx12GraphicCommandContext::EmitUAVBarrier(ICoreBuffer* buffer)
@@ -555,10 +561,6 @@ void Dx12GraphicCommandContext::PopState()
 
 	state = state_;
 
-	//for (auto& s : state.set_)
-	//	for (auto &a : s)
-	//		a.bindDirtyFlags = a.bindFlags; // need set all resources before draw
-
 	statesStack.pop();
 }
 
@@ -779,10 +781,10 @@ Dx12ResourceSet::Dx12ResourceSet(const Dx12CoreShader* shader)
 {
 	resourcesMap = shader->resourcesMap;
 
-	parametresNum = shader->rootSignatureParameters.size();
-	resources.resize(parametresNum);
-	resourcesDirty.resize(parametresNum);
-	gpuDescriptors.resize(parametresNum);
+	parametersNum = shader->rootSignatureParameters.size();
+	resources.resize(parametersNum);
+	resourcesDirty.resize(parametersNum);
+	gpuDescriptors.resize(parametersNum);
 
 	for (size_t i = 0; i < shader->rootSignatureParameters.size(); ++i)
 	{
@@ -869,7 +871,7 @@ void Dx12ResourceSet::BindTextueSRV(const char* name, ICoreTexture* texture)
 	resourcesDirty[index.first] = true;
 }
 
-std::pair<size_t, int>& Dx12ResourceSet::findResourceIndex(const char* name)
+Dx12ResourceSet::resource_index& Dx12ResourceSet::findResourceIndex(const char* name)
 {
 	auto it = resourcesMap.find(name);
 

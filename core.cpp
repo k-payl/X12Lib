@@ -93,7 +93,6 @@ void Core::Init(GpuProfiler* gpuprofiler_, InitRendererProcedure initRenderer, I
 		renderprofiler->AddRecord("=== D3D12 Render ===",				true, false);
 		renderprofiler->AddRecord("CPU: % 0.2f ms.",					true, true);
 		renderprofiler->AddRecord("GPU: % 0.2f ms.",					true, true);
-		renderprofiler->AddRecord("Uniform buffer updates: %" PRId64,	false, false);
 		renderprofiler->AddRecord("State changes: %" PRId64,			false, false);
 		renderprofiler->AddRecord("Triangles: %" PRId64,				false, false);
 		renderprofiler->AddRecord("Draw calls: %" PRId64,				false, false);
@@ -217,10 +216,9 @@ void Core::RenderProfiler(float gpu_, float cpu_)
 
 	if (dynamic_cast<Dx12GpuProfiler*>(renderprofiler.get()))
 	{
-		renderprofiler->UpdateRecord(3, renderer->UniformBufferUpdates());
-		renderprofiler->UpdateRecord(4, renderer->StateChanges());
-		renderprofiler->UpdateRecord(5, renderer->Triangles());
-		renderprofiler->UpdateRecord(6, renderer->DrawCalls());
+		renderprofiler->UpdateRecord(3, renderer->StateChanges());
+		renderprofiler->UpdateRecord(4, renderer->Triangles());
+		renderprofiler->UpdateRecord(5, renderer->DrawCalls());
 	}
 	renderprofiler->Render();
 

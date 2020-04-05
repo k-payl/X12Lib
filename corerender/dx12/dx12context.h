@@ -11,6 +11,8 @@ namespace x12
 	//
 	struct Dx12ResourceSet : IResourceSet
 	{
+		using resource_index = std::pair<size_t, int>;
+
 		Dx12ResourceSet(const Dx12CoreShader *shader);
 
 		bool dirty{false};
@@ -226,7 +228,7 @@ namespace x12
 
 		void BuildResourceSet(IResourceSet* set_);
 		void BindResourceSet(IResourceSet* set_);
-		void UpdateInlineConstantBuffer(uint32_t idx, const void* data, size_t size);
+		void UpdateInlineConstantBuffer(size_t idx, const void* data, size_t size);
 
 		void EmitUAVBarrier(ICoreBuffer* buffer);
 
