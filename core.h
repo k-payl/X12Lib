@@ -1,9 +1,6 @@
 #pragma once
 #include "common.h"
 
-class GpuProfiler;
-class FileSystem;
-
 extern Core* core__;
 #define CORE core__
 
@@ -27,13 +24,13 @@ inline INIT_FLAGS operator|(INIT_FLAGS a, INIT_FLAGS b)
 
 class Core
 {
-	MainWindow* window{};
-	x12::Dx12CoreRenderer* renderer{};
-	Input* input{};
-	Console* console{};
-	GpuProfiler* renderprofiler{};
-	GpuProfiler* memoryprofiler{};
-	FileSystem* fs{};
+	std::unique_ptr<MainWindow> window;
+	std::unique_ptr<Input> input;
+	std::unique_ptr<Console> console;
+	std::unique_ptr<GpuProfiler> renderprofiler;
+	std::unique_ptr<GpuProfiler> memoryprofiler;
+	std::unique_ptr<FileSystem> fs;
+	std::unique_ptr<x12::Dx12CoreRenderer> renderer;
 
 	Signal<> onRender;
 	Signal<> onInit;
@@ -65,10 +62,10 @@ public:
 	void AddUpdateProcedure(UpdateProcedure fn);
 	void AddFreeProcedure(FreeProcedure fn);
 
-	x12::Dx12CoreRenderer* GetCoreRenderer() const { return renderer; }
-	MainWindow* GetWindow() { return window; }
-	Input* GetInput() { return input; }
-	FileSystem* GetFS() { return fs; }
+	x12::Dx12CoreRenderer* GetCoreRenderer() const { return renderer.get(); }
+	MainWindow* GetWindow() { return window.get(); }
+	Input* GetInput() { return input.get(); }
+	FileSystem* GetFS() { return fs.get(); }
 
 	void Log(const char* str);
 	void LogProfiler(const char* key, const char* value);

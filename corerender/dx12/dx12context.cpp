@@ -869,7 +869,7 @@ void Dx12ResourceSet::BindTextueSRV(const char* name, ICoreTexture* texture)
 	resourcesDirty[index.first] = true;
 }
 
-std::pair<int, int>& Dx12ResourceSet::findResourceIndex(const char* name)
+std::pair<size_t, int>& Dx12ResourceSet::findResourceIndex(const char* name)
 {
 	auto it = resourcesMap.find(name);
 

@@ -38,5 +38,6 @@ using namespace Microsoft::WRL;
 #include <functional>
 #include <memory>
 #include <mutex>
+#include <memory>
 
 #include "vmath.h"

@@ -183,7 +183,7 @@ void Dx11GpuProfiler::UpdateViewportConstantBuffer()
 {
 	dx11::UpdateUniformBuffer(viewportUniformBuffer.Get(), &viewport, 16);
 }
-void Dx11GpuProfiler::DrawRecords(int maxRecords)
+void Dx11GpuProfiler::DrawRecords(size_t maxRecords)
 {
 	//context->ClearState();
 

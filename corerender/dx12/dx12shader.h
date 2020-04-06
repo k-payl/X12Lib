@@ -10,7 +10,7 @@ namespace x12
 		void InitGraphic(LPCWSTR name, const char* vertText, const char* fragText, const ConstantBuffersDesc* variabledesc, uint32_t varNum);
 		void InitCompute(LPCWSTR name, const char* text, const ConstantBuffersDesc* variabledesc, uint32_t varNum);
 
-		std::unordered_map<std::string, std::pair<int, int>> resourcesMap;
+		std::unordered_map<std::string, std::pair<size_t, int>> resourcesMap;
 		std::vector<RootSignatureParameter<ResourceDefinition>> rootSignatureParameters;
 
 		ComPtr<ID3DBlob> vs;

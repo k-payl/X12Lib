@@ -95,7 +95,7 @@ protected:
 	virtual void Begin() = 0;
 	virtual void BeginGraph() = 0;
 	virtual void UpdateViewportConstantBuffer() = 0;
-	virtual void DrawRecords(int maxRecords) = 0;
+	virtual void DrawRecords(size_t maxRecords) = 0;
 	void RenderGraph(GraphRenderer* g, float value, const vec4& color);
 	virtual void* getContext() = 0;
 
@@ -126,10 +126,10 @@ public:
 		typedef typename std::common_type<Args...>::type common;
 		const std::array<common, sizeof...(Args)> a = { { args... } };
 
-		if (records[num]->isFloat)
+		if constexpr (std::is_floating_point_v<decltype(a[0])>)
 			records[num]->floatValue = a[0];
 		else
-			records[num]->intValue = a[0];
+			records[num]->intValue = (uint64_t)a[0];
 	}
 
 	void ProcessRecords();

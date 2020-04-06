@@ -237,7 +237,7 @@ void Dx12GpuProfiler::UpdateViewportConstantBuffer()
 	viewportUniformBuffer->SetData(&viewport, 16);
 }
 
-void Dx12GpuProfiler::DrawRecords(int maxRecords)
+void Dx12GpuProfiler::DrawRecords(size_t maxRecords)
 {
 	if (!fontResourceSet.get())
 	{

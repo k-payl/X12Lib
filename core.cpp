@@ -58,11 +58,11 @@ Core::Core()
 
 void Core::Init(GpuProfiler* gpuprofiler_, InitRendererProcedure initRenderer, INIT_FLAGS flags)
 {
-	fs = new FileSystem("..//");
+	fs = std::make_unique<FileSystem>("..//");
 
 	if (!(flags & INIT_FLAGS::NO_CONSOLE))
 	{
-		console = new Console;
+		console = std::make_unique<Console>();
 		console->Create();
 	}
 
@@ -70,7 +70,7 @@ void Core::Init(GpuProfiler* gpuprofiler_, InitRendererProcedure initRenderer, I
 	{
 		SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
 
-		window = new MainWindow(&Core::sMainLoop);
+		window = std::make_unique<MainWindow>(&Core::sMainLoop);
 		window->Create();
 		window->AddMessageCallback(sMessageCallback);
 		window->SetCaption(L"Test DX12");
@@ -78,17 +78,17 @@ void Core::Init(GpuProfiler* gpuprofiler_, InitRendererProcedure initRenderer, I
 
 	if (!(flags & INIT_FLAGS::NO_INPUT))
 	{
-		input = new Input;
+		input = std::make_unique<Input>();
 		input->Init();
 	}
 
 	if (flags & INIT_FLAGS::BUILT_IN_DX12_RENDERER)
 	{
-		renderer = new x12::Dx12CoreRenderer;
+		renderer = std::make_unique<x12::Dx12CoreRenderer>();
 		renderer->Init();
 
 		assert(renderprofiler == nullptr);
-		renderprofiler = new Dx12GpuProfiler({ 0.6f, 0.6f, 0.6f, 1.0f }, 0.0f);
+		renderprofiler = std::unique_ptr<GpuProfiler>(new Dx12GpuProfiler({ 0.6f, 0.6f, 0.6f, 1.0f }, 0.0f));
 		renderprofiler->Init();
 		renderprofiler->AddRecord("=== D3D12 Render ===",				true, false);
 		renderprofiler->AddRecord("CPU: % 0.2f ms.",					true, true);
@@ -107,11 +107,11 @@ void Core::Init(GpuProfiler* gpuprofiler_, InitRendererProcedure initRenderer, I
 		initRenderer(window->handle());
 
 	if (gpuprofiler_)
-		renderprofiler = gpuprofiler_;
+		renderprofiler.reset(gpuprofiler_);
 
 	if (renderer)
 	{
-		memoryprofiler = new Dx12GpuProfiler({ 0.6f, 0.6f, 0.6f, 1.0f }, 140.0f);
+		memoryprofiler = std::unique_ptr<GpuProfiler>(new Dx12GpuProfiler({ 0.6f, 0.6f, 0.6f, 1.0f }, 140.0f));
 		memoryprofiler->Init();
 		memoryprofiler->AddRecord("=== GraphicMemory ===",			false, false);
 		memoryprofiler->AddRecord("committedMemory: %zu bytes",		false, false);		// Bytes of memory currently committed/in-flight
@@ -132,43 +132,36 @@ void Core::Free()
 	if (renderprofiler)
 	{
 		renderprofiler->Free();
-		delete renderprofiler;
 		renderprofiler = nullptr;
 	}
 
 	if (memoryprofiler)
 	{
 		memoryprofiler->Free();
-		delete memoryprofiler;
 		memoryprofiler = nullptr;
 	}
 
 	if (renderer)
 	{
 		renderer->Free();
-		delete renderer;
 		renderer = nullptr;
 	}
 
 	if (console)
 	{
 		console->Destroy();
-		delete console;
 		console = nullptr;
 	}
 
 	if (window)
 	{
 		window->Destroy();
-		delete window;
 		window = nullptr;
 	}
 
 	input->Free();
-	delete input;
 	input = nullptr;
 
-	delete fs;
 	fs = nullptr;
 }
 
@@ -222,7 +215,7 @@ void Core::RenderProfiler(float gpu_, float cpu_)
 	renderprofiler->UpdateRecord(1, cpu_);
 	renderprofiler->UpdateRecord(2, gpu_);
 
-	if (dynamic_cast<Dx12GpuProfiler*>(renderprofiler))
+	if (dynamic_cast<Dx12GpuProfiler*>(renderprofiler.get()))
 	{
 		renderprofiler->UpdateRecord(3, renderer->UniformBufferUpdates());
 		renderprofiler->UpdateRecord(4, renderer->StateChanges());

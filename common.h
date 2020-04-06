@@ -33,6 +33,7 @@ using namespace Microsoft::WRL;
 #include <functional>
 #include <map>
 #include <mutex>
+#include <memory>
 
 #include "vmath.h"
 
@@ -45,6 +46,8 @@ class MainWindow;
 class Core;
 class Input;
 class Console;
+class GpuProfiler;
+class FileSystem;
 
 namespace x12 {
 	class Dx12CoreRenderer;

@@ -19,7 +19,7 @@ class Dx12GpuProfiler : public GpuProfiler
 	void Begin() override;
 	void BeginGraph() override;
 	void UpdateViewportConstantBuffer() override;
-	void DrawRecords(int maxRecords) override;
+	void DrawRecords(size_t maxRecords) override;
 	void* getContext() override { return context; }
 	void AddRecord(const char* format, bool isFloat, bool renderGraph_) override;
 

@@ -28,7 +28,7 @@ namespace x12
 			}
 		};
 
-		std::unordered_map<std::string, std::pair<int, int>> resourcesMap; // {parameter index, table index}. (table index=-1 if inline)
+		std::unordered_map<std::string, std::pair<size_t, int>> resourcesMap; // {parameter index, table index}. (table index=-1 if inline)
 
 		size_t parametresNum;
 
@@ -42,7 +42,7 @@ namespace x12
 		void BindStructuredBufferUAV(const char* name, ICoreBuffer *buffer) override;
 		void BindTextueSRV(const char* name, ICoreTexture *texture) override;
 
-		std::pair<int, int>& findResourceIndex(const char* name);
+		std::pair<size_t, int>& findResourceIndex(const char* name);
 		size_t FindInlineBufferIndex(const char* name) override;
 	};
 
