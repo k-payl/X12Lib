@@ -42,19 +42,22 @@ inline constexpr int DeferredBuffers = 3;
 
 enum class WINDOW_MESSAGE;
 class MainWindow;
-class Dx12CoreRenderer;
 class Core;
-struct Dx12CoreShader;
-struct Dx12WindowSurface;
-struct Dx12CoreVertexBuffer;
-struct Dx12CoreBuffer;
-class Dx12BaseCommandList;
-class Dx12GraphicCommandContext;
-class Dx12CopyCommandContext;
-struct Dx12ResourceSet;
-struct Dx12CoreTexture;
 class Input;
 class Console;
+
+namespace x12 {
+	class Dx12CoreRenderer;
+	struct Dx12CoreShader;
+	struct Dx12WindowSurface;
+	struct Dx12CoreVertexBuffer;
+	struct Dx12CoreBuffer;
+	class Dx12BaseCommandList;
+	class Dx12GraphicCommandContext;
+	class Dx12CopyCommandContext;
+	struct Dx12ResourceSet;
+	struct Dx12CoreTexture;
+}
 
 #define DEFINE_ENUM_OPERATORS(ENUM_NAME) \
 inline ENUM_NAME operator|(ENUM_NAME a, ENUM_NAME b) \
@@ -65,13 +68,6 @@ inline ENUM_NAME operator|(ENUM_NAME a, ENUM_NAME b) \
 inline bool operator&(ENUM_NAME a, ENUM_NAME b) \
 { \
 	return static_cast<bool>(static_cast<int>(a) & static_cast<int>(b)); \
-}
-
-namespace x12::memory::dynamic
-{
-	struct Page;
-	struct Alloc;
-	class Allocator;
 }
 
 namespace x12::descriptorheap
