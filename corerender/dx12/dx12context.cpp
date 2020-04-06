@@ -8,6 +8,8 @@
 #include <chrono>
 #include "GraphicsMemory.h"
 
+using namespace x12;
+
 namespace
 {
 	Dx12ResourceSet* resource_cast(IResourceSet* value) { return static_cast<Dx12ResourceSet*>(value); }
@@ -21,7 +23,6 @@ namespace
 	Dx12CoreTexture* resource_cast(ICoreTexture* vb) { return static_cast<Dx12CoreTexture*>(vb); }
 	const Dx12CoreTexture* resource_cast(const ICoreTexture* vb) { return static_cast<const Dx12CoreTexture*>(vb); }
 }
-
 
 using namespace x12::impl;
 
@@ -54,7 +55,7 @@ void WaitForFenceValue(ID3D12Fence *d3dFence, uint64_t fenceValue, HANDLE fenceE
 
 void Dx12GraphicCommandContext::SetGraphicPipelineState(const GraphicPipelineState& pso)
 {
-	auto checksum = CalculateChecksum(pso);
+	auto checksum = x12::CalculateChecksum(pso);
 
 	if (checksum == state.pso.PsoChecksum && !state.pso.isCompute)
 		return;
@@ -380,8 +381,6 @@ void Dx12GraphicCommandContext::CommandList::ReleaseTrakedResources()
 
 void Dx12GraphicCommandContext::CommandList::CompleteGPUFrame(uint64_t nextFenceID)
 {
-	fastAllocator->Reset();
-
 	ReleaseTrakedResources();
 
 	fenceOldValue = nextFenceID;
@@ -474,13 +473,10 @@ void Dx12GraphicCommandContext::CommandList::Init(Dx12GraphicCommandContext* par
 	ThrowIfFailed(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, d3dCommandAllocator, nullptr, IID_PPV_ARGS(&d3dCmdList)));
 	Dx12GraphicCommandContext::set_ctx_object_name(d3dCommandAllocator, L"command list for #%d deferred frame", num);
 	ThrowIfFailed(d3dCmdList->Close());
-
-	fastAllocator = new x12::memory::dynamic::Allocator;
 }
 
 void Dx12GraphicCommandContext::CommandList::Free()
 {
-	delete fastAllocator;
 	Release(d3dCommandAllocator);
 	Release(d3dCmdList);
 }

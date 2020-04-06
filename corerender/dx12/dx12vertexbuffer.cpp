@@ -5,13 +5,13 @@
 //#include "dx12common.h"
 #include "dx12memory.h"
 
-IdGenerator<uint16_t> Dx12CoreVertexBuffer::idGen;
+IdGenerator<uint16_t> x12::Dx12CoreVertexBuffer::idGen;
 
 static void UpdateBufferResource(LPCWSTR name, ID3D12GraphicsCommandList* pCmdList,
 								 ID3D12Resource* dest, ID3D12Resource** intermediate,
 								 UINT64 size, const void* data, D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE);
 
-Dx12CoreVertexBuffer::~Dx12CoreVertexBuffer()
+x12::Dx12CoreVertexBuffer::~Dx12CoreVertexBuffer()
 {
 	if (usage & BUFFER_FLAGS::CPU_WRITE)
 	{
@@ -21,7 +21,7 @@ Dx12CoreVertexBuffer::~Dx12CoreVertexBuffer()
 	}
 }
 
-bool Dx12CoreVertexBuffer::GetReadBarrier(UINT* numBarrires, D3D12_RESOURCE_BARRIER* barriers)
+bool x12::Dx12CoreVertexBuffer::GetReadBarrier(UINT* numBarrires, D3D12_RESOURCE_BARRIER* barriers)
 {
 	UINT num = 0;
 
@@ -45,7 +45,7 @@ bool Dx12CoreVertexBuffer::GetReadBarrier(UINT* numBarrires, D3D12_RESOURCE_BARR
 	return num > 0;
 }
 
-void Dx12CoreVertexBuffer::Init(LPCWSTR name_, const void* vbData, const VeretxBufferDesc* vbDesc,
+void x12::Dx12CoreVertexBuffer::Init(LPCWSTR name_, const void* vbData, const VeretxBufferDesc* vbDesc,
 								const void* idxData, const IndexBufferDesc* idxDesc, BUFFER_FLAGS usage_)
 {
 	name = name_;
@@ -135,7 +135,7 @@ void Dx12CoreVertexBuffer::Init(LPCWSTR name_, const void* vbData, const VeretxB
 	indexCount = hasIndexBuffer ? idxDesc->vertexCount : 0;
 }
 
-void Dx12CoreVertexBuffer::SetData(const void* vbData, size_t vbSize, size_t vbOffset, const void* idxData, size_t idxSize, size_t idxOffset)
+void x12::Dx12CoreVertexBuffer::SetData(const void* vbData, size_t vbSize, size_t vbOffset, const void* idxData, size_t idxSize, size_t idxOffset)
 {
 	if (usage & BUFFER_FLAGS::GPU_READ)
 	{

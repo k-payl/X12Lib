@@ -6,7 +6,7 @@
 
 #define HLSL_VER "5_1"
 
-IdGenerator<uint16_t> Dx12CoreShader::idGen;
+IdGenerator<uint16_t> x12::Dx12CoreShader::idGen;
 
 
 static D3D12_DESCRIPTOR_RANGE_TYPE ResourceToView(D3D_SHADER_INPUT_TYPE resource)
@@ -41,9 +41,9 @@ static RESOURCE_DEFINITION ResourceToBindFlag(D3D_SHADER_INPUT_TYPE resource)
 	}
 }
 
-static std::vector<Dx12CoreShader::ShaderReflectionResource> fetchShaderReources(ComPtr<ID3DBlob> shader, SHADER_TYPE shaderType)
+static std::vector<x12::Dx12CoreShader::ShaderReflectionResource> fetchShaderReources(ComPtr<ID3DBlob> shader, SHADER_TYPE shaderType)
 {
-	std::vector<Dx12CoreShader::ShaderReflectionResource> resources;
+	std::vector<x12::Dx12CoreShader::ShaderReflectionResource> resources;
 
 	ID3D12ShaderReflection* reflection;
 	ThrowIfFailed(D3DReflect(shader->GetBufferPointer(), shader->GetBufferSize(), IID_ID3D12ShaderReflection, (void**)& reflection));
@@ -131,12 +131,12 @@ static ComPtr<ID3DBlob> compileShader(const char* src, SHADER_TYPE type)
 	return shader;
 }
 
-Dx12CoreShader::Dx12CoreShader() :
+x12::Dx12CoreShader::Dx12CoreShader() :
 	id(idGen.getId())
 {
 }
 
-bool Dx12CoreShader::processShader(const ConstantBuffersDesc* buffersDesc,
+bool x12::Dx12CoreShader::processShader(const ConstantBuffersDesc* buffersDesc,
 								   uint32_t descNum,
 								   std::vector<D3D12_ROOT_PARAMETER>& d3dRootParameters,
 								   std::vector<ShaderReflectionResource>& perDrawResources,
@@ -195,7 +195,7 @@ bool Dx12CoreShader::processShader(const ConstantBuffersDesc* buffersDesc,
 	}
 	return true;
 }
-void Dx12CoreShader::addInlineDescriptors(std::vector<D3D12_ROOT_PARAMETER>& d3dRootParameters,
+void x12::Dx12CoreShader::addInlineDescriptors(std::vector<D3D12_ROOT_PARAMETER>& d3dRootParameters,
 										  const std::vector<ShaderReflectionResource>& perDrawResources)
 {
 	for (int i = 0; i < perDrawResources.size(); ++i)
@@ -247,7 +247,7 @@ void Dx12CoreShader::addInlineDescriptors(std::vector<D3D12_ROOT_PARAMETER>& d3d
 
 }
 
-void Dx12CoreShader::initRootSignature(const std::vector<D3D12_ROOT_PARAMETER>& d3dRootParameters, D3D12_ROOT_SIGNATURE_FLAGS flags)
+void x12::Dx12CoreShader::initRootSignature(const std::vector<D3D12_ROOT_PARAMETER>& d3dRootParameters, D3D12_ROOT_SIGNATURE_FLAGS flags)
 {
 	if (d3dRootParameters.empty())
 		hasResources = false;
@@ -270,7 +270,7 @@ void Dx12CoreShader::initRootSignature(const std::vector<D3D12_ROOT_PARAMETER>& 
 	}
 }
 
-void Dx12CoreShader::initResourcesMap()
+void x12::Dx12CoreShader::initResourcesMap()
 {
 	resourcesMap.clear();
 
@@ -292,7 +292,7 @@ void Dx12CoreShader::initResourcesMap()
 	}
 }
 
-void Dx12CoreShader::InitGraphic(LPCWSTR name_, const char* vertText, const char* fragText, const ConstantBuffersDesc* buffersDesc, uint32_t descNum)
+void x12::Dx12CoreShader::InitGraphic(LPCWSTR name_, const char* vertText, const char* fragText, const ConstantBuffersDesc* buffersDesc, uint32_t descNum)
 {
 	name = name_;
 
@@ -325,7 +325,7 @@ void Dx12CoreShader::InitGraphic(LPCWSTR name_, const char* vertText, const char
 	initResourcesMap();
 }
 
-void Dx12CoreShader::InitCompute(LPCWSTR name_, const char* text, const ConstantBuffersDesc* variabledesc, uint32_t varNum)
+void x12::Dx12CoreShader::InitCompute(LPCWSTR name_, const char* text, const ConstantBuffersDesc* variabledesc, uint32_t varNum)
 {
 	name = name_;
 

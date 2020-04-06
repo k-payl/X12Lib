@@ -11,6 +11,8 @@
 #include "core.h"
 #include "3rdparty/DirectXTex/DDSTextureLoader12.h"
 
+using namespace x12;
+
 struct Dx12GraphRenderer : public GraphRenderer
 {
 	intrusive_ptr<ICoreVertexBuffer> graphVertexBuffer;
@@ -54,7 +56,7 @@ struct Dx12GraphRenderer : public GraphRenderer
 
 		context->BindResourceSet(graphResourceSet.get());
 		context->SetVertexBuffer(graphVertexBuffer.get());
-		context->UpdateInlineConstantBuffer(colorGraphIndex, &color, 16);
+		context->UpdateInlineConstantBuffer((uint32_t)colorGraphIndex, &color, 16);
 
 		vec4 cpuv[2];
 		cpuv[0] = lastGraphValue;
@@ -64,7 +66,7 @@ struct Dx12GraphRenderer : public GraphRenderer
 
 		auto Draw = [this, context](float offset, uint32_t len, uint32_t o)
 		{
-			context->UpdateInlineConstantBuffer(transformGraphIndex, &offset, 4);
+			context->UpdateInlineConstantBuffer((uint32_t)transformGraphIndex, &offset, 4);
 			context->Draw(graphVertexBuffer.get(), len, o);
 		};
 
@@ -268,7 +270,7 @@ void Dx12GpuProfiler::DrawRecords(int maxRecords)
 
 		context->SetVertexBuffer(r->vertexBuffer);
 		t += fntLineHeight;
-		context->UpdateInlineConstantBuffer(transformFontIndex, &t, 4);
+		context->UpdateInlineConstantBuffer((uint32_t)transformFontIndex, &t, 4);
 
 		context->Draw(r->vertexBuffer, r->size);
 	}

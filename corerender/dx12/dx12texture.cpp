@@ -3,7 +3,7 @@
 #include "dx12render.h"
 #include "dx12descriptorheap.h"
 
-void Dx12CoreTexture::InitFromExisting(ID3D12Resource* resource_)
+void x12::Dx12CoreTexture::InitFromExisting(ID3D12Resource* resource_)
 {
 	resource.Attach(resource_);
 	desc = resource->GetDesc();
@@ -20,6 +20,6 @@ void Dx12CoreTexture::InitFromExisting(ID3D12Resource* resource_)
 	CR_GetD3DDevice()->CreateShaderResourceView(resource.Get(), &srvDesc, handle);
 }
 
-void Dx12CoreTexture::Init()
+void x12::Dx12CoreTexture::Init()
 {
 }

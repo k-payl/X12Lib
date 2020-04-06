@@ -83,7 +83,7 @@ void IResourceUnknown::CheckResources()
 	}
 }
 
-void Dx12WindowSurface::Init(HWND hwnd, ID3D12CommandQueue* queue)
+void x12::Dx12WindowSurface::Init(HWND hwnd, ID3D12CommandQueue* queue)
 {
 	RECT r;
 	GetClientRect(hwnd, &r);
@@ -128,7 +128,7 @@ void Dx12WindowSurface::Init(HWND hwnd, ID3D12CommandQueue* queue)
 	ResizeBuffers(width, height);
 }
 
-void Dx12WindowSurface::ResizeBuffers(unsigned width_, unsigned height_)
+void x12::Dx12WindowSurface::ResizeBuffers(unsigned width_, unsigned height_)
 {
 	width = max(width_, 1u);
 	height = max(height_, 1u);
@@ -179,7 +179,7 @@ void Dx12WindowSurface::ResizeBuffers(unsigned width_, unsigned height_)
 	CR_GetD3DDevice()->CreateDepthStencilView(depthBuffer.Get(), &dsv, descriptorHeapDSV->GetCPUDescriptorHandleForHeapStart());
 }
 
-void Dx12WindowSurface::Present()
+void x12::Dx12WindowSurface::Present()
 {
 	UINT syncInterval = CR_IsVSync() ? 1 : 0;
 	UINT presentFlags = CR_IsTearingSupport() && !CR_IsVSync() ? DXGI_PRESENT_ALLOW_TEARING : 0;

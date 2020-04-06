@@ -28,7 +28,7 @@ inline INIT_FLAGS operator|(INIT_FLAGS a, INIT_FLAGS b)
 class Core
 {
 	MainWindow* window{};
-	Dx12CoreRenderer* renderer{};
+	x12::Dx12CoreRenderer* renderer{};
 	Input* input{};
 	Console* console{};
 	GpuProfiler* renderprofiler{};
@@ -65,7 +65,7 @@ public:
 	void AddUpdateProcedure(UpdateProcedure fn);
 	void AddFreeProcedure(FreeProcedure fn);
 
-	Dx12CoreRenderer* GetCoreRenderer() const { return renderer; }
+	x12::Dx12CoreRenderer* GetCoreRenderer() const { return renderer; }
 	MainWindow* GetWindow() { return window; }
 	Input* GetInput() { return input; }
 	FileSystem* GetFS() { return fs; }

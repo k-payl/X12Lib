@@ -14,29 +14,31 @@
 #include <inttypes.h>
 #include "GraphicsMemory.h"
 
-Dx12CoreRenderer* _coreRender;
+using namespace x12;
 
-void Dx12CoreRenderer::ReleaseFrame(uint64_t fenceID)
+x12::Dx12CoreRenderer* x12::_coreRender;
+
+void x12::Dx12CoreRenderer::ReleaseFrame(uint64_t fenceID)
 {
 	descriptorAllocator->ReclaimMemory(fenceID);
 }
 
-void Dx12CoreRenderer::sReleaseFrameCallback(uint64_t fenceID)
+void x12::Dx12CoreRenderer::sReleaseFrameCallback(uint64_t fenceID)
 {
 	_coreRender->ReleaseFrame(fenceID);
 }
 
-Dx12CoreRenderer::Dx12CoreRenderer()
+x12::Dx12CoreRenderer::Dx12CoreRenderer()
 {
 	assert(_coreRender == nullptr && "Should be created only one instance of Dx12CoreRenderer");
 	_coreRender = this;
 }
-Dx12CoreRenderer::~Dx12CoreRenderer()
+x12::Dx12CoreRenderer::~Dx12CoreRenderer()
 {
 	_coreRender = nullptr;
 }
 
-void Dx12CoreRenderer::Init()
+void x12::Dx12CoreRenderer::Init()
 {
 #if defined(_DEBUG)
 	// Always enable the debug layer before doing anything DX12 related
@@ -123,10 +125,8 @@ void Dx12CoreRenderer::Init()
 	descriptorAllocator = new x12::descriptorheap::Allocator(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, frameFn);
 }
 
-void Dx12CoreRenderer::Free()
+void x12::Dx12CoreRenderer::Free()
 {
-	x12::memory::dynamic::Free();
-
 	{
 		PresentSurfaces();
 		surfaces.clear();
@@ -161,7 +161,7 @@ void Dx12CoreRenderer::Free()
 	Release(device);
 }
 
-auto Dx12CoreRenderer::_FetchSurface(HWND hwnd) -> surface_ptr
+auto x12::Dx12CoreRenderer::_FetchSurface(HWND hwnd) -> surface_ptr
 {
 	if (auto it = surfaces.find(hwnd); it == surfaces.end())
 	{
@@ -176,7 +176,7 @@ auto Dx12CoreRenderer::_FetchSurface(HWND hwnd) -> surface_ptr
 		return it->second;
 }
 
-void Dx12CoreRenderer::RecreateBuffers(HWND hwnd, UINT newWidth, UINT newHeight)
+void x12::Dx12CoreRenderer::RecreateBuffers(HWND hwnd, UINT newWidth, UINT newHeight)
 {
 	graphicCommandContext->WaitGPUAll();
 
@@ -187,7 +187,7 @@ void Dx12CoreRenderer::RecreateBuffers(HWND hwnd, UINT newWidth, UINT newHeight)
 	graphicCommandContext->frameIndex = 0; // TODO: make frameIndex private
 }
 
-auto Dx12CoreRenderer::GetWindowSurface(HWND hwnd) -> surface_ptr
+auto x12::Dx12CoreRenderer::GetWindowSurface(HWND hwnd) -> surface_ptr
 {
 	surface_ptr surf = _FetchSurface(hwnd);
 	surfacesForPresenting.push_back(surf);
@@ -195,7 +195,7 @@ auto Dx12CoreRenderer::GetWindowSurface(HWND hwnd) -> surface_ptr
 	return surf;
 }
 
-auto Dx12CoreRenderer::PresentSurfaces() -> void
+auto x12::Dx12CoreRenderer::PresentSurfaces() -> void
 {
 	for (const auto& s : surfacesForPresenting)
 		s->Present();
@@ -216,7 +216,7 @@ auto Dx12CoreRenderer::PresentSurfaces() -> void
 	++frame;
 }
 
-bool Dx12CoreRenderer::CreateShader(ICoreShader** out, LPCWSTR name, const char* vertText, const char* fragText,
+bool x12::Dx12CoreRenderer::CreateShader(ICoreShader** out, LPCWSTR name, const char* vertText, const char* fragText,
 											const ConstantBuffersDesc* variabledesc, uint32_t varNum)
 {
 	auto* ptr = new Dx12CoreShader{};
@@ -227,7 +227,7 @@ bool Dx12CoreRenderer::CreateShader(ICoreShader** out, LPCWSTR name, const char*
 	return ptr != nullptr;
 }
 
-bool Dx12CoreRenderer::CreateComputeShader(ICoreShader** out, LPCWSTR name, const char* text, const ConstantBuffersDesc* variabledesc, uint32_t varNum)
+bool x12::Dx12CoreRenderer::CreateComputeShader(ICoreShader** out, LPCWSTR name, const char* text, const ConstantBuffersDesc* variabledesc, uint32_t varNum)
 {
 	auto* ptr = new Dx12CoreShader{};
 	ptr->InitCompute(name, text, variabledesc, varNum);
@@ -237,7 +237,7 @@ bool Dx12CoreRenderer::CreateComputeShader(ICoreShader** out, LPCWSTR name, cons
 	return ptr != nullptr;
 }
 
-bool Dx12CoreRenderer::CreateVertexBuffer(ICoreVertexBuffer** out, LPCWSTR name, const void* vbData, const VeretxBufferDesc* vbDesc,
+bool x12::Dx12CoreRenderer::CreateVertexBuffer(ICoreVertexBuffer** out, LPCWSTR name, const void* vbData, const VeretxBufferDesc* vbDesc,
 	const void* idxData, const IndexBufferDesc* idxDesc, BUFFER_FLAGS usage)
 {
 	auto* ptr = new Dx12CoreVertexBuffer{};
@@ -248,7 +248,7 @@ bool Dx12CoreRenderer::CreateVertexBuffer(ICoreVertexBuffer** out, LPCWSTR name,
 	return ptr != nullptr;
 }
 
-bool Dx12CoreRenderer::CreateConstantBuffer(ICoreBuffer**out, LPCWSTR name, size_t size, bool FastGPUread)
+bool x12::Dx12CoreRenderer::CreateConstantBuffer(ICoreBuffer**out, LPCWSTR name, size_t size, bool FastGPUread)
 {
 	BUFFER_FLAGS flags = BUFFER_FLAGS::CONSTNAT_BUFFER;
 	if (FastGPUread)
@@ -264,7 +264,7 @@ bool Dx12CoreRenderer::CreateConstantBuffer(ICoreBuffer**out, LPCWSTR name, size
 	return ptr != nullptr;
 }
 
-bool Dx12CoreRenderer::CreateStructuredBuffer(ICoreBuffer** out, LPCWSTR name, size_t structureSize,
+bool x12::Dx12CoreRenderer::CreateStructuredBuffer(ICoreBuffer** out, LPCWSTR name, size_t structureSize,
 											  size_t num, const void* data, BUFFER_FLAGS flags)
 {
 	auto* ptr = new Dx12CoreBuffer;
@@ -275,7 +275,7 @@ bool Dx12CoreRenderer::CreateStructuredBuffer(ICoreBuffer** out, LPCWSTR name, s
 	return ptr != nullptr;
 }
 
-bool Dx12CoreRenderer::CreateRawBuffer(Dx12CoreBuffer** out, LPCWSTR name, size_t size)
+bool x12::Dx12CoreRenderer::CreateRawBuffer(Dx12CoreBuffer** out, LPCWSTR name, size_t size)
 {
 	auto* ptr = new Dx12CoreBuffer;
 	ptr->InitBuffer(size, 1, nullptr, BUFFER_FLAGS::RAW_BUFFER, name);
@@ -285,7 +285,7 @@ bool Dx12CoreRenderer::CreateRawBuffer(Dx12CoreBuffer** out, LPCWSTR name, size_
 	return ptr != nullptr;
 }
 
-bool Dx12CoreRenderer::CreateTextureFrom(ICoreTexture** out, LPCWSTR name, std::unique_ptr<uint8_t[]> ddsData,
+bool x12::Dx12CoreRenderer::CreateTextureFrom(ICoreTexture** out, LPCWSTR name, std::unique_ptr<uint8_t[]> ddsData,
 									 std::vector<D3D12_SUBRESOURCE_DATA> subresources,
 									 ID3D12Resource* d3dexistingtexture)
 {
@@ -322,7 +322,7 @@ bool Dx12CoreRenderer::CreateTextureFrom(ICoreTexture** out, LPCWSTR name, std::
 	return ptr != nullptr;
 }
 
-bool Dx12CoreRenderer::CreateResourceSet(IResourceSet** out, const ICoreShader* shader)
+bool x12::Dx12CoreRenderer::CreateResourceSet(IResourceSet** out, const ICoreShader* shader)
 {
 	auto* dxShader = static_cast<const Dx12CoreShader*>(shader);
 
@@ -334,7 +334,7 @@ bool Dx12CoreRenderer::CreateResourceSet(IResourceSet** out, const ICoreShader* 
 	return ptr != nullptr;
 }
 
-ComPtr<ID3D12RootSignature> Dx12CoreRenderer::GetDefaultRootSignature()
+ComPtr<ID3D12RootSignature> x12::Dx12CoreRenderer::GetDefaultRootSignature()
 {
 	if (defaultRootSignature)
 		return defaultRootSignature;
@@ -350,7 +350,7 @@ ComPtr<ID3D12RootSignature> Dx12CoreRenderer::GetDefaultRootSignature()
 	return defaultRootSignature;
 }
 
-psomap_checksum_t CalculateChecksum(const GraphicPipelineState& pso)
+psomap_checksum_t x12::CalculateChecksum(const GraphicPipelineState& pso)
 {
 	// 0: 15 (16)  vb ID
 	// 16:31 (16)  shader ID
@@ -374,7 +374,7 @@ psomap_checksum_t CalculateChecksum(const GraphicPipelineState& pso)
 
 	return checksum;
 }
-psomap_checksum_t CalculateChecksum(const ComputePipelineState& pso)
+psomap_checksum_t x12::CalculateChecksum(const ComputePipelineState& pso)
 {
 	auto* dx12shader = static_cast<Dx12CoreShader*>(pso.shader);
 	assert(dx12shader != nullptr);
@@ -384,7 +384,7 @@ psomap_checksum_t CalculateChecksum(const ComputePipelineState& pso)
 	return checksum;
 }
 
-ComPtr<ID3D12PipelineState> Dx12CoreRenderer::GetGraphicPSO(const GraphicPipelineState& pso, psomap_checksum_t checksum)
+ComPtr<ID3D12PipelineState> x12::Dx12CoreRenderer::GetGraphicPSO(const GraphicPipelineState& pso, psomap_checksum_t checksum)
 {
 	std::unique_lock lock(psoMutex);
 
@@ -452,7 +452,7 @@ ComPtr<ID3D12PipelineState> Dx12CoreRenderer::GetGraphicPSO(const GraphicPipelin
 		return it->second;
 }
 
-auto Dx12CoreRenderer::GetComputePSO(const ComputePipelineState& pso, psomap_checksum_t checksum) -> ComPtr<ID3D12PipelineState>
+auto x12::Dx12CoreRenderer::GetComputePSO(const ComputePipelineState& pso, psomap_checksum_t checksum) -> ComPtr<ID3D12PipelineState>
 {
 	std::unique_lock lock(psoMutex);
 
@@ -487,27 +487,27 @@ auto Dx12CoreRenderer::GetComputePSO(const ComputePipelineState& pso, psomap_che
 
 }
 
-x12::descriptorheap::Alloc Dx12CoreRenderer::AllocateDescriptor(UINT num)
+x12::descriptorheap::Alloc x12::Dx12CoreRenderer::AllocateDescriptor(UINT num)
 {
 	return descriptorAllocator->Allocate(num);
 }
 
-uint64_t Dx12CoreRenderer::UniformBufferUpdates()
+uint64_t x12::Dx12CoreRenderer::UniformBufferUpdates()
 {
 	return graphicCommandContext->uniformBufferUpdates();
 }
 
-uint64_t Dx12CoreRenderer::StateChanges()
+uint64_t x12::Dx12CoreRenderer::StateChanges()
 {
 	return graphicCommandContext->stateChanges();
 }
 
-uint64_t Dx12CoreRenderer::Triangles()
+uint64_t x12::Dx12CoreRenderer::Triangles()
 {
 	return graphicCommandContext->triangles();
 }
 
-uint64_t Dx12CoreRenderer::DrawCalls()
+uint64_t x12::Dx12CoreRenderer::DrawCalls()
 {
 	return graphicCommandContext->drawCalls();
 }

@@ -84,7 +84,7 @@ void Core::Init(GpuProfiler* gpuprofiler_, InitRendererProcedure initRenderer, I
 
 	if (flags & INIT_FLAGS::BUILT_IN_DX12_RENDERER)
 	{
-		renderer = new Dx12CoreRenderer;
+		renderer = new x12::Dx12CoreRenderer;
 		renderer->Init();
 
 		assert(renderprofiler == nullptr);

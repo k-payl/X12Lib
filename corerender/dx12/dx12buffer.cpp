@@ -4,9 +4,11 @@
 #include "dx12render.h"
 #include "core.h"
 
-IdGenerator<uint16_t> Dx12CoreBuffer::idGen;
+using namespace x12;
 
-void Dx12CoreBuffer::_GPUCopyToStaging()
+IdGenerator<uint16_t> x12::Dx12CoreBuffer::idGen;
+
+void x12::Dx12CoreBuffer::_GPUCopyToStaging()
 {
 	if (!stagingResource)
 	{
@@ -27,7 +29,7 @@ void Dx12CoreBuffer::_GPUCopyToStaging()
 	}
 }
 
-void Dx12CoreBuffer::_GetStagingData(void* data)
+void x12::Dx12CoreBuffer::_GetStagingData(void* data)
 {
 	void* ptr;
 	stagingResource->Map(0, nullptr, &ptr);
@@ -37,7 +39,7 @@ void Dx12CoreBuffer::_GetStagingData(void* data)
 	stagingResource->Unmap(0, nullptr);
 }
 
-void Dx12CoreBuffer::GetData(void* data)
+void x12::Dx12CoreBuffer::GetData(void* data)
 {
 	Dx12CoreRenderer* renderer = CORE->GetCoreRenderer();
 	Dx12GraphicCommandContext* context = renderer->GetGraphicCommmandContext();
@@ -57,7 +59,7 @@ void Dx12CoreBuffer::GetData(void* data)
 	context->PopState();
 }
 
-void Dx12CoreBuffer::SetData(const void* data, size_t size)
+void x12::Dx12CoreBuffer::SetData(const void* data, size_t size)
 {
 	if (flags & BUFFER_FLAGS::CPU_WRITE)
 	{
@@ -67,12 +69,12 @@ void Dx12CoreBuffer::SetData(const void* data, size_t size)
 		notImplemented();
 }
 
-Dx12CoreBuffer::Dx12CoreBuffer()
+x12::Dx12CoreBuffer::Dx12CoreBuffer()
 {
 	id = idGen.getId();
 }
 
-Dx12CoreBuffer::~Dx12CoreBuffer()
+x12::Dx12CoreBuffer::~Dx12CoreBuffer()
 {
 	if (flags & BUFFER_FLAGS::CPU_WRITE)
 	{
@@ -84,7 +86,7 @@ Dx12CoreBuffer::~Dx12CoreBuffer()
 	}
 }
 
-void Dx12CoreBuffer::InitBuffer(size_t structureSize, size_t num, const void* data, BUFFER_FLAGS flags_, LPCWSTR name_)
+void x12::Dx12CoreBuffer::InitBuffer(size_t structureSize, size_t num, const void* data, BUFFER_FLAGS flags_, LPCWSTR name_)
 {
 	name = name_;
 	flags = flags_;
@@ -163,7 +165,7 @@ void Dx12CoreBuffer::InitBuffer(size_t structureSize, size_t num, const void* da
 	x12::impl::set_name(resource.Get(), name.c_str());
 }
 
-void Dx12CoreBuffer::initSRV(UINT num, UINT structireSize, D3D12_BUFFER_SRV_FLAGS flag, DXGI_FORMAT format)
+void x12::Dx12CoreBuffer::initSRV(UINT num, UINT structireSize, D3D12_BUFFER_SRV_FLAGS flag, DXGI_FORMAT format)
 {
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
@@ -178,7 +180,7 @@ void Dx12CoreBuffer::initSRV(UINT num, UINT structireSize, D3D12_BUFFER_SRV_FLAG
 	CR_GetD3DDevice()->CreateShaderResourceView(resource.Get(), &srvDesc, SRVdescriptor.descriptor);
 }
 
-void Dx12CoreBuffer::initUAV(UINT num, UINT structireSize, D3D12_BUFFER_UAV_FLAGS flag, DXGI_FORMAT format)
+void x12::Dx12CoreBuffer::initUAV(UINT num, UINT structireSize, D3D12_BUFFER_UAV_FLAGS flag, DXGI_FORMAT format)
 {
 	D3D12_UNORDERED_ACCESS_VIEW_DESC srvDesc = {};
 	srvDesc.Format = format;
@@ -192,7 +194,7 @@ void Dx12CoreBuffer::initUAV(UINT num, UINT structireSize, D3D12_BUFFER_UAV_FLAG
 	CR_GetD3DDevice()->CreateUnorderedAccessView(resource.Get(), nullptr, &srvDesc, UAVdescriptor.descriptor);
 }
 
-void Dx12CoreBuffer::initCBV(UINT size)
+void x12::Dx12CoreBuffer::initCBV(UINT size)
 {
 	CBVdescriptor = GetCoreRender()->AllocateDescriptor();
 

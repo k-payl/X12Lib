@@ -6,6 +6,8 @@
 #include "filesystem.h"
 #include <string>
 
+using namespace x12;
+
 constexpr inline UINT float4chunks = 15;
 
 std::vector<float> ExecuteGPU();
