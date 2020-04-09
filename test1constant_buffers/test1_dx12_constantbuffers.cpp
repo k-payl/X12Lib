@@ -20,7 +20,7 @@ static HWND hwnd;
 static size_t mvpIdx;
 static size_t transformIdx;
 
-struct Resources
+static struct Resources
 {
 	intrusive_ptr<ICoreShader> shader;
 	intrusive_ptr<ICoreVertexBuffer> vertexBuffer;
@@ -98,11 +98,10 @@ void Render()
 	mat4 V;
 	res->cam->GetViewMat(V);
 
-	MVPcb mvpcb;
-	mvpcb.MVP = P * V;
+	mat4 MVP = P * V;
 
 #ifdef CAMERA_SEPARATE_BUFFER
-	res->cameraBuffer->SetData(&mvpcb, sizeof(mvpcb));
+	res->cameraBuffer->SetData(&MVP, sizeof(MVP));
 #endif
 
 	if (!res->cubeResources)
@@ -124,27 +123,26 @@ void Render()
 #endif
 	context->BindResourceSet(res->cubeResources.get());
 
-	auto drawCubes = [context](vec4 color, float x)
+	auto drawCubes = [context](float x)
 	{
-		for (int i = 0; i < numCubesX; i++)
+		for (int i = 0; i < numCubesX; ++i)
 		{
-			for (int j = 0; j < numCubesY; j++)
+			for (int j = 0; j < numCubesY; ++j)
 			{
-				DynamicCB dynCB;
-				dynCB.color_out = cubeColor(i, j);
-				dynCB.transform = cubePosition(i, j);
-				dynCB.transform.z += x;
-
 				static_assert(sizeof(DynamicCB) == 4 * 8);
 
-				context->UpdateInlineConstantBuffer(transformIdx, &dynCB, sizeof(dynCB));
+				DynamicCB dynCB {
+					.transform = cubePosition(i, j) + vec4(0, 0, 0, x),
+					.color_out = cubeColor(i, j)
+				};
 
+				context->UpdateInlineConstantBuffer(transformIdx, &dynCB, sizeof(dynCB));
 				context->Draw(res->vertexBuffer.get());
 			}
 		}
 	};
 
-	drawCubes(vec4(1, 0, 0, 1), 0.0f);
+	drawCubes(.0f);
 
 #ifdef TEST_PUSH_POP // set 1 to test push/pop states
 	{
@@ -174,7 +172,7 @@ void Render()
 	}
 #endif
 
-	drawCubes(vec4(1, 0, 0, 1), 10.0f);
+	drawCubes(.0f);
 
 	context->TimerEnd(0);
 	float frameGPU = context->TimerGetTimeInMs(0);

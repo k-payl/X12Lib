@@ -80,6 +80,7 @@ void Dx12GraphicCommandContext::SetGraphicPipelineState(const GraphicPipelineSta
 		{
 			case PRIMITIVE_TOPOLOGY::LINE: d3dtopology = D3D_PRIMITIVE_TOPOLOGY_LINELIST; break;
 			case PRIMITIVE_TOPOLOGY::POINT: d3dtopology = D3D_PRIMITIVE_TOPOLOGY_POINTLIST; break;
+			[[likely]]
 			case PRIMITIVE_TOPOLOGY::TRIANGLE: d3dtopology = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST; break;
 			default:
 				notImplemented();
@@ -306,7 +307,7 @@ void Dx12GraphicCommandContext::BindResourceSet(IResourceSet* set_)
 
 		else if (param.type == ROOT_PARAMETER_TYPE::TABLE)
 		{
-			if (!state.pso.isCompute)
+			if (!state.pso.isCompute) [[likely]]
 				d3dCmdList->SetGraphicsRootDescriptorTable(i, dx12set->gpuDescriptors[i]);
 			else
 				d3dCmdList->SetComputeRootDescriptorTable(i, dx12set->gpuDescriptors[i]);
@@ -322,7 +323,7 @@ void Dx12GraphicCommandContext::UpdateInlineConstantBuffer(size_t rootParameterI
 
 	memcpy(alloc.Memory(), data, size);
 
-	if (!state.pso.isCompute)
+	if (!state.pso.isCompute) [[likely]]
 		d3dCmdList->SetGraphicsRootConstantBufferView((UINT)rootParameterIdx, alloc.GpuAddress());
 	else
 		d3dCmdList->SetComputeRootConstantBufferView((UINT)rootParameterIdx, alloc.GpuAddress());
@@ -525,7 +526,7 @@ void Dx12GraphicCommandContext::PopState()
 
 	BindSurface(state_.surface);
 
-	if (state_.pso.isCompute)
+	if (state_.pso.isCompute) [[unlikely]]
 	{
 		if (state.pso.PsoChecksum != state_.pso.PsoChecksum)
 		{
