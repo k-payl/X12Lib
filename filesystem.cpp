@@ -25,11 +25,11 @@ typedef std::string mstring;
 
 bool FileSystem::_exist(const char *path)
 {
-	fs::path fsPath = fs::u8path(path);
+	fs::path fsPath = fs::path(path);
 
 	if (fsPath.is_relative())
 	{
-		fs::path fsDataPath = fs::u8path(dataPath);
+		fs::path fsDataPath = fs::path(dataPath);
 		fsPath = fsDataPath / fsPath;
 	}
 
@@ -49,13 +49,13 @@ bool FileSystem::DirectoryExist(const char *path)
 std::string FileSystem::GetWorkingPath(const char *path)
 {
 	if (strlen(path)==0)
-		return fs::current_path().u8string();
-	return canonical(fs::u8path(path)).u8string();
+		return fs::current_path().string();
+	return canonical(fs::path(path)).string();
 }
 
 bool FileSystem::IsRelative(const char *path)
 {
-	fs::path fsPath = fs::u8path(path);
+	fs::path fsPath = fs::path(path);
 	return fsPath.is_relative();
 }
 
@@ -63,11 +63,11 @@ auto FileSystem::OpenFile(const char *path, FILE_OPEN_MODE mode) -> File
 {
 	const bool read = mode & FILE_OPEN_MODE::READ;
 	
-	fs::path fsPath = fs::u8path(path);
+	fs::path fsPath = fs::path(path);
 
 	if (fsPath.is_relative())
 	{
-		fs::path fsDataPath = fs::u8path(dataPath);
+		fs::path fsDataPath = fs::path(dataPath);
 		fsPath = fsDataPath / fsPath;
 	}
 
@@ -86,18 +86,18 @@ auto FileSystem::OpenFile(const char *path, FILE_OPEN_MODE mode) -> File
 
 auto FileSystem::ClearFile(const char *path) -> void
 {
-	fs::path fsPath = fs::u8path(path);
+	fs::path fsPath = fs::path(path);
 
 	if (fsPath.is_relative())
 	{
-		fs::path fsDataPath = fs::u8path(dataPath);
+		fs::path fsDataPath = fs::path(dataPath);
 		fsPath = fsDataPath / fsPath;
 	}
 
 	if (fs::exists(fsPath))
 	{
 		std::ofstream ofs;
-		mstring mPath = UTF8ToNative(fsPath.u8string());
+		mstring mPath = UTF8ToNative(fsPath.string());
 		ofs.open(mPath, std::ofstream::out | std::ofstream::trunc);
 		ofs.close();
 	}
@@ -107,7 +107,7 @@ auto FileSystem::FilterPaths(const char *ext) -> std::vector<std::string>
 {
 	std::vector<std::string> files;
 	std::string extension(ext);
-	fs::path path = fs::u8path(dataPath);
+	fs::path path = fs::path(dataPath);
 	fs::recursive_directory_iterator it(path);
 	fs::recursive_directory_iterator endit;
 
@@ -128,15 +128,15 @@ auto FileSystem::CreateMemoryMapedFile(const char* path) -> FileMapping
 {
 	FileMapping mapping;
 
-	fs::path fsPath = fs::u8path(path);
+	fs::path fsPath = fs::path(path);
 
 	if (fsPath.is_relative())
 	{
-		fs::path fsDataPath = fs::u8path(dataPath);
+		fs::path fsDataPath = fs::path(dataPath);
 		fsPath = fsDataPath / fsPath;
 	}
 
-	std::wstring wpath = ConvertFromUtf8ToUtf16(fsPath.u8string());
+	std::wstring wpath = ConvertFromUtf8ToUtf16(fsPath.string());
 	mapping.hFile = CreateFile(wpath.c_str(), GENERIC_READ, 0, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
 	assert(mapping.hFile != INVALID_HANDLE_VALUE);
 
@@ -202,7 +202,7 @@ auto FileSystem::ToValid(std::string& filePath) -> void
 
 auto FileSystem::GetTime(std::string& path) -> int64_t
 {
-	fs::path fsPath = fs::u8path(path);
+	fs::path fsPath = fs::path(path);
 	auto timestampt = fs::last_write_time(fsPath);
 
 	using namespace std::chrono_literals;
@@ -226,7 +226,7 @@ auto FileSystem::LoadFile(const char* path) -> std::shared_ptr<char[]>
 File::File(const std::ios_base::openmode & fileMode, const std::filesystem::path & path)
 {
 	fsPath_ = path;
-	mstring mPath = UTF8ToNative(path.u8string());
+	mstring mPath = UTF8ToNative(path.string());
 	file_.open(mPath, fileMode);
 }
 

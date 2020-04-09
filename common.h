@@ -13,6 +13,17 @@
 #undef max
 #endif
 
+// Workaround for error C2039: 'CheckForDuplicateEntries': is not a member of 'Microsoft::WRL::Details'
+#if !defined(_DEBUG)
+namespace Microsoft {
+	namespace WRL {
+		namespace Details {
+			template <typename T>
+			inline void CheckForDuplicateEntries();
+		}
+	}
+}
+#endif
 #include <wrl.h>
 using namespace Microsoft::WRL;
 

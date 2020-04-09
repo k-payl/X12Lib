@@ -119,7 +119,7 @@ void Render()
 	}
 
 #ifndef CAMERA_SEPARATE_BUFFER
-	context->UpdateInlineConstantBuffer(mvpIdx, &mvpcb, sizeof(mvpcb));
+	context->UpdateInlineConstantBuffer(mvpIdx, &MVP, sizeof(MVP));
 #endif
 	context->BindResourceSet(res->cubeResources.get());
 
@@ -132,9 +132,10 @@ void Render()
 				static_assert(sizeof(DynamicCB) == 4 * 8);
 
 				DynamicCB dynCB {
-					.transform = cubePosition(i, j) + vec4(0, 0, 0, x),
+					.transform = cubePosition(i, j) /*+ vec4(0, 0, 0, x)*/, // fatal error C1001: Internal compiler error.
 					.color_out = cubeColor(i, j)
 				};
+				dynCB.transform.z += x;
 
 				context->UpdateInlineConstantBuffer(transformIdx, &dynCB, sizeof(dynCB));
 				context->Draw(res->vertexBuffer.get());
@@ -171,8 +172,6 @@ void Render()
 		context->PopState();
 	}
 #endif
-
-	drawCubes(.0f);
 
 	context->TimerEnd(0);
 	float frameGPU = context->TimerGetTimeInMs(0);
