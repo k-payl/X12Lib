@@ -7,12 +7,16 @@
 #include "dx12context.h"
 #include "dx12vertexbuffer.h"
 #include "dx12buffer.h"
+#include "dx12gpuprofiler.h"
+#include "console.h"
+#include "input.h"
 #include "test1_shared.h"
 
 //#define TEST_PUSH_POP
 #define CAMERA_SEPARATE_BUFFER
 
 using namespace std::chrono;
+using namespace x12;
 
 constexpr inline UINT float4chunks = 10;
 

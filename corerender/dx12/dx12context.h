@@ -32,7 +32,7 @@ namespace x12
 
 		std::unordered_map<std::string, std::pair<size_t, int>> resourcesMap; // {parameter index, table index}. (table index=-1 if inline)
 
-		size_t parametresNum;
+		size_t parametersNum;
 
 		// parallel arrays
 		std::vector<RootSignatureParameter<BindedResource>> resources;
