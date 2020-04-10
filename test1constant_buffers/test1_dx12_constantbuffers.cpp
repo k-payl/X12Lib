@@ -12,7 +12,7 @@
 #include "input.h"
 #include "test1_shared.h"
 
-//#define TEST_PUSH_POP
+//#define TEST_PUSH_POP // define to test push/pop states
 #define CAMERA_SEPARATE_BUFFER
 
 using namespace std::chrono;
@@ -85,24 +85,23 @@ void Render()
 
 	unsigned w = surface->width;
 	unsigned h = surface->height;
+	float aspect = float(w) / h;
+
 	context->SetViewport(w, h);
 	context->SetScissor(0, 0, w, h);
 
-	GraphicPipelineState pso{};
-	pso.shader = res->shader.get();
-	pso.vb = res->vertexBuffer.get();
-	pso.primitiveTopology = PRIMITIVE_TOPOLOGY::TRIANGLE;
+	GraphicPipelineState pso = {
+		.shader = res->shader.get(),
+		.vb = res->vertexBuffer.get(),
+		.primitiveTopology = PRIMITIVE_TOPOLOGY::TRIANGLE,
+	};
+
 	context->SetGraphicPipelineState(pso);
 
 	context->SetVertexBuffer(res->vertexBuffer.get());
 
-	mat4 P;
-	res->cam->GetPerspectiveMat(P, static_cast<float>(w) / h);
-
-	mat4 V;
-	res->cam->GetViewMat(V);
-
-	mat4 MVP = P * V;
+	mat4 MVP;
+	res->cam->GetMVP(MVP, aspect);
 
 #ifdef CAMERA_SEPARATE_BUFFER
 	res->cameraBuffer->SetData(&MVP, sizeof(MVP));
@@ -111,9 +110,9 @@ void Render()
 	if (!res->cubeResources)
 	{
 		renderer->CreateResourceSet(res->cubeResources.getAdressOf(), res->shader.get());
-	#ifdef CAMERA_SEPARATE_BUFFER
+#ifdef CAMERA_SEPARATE_BUFFER
 		res->cubeResources->BindConstantBuffer("CameraCB", res->cameraBuffer.get());
-	#endif
+#endif
 		context->BuildResourceSet(res->cubeResources.get());
 
 #ifndef CAMERA_SEPARATE_BUFFER
@@ -149,7 +148,7 @@ void Render()
 
 	drawCubes(.0f);
 
-#ifdef TEST_PUSH_POP // set 1 to test push/pop states
+#ifdef TEST_PUSH_POP
 	{
 		context->PushState();
 
@@ -195,22 +194,29 @@ void Init()
 {
 	Dx12CoreRenderer* renderer = CORE->GetCoreRenderer();
 	
-	VertexAttributeDesc attr[2];
-	attr[0].format = VERTEX_BUFFER_FORMAT::FLOAT4;
-	attr[0].offset = 0;
-	attr[0].semanticName = "POSITION";
-	attr[1].format = VERTEX_BUFFER_FORMAT::FLOAT4;
-	attr[1].offset = 16;
-	attr[1].semanticName = "TEXCOORD";
+	VertexAttributeDesc attr[2] = {
+		{
+			.offset = 0,
+			.format = VERTEX_BUFFER_FORMAT::FLOAT4,
+			.semanticName = "POSITION"
+		},
+		{
+			.offset = 16,
+			.format = VERTEX_BUFFER_FORMAT::FLOAT4,
+			.semanticName = "TEXCOORD"
+		}
+	};
 
-	VeretxBufferDesc desc;
-	desc.attributesCount = 2;
-	desc.attributes = attr;
-	desc.vertexCount = veretxCount;
+	VeretxBufferDesc desc =	{
+		.vertexCount = veretxCount,
+		.attributesCount = 2,
+		.attributes = attr
+	};	
 
-	IndexBufferDesc idxDesc;
-	idxDesc.format = INDEX_BUFFER_FORMAT::UNSIGNED_16;
-	idxDesc.vertexCount = idxCount;
+	IndexBufferDesc idxDesc = {
+		.vertexCount = idxCount,
+		.format = INDEX_BUFFER_FORMAT::UNSIGNED_16
+	};
 
 	renderer->CreateVertexBuffer(res->vertexBuffer.getAdressOf(), L"cube", vertexData, &desc, indexData, &idxDesc);
 
@@ -231,7 +237,6 @@ void Init()
 #ifdef CAMERA_SEPARATE_BUFFER
 	renderer->CreateConstantBuffer(res->cameraBuffer.getAdressOf(), L"Camera constant buffer", sizeof(mat4));
 #endif
-
 
 #ifdef TEST_PUSH_POP
 	{

@@ -15,14 +15,11 @@ struct Dx11Graph : public GraphRenderer
 	UINT stride;
 	std::vector<vec4> data;
 
-	Dx11Graph()
-	{
-		offsetUniformBuffer = dx11::CreateConstanBuffer(16);
-		colorUniformBuffer = dx11::CreateConstanBuffer(16);
-	}
-
 	void Render(void* c, vec4 color, float value, unsigned w, unsigned h) override
 	{
+		if (!offsetUniformBuffer) offsetUniformBuffer = dx11::CreateConstanBuffer(16);
+		if (!colorUniformBuffer) colorUniformBuffer = dx11::CreateConstanBuffer(16);
+
 		ID3D11DeviceContext* context = (ID3D11DeviceContext*)c;
 
 		context->PSSetConstantBuffers(0, 1, colorUniformBuffer.GetAddressOf());
@@ -185,10 +182,10 @@ void Dx11GpuProfiler::UpdateViewportConstantBuffer()
 }
 void Dx11GpuProfiler::DrawRecords(size_t maxRecords)
 {
-	//context->ClearState();
-
 	context->VSSetShader(vertexShader.Get(), nullptr, 0);
 	context->PSSetShader(pixelShader.Get(), nullptr, 0);
+
+	dx11::UpdateUniformBuffer(colorUniformBuffer.Get(), &color, 16);
 
 	if (!blendState)
 	{
@@ -235,8 +232,8 @@ void Dx11GpuProfiler::DrawRecords(size_t maxRecords)
 
 		context->Draw(r->size, 0);
 	}
-
 }
+
 void Dx11GpuProfiler::AddRecord(const char* format, bool isFloat, bool renderGraph)
 {
 	size_t index = records.size();

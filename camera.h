@@ -19,5 +19,6 @@ public:
 
 	void Update(float dt);
 	void GetPerspectiveMat(mat4& p, float aspect);
+	void GetMVP(mat4& mvp, float aspect);
 	void GetViewMat(mat4& m);
 };

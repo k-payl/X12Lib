@@ -1,11 +1,14 @@
 #include "common.h"
 #include "core.h"
+#include "dx12render.h"
 #include "camera.h"
 #include "dx11.h"
 #include "mainwindow.h"
 #include "filesystem.h"
 #include "test1_shared.h"
 #include "dx11gpuprofiler.h"
+#include "console.h"
+#include "input.h"
 #include <memory>
 
 using namespace std::chrono;
@@ -19,12 +22,7 @@ static const unsigned QueryFrames = 4;
 
 static steady_clock::time_point start;
 
-void Resize(HWND hwnd, WINDOW_MESSAGE type, uint32_t param1, uint32_t param2, void* data);
-void Init();
-void Render();
-
-
-struct Resources
+static struct Resources
 {
 	std::unique_ptr<Camera> cam = std::make_unique<Camera>();;
 
@@ -48,12 +46,17 @@ struct Resources
 
 } *res;
 
+void Resize(HWND hwnd, WINDOW_MESSAGE type, uint32_t param1, uint32_t param2, void* data);
+void Init();
+void Render();
+
 int APIENTRY wWinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPWSTR, _In_ int)
 {
 	Dx11GpuProfiler* gpuprofiler = new Dx11GpuProfiler(vec4(0.6f, 0.6f, 0.6f, 1.0f), 0.0f);
-	gpuprofiler->AddRecord("=== D3D11 Render ===");
-	gpuprofiler->AddRecord("CPU: % 0.2f ms.");
-	gpuprofiler->AddRecord("CPU: % 0.2f ms.");
+	gpuprofiler->AddRecord("=== D3D11 Render ===", true, false);
+	gpuprofiler->AddRecord("CPU: % 0.2f ms.", true, true);
+	gpuprofiler->AddRecord("GPU: % 0.2f ms.", true, true);
+	gpuprofiler->SetRecordColor(2, { 1,0,0,1 });
 
 	Core* core = new Core{};
 	core->AddRenderProcedure(Render);
@@ -128,17 +131,10 @@ void Render()
 	context->VSSetConstantBuffers(0, 1, res->MVPcb.GetAddressOf());
 	context->VSSetConstantBuffers(3, 1, res->colorCB.GetAddressOf());
 
-	MVPcb mvpcb;
-	
-	mat4 V;
-	res->cam->GetViewMat(V);
+	mat4 MVP;
+	res->cam->GetMVP(MVP, aspect);
 
-	mat4 P;
-	res->cam->GetPerspectiveMat(P, aspect);
-
-	mvpcb.MVP = P * V;
-
-	dx11::UpdateUniformBuffer(res->MVPcb.Get(), &mvpcb, sizeof(MVPcb));
+	dx11::UpdateUniformBuffer(res->MVPcb.Get(), &MVP, sizeof(MVP));
 
 	auto drawCubes = [](vec4 color, float x)
 	{
@@ -157,8 +153,8 @@ void Render()
 			}
 		}
 	};
-	drawCubes(vec4(1, 0, 0, 1), 0.0f);
-	//drawCubes(vec4(1, 0, 0, 1), 10.0f);
+
+	drawCubes(vec4(1, 0, 0, 1), .0f);
 
 	context->End(res->endQuery[queryFrame].Get());
 	context->End(res->disjontQuery[queryFrame].Get());
@@ -224,4 +220,3 @@ void Resize(HWND hwnd, WINDOW_MESSAGE type, uint32_t param1, uint32_t param2, vo
 	
 	dx11::_Resize(param1, param2);
 }
-

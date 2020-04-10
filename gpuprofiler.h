@@ -126,7 +126,7 @@ public:
 		typedef typename std::common_type<Args...>::type common;
 		const std::array<common, sizeof...(Args)> a = { { args... } };
 
-		if constexpr (std::is_floating_point_v<decltype(a[0])>)
+		if (records[num]->isFloat)
 			records[num]->floatValue = a[0];
 		else
 			records[num]->intValue = (uint64_t)a[0];

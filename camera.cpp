@@ -65,6 +65,17 @@ void Camera::GetPerspectiveMat(mat4& p, float aspect)
 	p = perspectiveRH_ZO(fovDeg * DEGTORAD, aspect, znear, zfar);
 }
 
+void Camera::GetMVP(mat4& mvp, float aspect)
+{
+	mat4 V;
+	GetViewMat(V);
+
+	mat4 P;
+	GetPerspectiveMat(P, aspect);
+
+	mvp = P * V;
+}
+
 void Camera::GetViewMat(mat4& m)
 {
 	mat4 transform;

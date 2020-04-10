@@ -24,10 +24,6 @@ inline vec4 cubeColor(int i, int j)
 	return colors[(i * numCubesX + j) % _countof(colors)];
 }
 
-struct MVPcb
-{
-	mat4 MVP;
-};
 struct DynamicCB
 {
 	vec4 transform;

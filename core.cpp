@@ -106,7 +106,10 @@ void Core::Init(GpuProfiler* gpuprofiler_, InitRendererProcedure initRenderer, I
 		initRenderer(window->handle());
 
 	if (gpuprofiler_)
+	{
+		gpuprofiler_->Init();
 		renderprofiler.reset(gpuprofiler_);
+	}
 
 	if (renderer)
 	{
