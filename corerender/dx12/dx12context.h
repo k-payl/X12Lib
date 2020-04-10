@@ -13,15 +13,10 @@ namespace x12
 	{
 		using resource_index = std::pair<size_t, int>;
 
-		Dx12ResourceSet(const Dx12CoreShader *shader);
-
-		bool dirty{false};
-
 		struct BindedResource : ResourceDefinition
 		{
-			intrusive_ptr<Dx12CoreBuffer> constntBuffer;
+			intrusive_ptr<Dx12CoreBuffer> buffer;
 			intrusive_ptr<Dx12CoreTexture> texture;
-			intrusive_ptr<Dx12CoreBuffer> structuredBuffer;
 
 			BindedResource& operator=(const ResourceDefinition& r)
 			{
@@ -32,20 +27,54 @@ namespace x12
 
 		std::unordered_map<std::string, std::pair<size_t, int>> resourcesMap; // {parameter index, table index}. (table index=-1 if inline)
 
-		size_t parametersNum;
+		bool dirty{ false };
+
+		size_t rootParametersNum;
 
 		// parallel arrays
 		std::vector<RootSignatureParameter<BindedResource>> resources;
 		std::vector<bool> resourcesDirty;
 		std::vector<D3D12_GPU_DESCRIPTOR_HANDLE> gpuDescriptors;
 
+	public:
+		Dx12ResourceSet(const Dx12CoreShader* shader);
+
 		void BindConstantBuffer(const char* name, ICoreBuffer *buffer) override;
 		void BindStructuredBufferSRV(const char* name, ICoreBuffer *buffer) override;
 		void BindStructuredBufferUAV(const char* name, ICoreBuffer *buffer) override;
 		void BindTextueSRV(const char* name, ICoreTexture *texture) override;
 
-		std::pair<size_t, int>& findResourceIndex(const char* name);
 		size_t FindInlineBufferIndex(const char* name) override;
+
+	private:
+		inline void checkResourceIsTable(const resource_index& index);
+		inline void checkResourceIsInlineDescriptor(const resource_index& index);
+
+		resource_index& findResourceIndex(const char* name);
+
+		template<class TRes, class TDx12Res>
+		void Bind(const char* name, TRes* resource, RESOURCE_DEFINITION type)
+		{
+			auto dx12resource = static_cast<TDx12Res*>(resource);
+
+			auto& index = findResourceIndex(name);
+			checkResourceIsTable(index);
+
+			Dx12ResourceSet::BindedResource& resourceSlot = resources[index.first].tableResources[index.second];
+
+			verify(type == resourceSlot.resources && "Invalid resource type");
+
+			if constexpr (std::is_same<TRes, ICoreBuffer>::value)
+				resourceSlot.buffer = dx12resource;
+			else if constexpr (std::is_same<TRes, ICoreTexture>::value)
+				resourceSlot.texture = dx12resource;
+			else
+				verify(0);
+
+			dirty = true;
+			gpuDescriptors[index.first] = {};
+			resourcesDirty[index.first] = true;
+		}
 	};
 
 	// Graphic comands interface.
@@ -270,6 +299,5 @@ namespace x12
 		void Submit();
 		void WaitGPUAll();
 	};
-
 }
 

@@ -9,6 +9,7 @@
 #include "GraphicsMemory.h"
 
 using namespace x12;
+using namespace x12::impl;
 
 namespace
 {
@@ -23,14 +24,6 @@ namespace
 	Dx12CoreTexture* resource_cast(ICoreTexture* vb) { return static_cast<Dx12CoreTexture*>(vb); }
 	const Dx12CoreTexture* resource_cast(const ICoreTexture* vb) { return static_cast<const Dx12CoreTexture*>(vb); }
 }
-
-using namespace x12::impl;
-
-#define ADD_DIRY_FLAGS(FLAGS, ADD) \
-	FLAGS = static_cast<RESOURCE_DEFINITION>(FLAGS | ADD);
-
-#define REMOVE_DIRY_FLAGS(FLAGS, _REMOVE) \
-	FLAGS = static_cast<RESOURCE_DEFINITION>(FLAGS & ~_REMOVE);
 
 int Dx12GraphicCommandContext::contextNum;
 int Dx12CopyCommandContext::contextNum;
@@ -246,7 +239,7 @@ void Dx12GraphicCommandContext::BuildResourceSet(IResourceSet* set_)
 	if (!dx12set->dirty)
 		return;
 
-	for (int i = 0; i < dx12set->parametersNum; ++i)
+	for (int i = 0; i < dx12set->rootParametersNum; ++i)
 	{
 		const RootSignatureParameter<Dx12ResourceSet::BindedResource>& param = dx12set->resources[i];
 
@@ -266,13 +259,13 @@ void Dx12GraphicCommandContext::BuildResourceSet(IResourceSet* set_)
 				D3D12_CPU_DESCRIPTOR_HANDLE cpuHandleCPUVisible;
 
 				if (res.resources & RESOURCE_DEFINITION::RBF_UNIFORM_BUFFER)
-					cpuHandleCPUVisible = res.constntBuffer->GetCBV();
+					cpuHandleCPUVisible = res.buffer->GetCBV();
 				else if (res.resources & RESOURCE_DEFINITION::RBF_BUFFER_SRV)
-					cpuHandleCPUVisible = res.structuredBuffer->GetSRV();
+					cpuHandleCPUVisible = res.buffer->GetSRV();
 				else if (res.resources & RESOURCE_DEFINITION::RBF_TEXTURE_SRV)
 					cpuHandleCPUVisible = res.texture->GetSRV();
 				else if (res.resources & RESOURCE_DEFINITION::RBF_BUFFER_UAV)
-					cpuHandleCPUVisible = res.structuredBuffer->GetUAV();
+					cpuHandleCPUVisible = res.buffer->GetUAV();
 				else
 					notImplemented();
 
@@ -298,7 +291,7 @@ void Dx12GraphicCommandContext::BindResourceSet(IResourceSet* set_)
 
 	assert(state.set_.get());
 
-	for (int i = 0; i < dx12set->parametersNum; ++i)
+	for (int i = 0; i < dx12set->rootParametersNum; ++i)
 	{
 		const RootSignatureParameter<Dx12ResourceSet::BindedResource>& param = dx12set->resources[i];
 
@@ -782,10 +775,10 @@ Dx12ResourceSet::Dx12ResourceSet(const Dx12CoreShader* shader)
 {
 	resourcesMap = shader->resourcesMap;
 
-	parametersNum = shader->rootSignatureParameters.size();
-	resources.resize(parametersNum);
-	resourcesDirty.resize(parametersNum);
-	gpuDescriptors.resize(parametersNum);
+	rootParametersNum = shader->rootSignatureParameters.size();
+	resources.resize(rootParametersNum);
+	resourcesDirty.resize(rootParametersNum);
+	gpuDescriptors.resize(rootParametersNum);
 
 	for (size_t i = 0; i < shader->rootSignatureParameters.size(); ++i)
 	{
@@ -814,77 +807,44 @@ Dx12ResourceSet::Dx12ResourceSet(const Dx12CoreShader* shader)
 
 void Dx12ResourceSet::BindConstantBuffer(const char* name, ICoreBuffer* buffer)
 {
-	auto* dx12buffer = resource_cast(buffer);
-	auto& index = findResourceIndex(name);
-
-	assert(index.second != -1 && "Resource must be in table");
-
-	Dx12ResourceSet::BindedResource& resourceBind = resources[index.first].tableResources[index.second];
-	resourceBind.constntBuffer = dx12buffer;
-
-	dirty = true;
-	gpuDescriptors[index.first] = {};
-	resourcesDirty[index.first] = true;
+	Bind<ICoreBuffer, Dx12CoreBuffer>(name, buffer, RESOURCE_DEFINITION::RBF_UNIFORM_BUFFER);
 }
 
 void Dx12ResourceSet::BindStructuredBufferSRV(const char* name, ICoreBuffer* buffer)
 {
-	auto* dx12buffer = resource_cast(buffer);
-	auto& index = findResourceIndex(name);
-
-	assert(index.second != -1 && "Resource must be in table");
-
-	Dx12ResourceSet::BindedResource& resourceBind = resources[index.first].tableResources[index.second];
-	resourceBind.structuredBuffer = dx12buffer;
-
-	dirty = true;
-	gpuDescriptors[index.first] = {};
-	resourcesDirty[index.first] = true;
+	Bind<ICoreBuffer, Dx12CoreBuffer>(name, buffer, RESOURCE_DEFINITION::RBF_BUFFER_SRV);
 }
 
 void Dx12ResourceSet::BindStructuredBufferUAV(const char* name, ICoreBuffer* buffer)
 {
-	auto* dx12buffer = resource_cast(buffer);
-	auto& index = findResourceIndex(name);
-
-	assert(index.second != -1 && "Resource must be in table");
-
-	Dx12ResourceSet::BindedResource& resourceBind = resources[index.first].tableResources[index.second];
-	resourceBind.structuredBuffer = dx12buffer;
-
-	dirty = true;
-	gpuDescriptors[index.first] = {};
-	resourcesDirty[index.first] = true;
+	Bind<ICoreBuffer, Dx12CoreBuffer>(name, buffer, RESOURCE_DEFINITION::RBF_BUFFER_UAV);
 }
 
 void Dx12ResourceSet::BindTextueSRV(const char* name, ICoreTexture* texture)
 {
-	auto* dx12buffer = resource_cast(texture);
-	auto& index = findResourceIndex(name);
+	Bind<ICoreTexture, Dx12CoreTexture>(name, texture, RESOURCE_DEFINITION::RBF_TEXTURE_SRV);
+}
 
-	assert(index.second != -1 && "Resource must be in table");
+void x12::Dx12ResourceSet::checkResourceIsTable(const resource_index& index)
+{
+	assert(index.second != -1 && "Resource is not in table");
+}
 
-	Dx12ResourceSet::BindedResource& resourceBind = resources[index.first].tableResources[index.second];
-	resourceBind.texture = dx12buffer;
-
-	dirty = true;
-	gpuDescriptors[index.first] = {};
-	resourcesDirty[index.first] = true;
+void x12::Dx12ResourceSet::checkResourceIsInlineDescriptor(const resource_index& index)
+{
+	assert(index.second == -1 && "Resource in some table. Inline resource can not be in table");
 }
 
 Dx12ResourceSet::resource_index& Dx12ResourceSet::findResourceIndex(const char* name)
 {
 	auto it = resourcesMap.find(name);
-
-	if (it == resourcesMap.end())
-		unreacheble();
-
+	assert(it != resourcesMap.end());
 	return it->second;
 }
 
 size_t Dx12ResourceSet::FindInlineBufferIndex(const char* name)
 {
 	auto& index = findResourceIndex(name);
-	assert(index.second == -1 && "Resource in some table. Inline resource can not be in table"); // no table index
+	checkResourceIsInlineDescriptor(index);
 	return index.first;
 }

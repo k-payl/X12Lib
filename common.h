@@ -122,6 +122,8 @@ public:
 	T getId() { return id++; }
 };
 
+#define verify(f)          ((void)(f))
+
 inline void unreacheble()
 {
 	throw std::runtime_error("Mustn't happen");
