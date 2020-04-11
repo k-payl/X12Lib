@@ -89,13 +89,18 @@ void Render()
 
 	context->SetViewport(w, h);
 	context->SetScissor(0, 0, w, h);
-
+#if _MSC_VER >= 1921
 	GraphicPipelineState pso = {
 		.shader = res->shader.get(),
 		.vb = res->vertexBuffer.get(),
 		.primitiveTopology = PRIMITIVE_TOPOLOGY::TRIANGLE,
 	};
-
+#else
+	GraphicPipelineState pso{};
+	pso.shader = res->shader.get();
+	pso.vb = res->vertexBuffer.get();
+	pso.primitiveTopology = PRIMITIVE_TOPOLOGY::TRIANGLE;
+#endif
 	context->SetGraphicPipelineState(pso);
 
 	context->SetVertexBuffer(res->vertexBuffer.get());
@@ -134,11 +139,18 @@ void Render()
 			{
 				static_assert(sizeof(DynamicCB) == 4 * 8);
 
+#if _MSC_VER >= 1921
 				DynamicCB dynCB {
 					.transform = cubePosition(i, j) /*+ vec4(0, 0, 0, x)*/, // fatal error C1001: Internal compiler error.
 					.color_out = cubeColor(i, j)
 				};
 				dynCB.transform.z += x;
+#else
+				DynamicCB dynCB;
+				dynCB.transform = cubePosition(i, j);
+				dynCB.color_out = cubeColor(i, j);
+				dynCB.transform.z += x;
+#endif
 
 				context->UpdateInlineConstantBuffer(transformIdx, &dynCB, sizeof(dynCB));
 				context->Draw(res->vertexBuffer.get());
@@ -193,7 +205,8 @@ void Render()
 void Init()
 {
 	Dx12CoreRenderer* renderer = CORE->GetCoreRenderer();
-	
+
+#if _MSC_VER >= 1921
 	VertexAttributeDesc attr[2] = {
 		{
 			.offset = 0,
@@ -217,7 +230,24 @@ void Init()
 		.vertexCount = idxCount,
 		.format = INDEX_BUFFER_FORMAT::UNSIGNED_16
 	};
+#else
+	VertexAttributeDesc attr[2];
+	attr[0].format = VERTEX_BUFFER_FORMAT::FLOAT4;
+	attr[0].offset = 0;
+	attr[0].semanticName = "POSITION";
+	attr[1].format = VERTEX_BUFFER_FORMAT::FLOAT4;
+	attr[1].offset = 16;
+	attr[1].semanticName = "TEXCOORD";
 
+	VeretxBufferDesc desc;
+	desc.attributesCount = 2;
+	desc.attributes = attr;
+	desc.vertexCount = veretxCount;
+
+	IndexBufferDesc idxDesc;
+	idxDesc.format = INDEX_BUFFER_FORMAT::UNSIGNED_16;
+	idxDesc.vertexCount = idxCount;
+#endif
 	renderer->CreateVertexBuffer(res->vertexBuffer.getAdressOf(), L"cube", vertexData, &desc, indexData, &idxDesc);
 
 	{

@@ -196,7 +196,7 @@ void Init()
 	dx11::CreateVertexBuffer(vertexData, indexData, veretxCount, idxCount, res->vb, res->ib, res->inputLayout, res->stride, false, true);
 	res->vertex = veretxCount;
 
-	res->MVPcb = dx11::CreateConstanBuffer(sizeof(MVPcb));
+	res->MVPcb = dx11::CreateConstanBuffer(sizeof(mat4));
 	res->colorCB = dx11::CreateConstanBuffer(sizeof(DynamicCB));
 
 	D3D11_DEPTH_STENCIL_DESC depthStencilDesc{};
