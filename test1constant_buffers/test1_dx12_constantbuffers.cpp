@@ -7,9 +7,6 @@
 #include "dx12context.h"
 #include "dx12vertexbuffer.h"
 #include "dx12buffer.h"
-#include "dx12gpuprofiler.h"
-#include "console.h"
-#include "input.h"
 #include "test1_shared.h"
 
 //#define TEST_PUSH_POP // define to test push/pop states

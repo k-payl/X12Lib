@@ -56,6 +56,8 @@ Core::Core()
 	core__ = this;
 }
 
+Core::~Core() = default;
+
 void Core::Init(GpuProfiler* gpuprofiler_, InitRendererProcedure initRenderer, INIT_FLAGS flags)
 {
 	fs = std::make_unique<FileSystem>("..//");

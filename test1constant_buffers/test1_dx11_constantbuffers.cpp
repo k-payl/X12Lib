@@ -1,14 +1,11 @@
 #include "common.h"
 #include "core.h"
-#include "dx12render.h"
 #include "camera.h"
 #include "dx11.h"
 #include "mainwindow.h"
 #include "filesystem.h"
 #include "test1_shared.h"
 #include "dx11gpuprofiler.h"
-#include "console.h"
-#include "input.h"
 #include <memory>
 
 using namespace std::chrono;

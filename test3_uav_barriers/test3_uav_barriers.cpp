@@ -4,10 +4,6 @@
 #include "dx12context.h"
 #include "dx12buffer.h"
 #include "filesystem.h"
-#include "dx12gpuprofiler.h"
-#include "console.h"
-#include "input.h"
-#include "mainwindow.h"
 #include <string>
 
 using namespace x12;

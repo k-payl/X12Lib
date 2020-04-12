@@ -47,6 +47,7 @@ class Core
 
 public:
 	Core();
+	~Core();
 
 	float dt{};
 	int fps{};
