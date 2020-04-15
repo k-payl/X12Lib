@@ -130,8 +130,8 @@ void x12::Dx12WindowSurface::Init(HWND hwnd, ID3D12CommandQueue* queue)
 
 void x12::Dx12WindowSurface::ResizeBuffers(unsigned width_, unsigned height_)
 {
-	width = max(width_, 1u);
-	height = max(height_, 1u);
+	width = math::max(width_, 1u);
+	height = math::max(height_, 1u);
 
 	depthBuffer.Reset();
 

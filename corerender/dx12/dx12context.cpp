@@ -228,8 +228,8 @@ void Dx12GraphicCommandContext::Clear()
 	FLOAT depth = 1.0f;
 	d3dCmdList->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH, depth, 0, 0, nullptr);
 
-	const vec4 color{ 0.0f, 0.0f, 0.0f, 0.0f };
-	d3dCmdList->ClearRenderTargetView(rtv, &color.x, 0, nullptr);
+	const float color[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+	d3dCmdList->ClearRenderTargetView(rtv, color, 0, nullptr);
 }
 
 void Dx12GraphicCommandContext::BuildResourceSet(IResourceSet* set_)

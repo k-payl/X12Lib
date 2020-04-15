@@ -132,6 +132,7 @@
     <ClCompile Include="3rdparty\DirectXTK\Src\DirectXHelpers.cpp">
       <Filter>3rdparty\DirectXTK\Src</Filter>
     </ClCompile>
+    <ClCompile Include="vmath.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="mesh.shader" />

@@ -9,10 +9,10 @@ inline std::string to_stringf(const std::string& str) { return str; }
 std::string to_stringf(int i);
 std::string to_stringf(float f);
 std::string to_stringf(double d);
-std::string to_stringf(const vec3& v);
-std::string to_stringf(const vec4& v);
-std::string to_stringf(const mat3& m);
-std::string to_stringf(const mat4& m);
+std::string to_stringf(const math::vec3& v);
+std::string to_stringf(const math::vec4& v);
+std::string to_stringf(const math::mat3& m);
+std::string to_stringf(const math::mat4& m);
 
 class Console
 {

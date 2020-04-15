@@ -5,6 +5,8 @@
 #include "dx11.h"
 #include "3rdparty/DirectXTex/DDSTextureLoader.h"
 
+using namespace math;
+
 struct Dx11Graph : public GraphRenderer
 {
 	ComPtr<ID3D11Buffer> offsetUniformBuffer;

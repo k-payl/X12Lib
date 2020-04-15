@@ -1,8 +1,9 @@
 #include "pch.h"
-
 #include "input.h"
 #include "core.h"
 #include "mainwindow.h"
+
+using namespace math;
 
 #define LOWORD(_dw)				((WORD)(((DWORD_PTR)(_dw)) & 0xffff))
 #define HIWORD(_dw)				((WORD)((((DWORD_PTR)(_dw)) >> 16) & 0xffff))

@@ -12,6 +12,7 @@
 #include "3rdparty/DirectXTex/DDSTextureLoader12.h"
 
 using namespace x12;
+using namespace math;
 
 struct Dx12GraphRenderer : public GraphRenderer
 {

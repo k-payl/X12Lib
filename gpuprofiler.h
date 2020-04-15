@@ -17,7 +17,7 @@ struct FontChar
 	int _align;
 };
 
-extern vec4 graphData[4096];
+extern math::vec4 graphData[4096];
 extern std::vector<FontChar> fontData;
 
 
@@ -34,11 +34,11 @@ struct RenderPerfomanceData
 struct GraphRenderer
 {
 	uint32_t graphRingBufferOffset{ 0 };
-	vec4 lastGraphValue;
-	vec4 lastColor;
+	math::vec4 lastGraphValue;
+	math::vec4 lastColor;
 
 	virtual ~GraphRenderer() = default;
-	virtual void Render(void* c, vec4 color, float value, unsigned w, unsigned h) = 0;
+	virtual void Render(void* c, math::vec4 color, float value, unsigned w, unsigned h) = 0;
 	virtual void RecreateVB(unsigned w) = 0;
 };
 
@@ -53,7 +53,7 @@ struct RenderProfilerRecord
 	uint64_t intValue{};
 	float floatValue{};
 	bool renderGraph{false};
-	vec4 color{ 0.6f, 0.6f, 0.6f, 1.0f };
+	math::vec4 color{ 0.6f, 0.6f, 0.6f, 1.0f };
 
 	RenderProfilerRecord(const char* format_, bool isFloat_, bool renderGraph_)
 	{
@@ -75,7 +75,7 @@ protected:
 	const int rectSize = 100;
 	const int rectPadding = 1;
 	const int fontMarginInPixels = 5;
-	const vec4 color;
+	const math::vec4 color;
 	const float verticalOffset{100};
 
 	unsigned w, h;
@@ -96,16 +96,16 @@ protected:
 	virtual void BeginGraph() = 0;
 	virtual void UpdateViewportConstantBuffer() = 0;
 	virtual void DrawRecords(size_t maxRecords) = 0;
-	void RenderGraph(GraphRenderer* g, float value, const vec4& color);
+	void RenderGraph(GraphRenderer* g, float value, const math::vec4& color);
 	virtual void* getContext() = 0;
 
 public:
-	GpuProfiler(vec4 color_, float verticalOffset_) :
+	GpuProfiler(math::vec4 color_, float verticalOffset_) :
 		color(color_), verticalOffset(verticalOffset_) {}
 	virtual ~GpuProfiler() = default;
 
 	virtual void AddRecord(const char* format, bool isFloat, bool renderGraph) = 0;
-	void SetRecordColor(size_t index, vec4 color)
+	void SetRecordColor(size_t index, math::vec4 color)
 	{
 		if (records[index])
 			records[index]->color = color;

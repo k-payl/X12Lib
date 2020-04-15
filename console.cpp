@@ -126,12 +126,12 @@ string to_stringf(double d)
 	return string(buf);
 }
 
-string to_stringf(const vec3& v)
+string to_stringf(const math::vec3& v)
 {
 	return "(" + to_stringf(v.x) + ", " + to_stringf(v.y) + ", " + to_stringf(v.z) + ")";
 }
 
-string to_stringf(const vec4& v)
+string to_stringf(const math::vec4& v)
 {
 	return "(" + to_stringf(v.x) + ", " + to_stringf(v.y) + ", " + to_stringf(v.z) + ", " + to_stringf(v.w) + ")";
 }
@@ -152,12 +152,12 @@ string _to_string_mat(const T& m)
 	return res;
 }
 
-string to_stringf(const mat3& m)
+string to_stringf(const math::mat3& m)
 {
-	return _to_string_mat<mat3, 3, 3>(m);
+	return _to_string_mat<math::mat3, 3, 3>(m);
 }
 
-string to_stringf(const mat4& m)
+string to_stringf(const math::mat4& m)
 {
-	return _to_string_mat<mat4, 4, 4>(m);
+	return _to_string_mat<math::mat4, 4, 4>(m);
 }

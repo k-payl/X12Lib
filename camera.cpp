@@ -4,6 +4,8 @@
 #include "core.h"
 #include "input.h"
 
+using namespace math;
+
 static Camera* instance;
 
 void Camera::sUpdate(float dt)

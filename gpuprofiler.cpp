@@ -7,6 +7,8 @@
 #include <cstdio>
 #include <cinttypes>
 
+using namespace math;
+
 vec4 graphData[4096];
 std::vector<FontChar> fontData;
 

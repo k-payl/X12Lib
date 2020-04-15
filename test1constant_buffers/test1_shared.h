@@ -2,6 +2,8 @@
 #include <fstream>
 #include <filesystem>
 
+using namespace math;
+
 namespace fs = std::filesystem;
 
 #define UPD_INTERVAL 0.5f

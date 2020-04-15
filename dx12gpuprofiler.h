@@ -24,7 +24,7 @@ class Dx12GpuProfiler : public GpuProfiler
 	void AddRecord(const char* format, bool isFloat, bool renderGraph_) override;
 
 public:
-	Dx12GpuProfiler(vec4 color_, float verticalOffset_) : GpuProfiler(color_, verticalOffset_) {}
+	Dx12GpuProfiler(math::vec4 color_, float verticalOffset_) : GpuProfiler(color_, verticalOffset_) {}
 
 	void Init() override;
 	void Free() override;

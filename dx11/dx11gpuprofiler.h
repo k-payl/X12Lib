@@ -33,7 +33,7 @@ class Dx11GpuProfiler :	public GpuProfiler
 	void* getContext() override { return context; }
 
 public:
-	Dx11GpuProfiler(vec4 color_, float verticalOffset_)
+	Dx11GpuProfiler(math::vec4 color_, float verticalOffset_)
 		: GpuProfiler(color_, verticalOffset_) {}
 	void Init() override;
 	void Free() override;
