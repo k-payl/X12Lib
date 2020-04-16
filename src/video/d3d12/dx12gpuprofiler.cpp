@@ -9,7 +9,7 @@
 #include "dx12context.h"
 #include "filesystem.h"
 #include "core.h"
-#include "3rdparty/DirectXTex/DDSTextureLoader12.h"
+#include "DDSTextureLoader12.h"
 
 using namespace x12;
 using namespace math;
@@ -164,7 +164,7 @@ void Dx12GpuProfiler::Init()
 
 	// Font shader
 	{
-		auto text = fs->LoadFile("gpuprofiler_font.shader");
+		auto text = fs->LoadFile(SHADER_DIR "gpuprofiler_font.shader");
 		const ConstantBuffersDesc buffersdesc[] =
 		{
 			{"TransformCB",	CONSTANT_BUFFER_UPDATE_FRIQUENCY::PER_DRAW},
@@ -179,7 +179,7 @@ void Dx12GpuProfiler::Init()
 			{"GraphColor", CONSTANT_BUFFER_UPDATE_FRIQUENCY::PER_DRAW}
 		};
 
-		auto text = fs->LoadFile("gpuprofiler_graph.shader");
+		auto text = fs->LoadFile(SHADER_DIR"gpuprofiler_graph.shader");
 		GetCoreRender()->CreateShader(graphShader.getAdressOf(), L"gpuprofiler_graph.shader", text.get(), text.get(), &buffersdesc[0], _countof(buffersdesc));
 	}
 

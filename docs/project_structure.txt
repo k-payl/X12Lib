@@ -1,6 +1,0 @@
-[root] - utility code: windows, main loop, filesystem, input, gpu profiler... (not need for library)
-corerender - main libraray code. Both cpp and headers are here
-3rdparty - third-party code necessary for the library to work
-dx11 - helper DirectX 11 library (for comparison performance)
-font - generated bitmap font .dds and meta files
-test* - shows how to use library

@@ -70,8 +70,8 @@ struct RenderProfilerRecord
 class GpuProfiler
 {
 protected:
-	const char* fontDataPath = "..//font//1.fnt";
-	const wchar_t* fontTexturePath = L"..//font//1_0.dds";
+	const char* fontDataPath = DATA_DIR "font//1.fnt";
+	const wchar_t* fontTexturePath = WDATA_DIR "font//1_0.dds";
 	const int rectSize = 100;
 	const int rectPadding = 1;
 	const int fontMarginInPixels = 5;
@@ -127,7 +127,7 @@ public:
 		const std::array<common, sizeof...(Args)> a = { { args... } };
 
 		if (records[num]->isFloat)
-			records[num]->floatValue = a[0];
+			records[num]->floatValue = (float)a[0];
 		else
 			records[num]->intValue = (uint64_t)a[0];
 	}

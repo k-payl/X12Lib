@@ -60,7 +60,7 @@ Core::~Core() = default;
 
 void Core::Init(GpuProfiler* gpuprofiler_, InitRendererProcedure initRenderer, INIT_FLAGS flags)
 {
-	fs = std::make_unique<FileSystem>("..//");
+	fs = std::make_unique<FileSystem>(DATA_DIR);
 
 	if (!(flags & INIT_FLAGS::NO_CONSOLE))
 	{

@@ -248,7 +248,7 @@ void Init()
 	renderer->CreateVertexBuffer(res->vertexBuffer.getAdressOf(), L"cube", vertexData, &desc, indexData, &idxDesc);
 
 	{
-		auto text = CORE->GetFS()->LoadFile("mesh.shader");
+		auto text = CORE->GetFS()->LoadFile(SHADER_DIR "mesh.shader");
 
 		const ConstantBuffersDesc buffersdesc[] =
 		{

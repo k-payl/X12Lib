@@ -52,6 +52,10 @@ using namespace Microsoft::WRL;
 
 inline constexpr int DeferredBuffers = 3;
 
+#define DATA_DIR "..//resources//"
+#define WDATA_DIR L"..//resources//"
+#define SHADER_DIR "shaders//"
+
 enum class WINDOW_MESSAGE;
 class MainWindow;
 class Core;

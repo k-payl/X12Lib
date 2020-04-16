@@ -3,7 +3,7 @@
 #include "core.h"
 #include "filesystem.h"
 #include "dx11.h"
-#include "3rdparty/DirectXTex/DDSTextureLoader.h"
+#include "DDSTextureLoader.h"
 
 using namespace math;
 
@@ -117,13 +117,13 @@ void Dx11GpuProfiler::Init()
 
 	// Font shader
 	{
-		auto text = fs->LoadFile("gpuprofiler_font.shader");
+		auto text = fs->LoadFile(SHADER_DIR"gpuprofiler_font.shader");
 		dx11::CreateVertexShader(text, vertexShader);
 		dx11::CreatePixelShader(text, pixelShader);
 	}
 
 	{
-		auto text = fs->LoadFile("gpuprofiler_graph.shader");
+		auto text = fs->LoadFile(SHADER_DIR"gpuprofiler_graph.shader");
 		dx11::CreateVertexShader(text, graphVertexShader);
 		dx11::CreatePixelShader(text, graphPixelShader);
 	}

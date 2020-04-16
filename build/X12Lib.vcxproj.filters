@@ -1,0 +1,210 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClInclude Include="..\src\video\d3d12\dx12vertexbuffer.h">
+      <Filter>video\d3d12</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\video\d3d12\dx12buffer.h">
+      <Filter>video\d3d12</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\video\d3d12\dx12common.h">
+      <Filter>video\d3d12</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\video\d3d12\dx12context.h">
+      <Filter>video\d3d12</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\video\d3d12\dx12descriptorheap.h">
+      <Filter>video\d3d12</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\system\dx12gpuprofiler.h">
+      <Filter>video\d3d12</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\video\d3d12\dx12memory.h">
+      <Filter>video\d3d12</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\video\d3d12\dx12render.h">
+      <Filter>video\d3d12</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\video\d3d12\dx12shader.h">
+      <Filter>video\d3d12</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\video\d3d12\dx12texture.h">
+      <Filter>video\d3d12</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\video\d3d11\dx11gpuprofiler.h">
+      <Filter>video\d3d11</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\video\d3d11\dx11.h">
+      <Filter>video\d3d11</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\video\intrusiveptr.h">
+      <Filter>video</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\video\icorerender.h">
+      <Filter>video</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\system\camera.h">
+      <Filter>system</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\system\common.h">
+      <Filter>system</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\system\console.h">
+      <Filter>system</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\system\core.h">
+      <Filter>system</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\system\pch.h">
+      <Filter>system</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\system\input.h">
+      <Filter>system</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\system\mainwindow.h">
+      <Filter>system</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\system\gpuprofiler.h">
+      <Filter>system</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\system\filesystem.h">
+      <Filter>system</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\math\vmath.h">
+      <Filter>math</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\3rdparty\DirectXTex\DDSTextureLoader.h">
+      <Filter>3rdparty\DirectXTex</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\3rdparty\DirectXTex\DDSTextureLoader12.h">
+      <Filter>3rdparty\DirectXTex</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\3rdparty\DirectXTK\Inc\DirectXHelpers.h">
+      <Filter>3rdparty\DirectXTK</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\3rdparty\DirectXTK\Inc\GraphicsMemory.h">
+      <Filter>3rdparty\DirectXTK</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\3rdparty\DirectXTK\Src\LinearAllocator.h">
+      <Filter>3rdparty\DirectXTK</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\3rdparty\DirectXTK\Src\PlatformHelpers.h">
+      <Filter>3rdparty\DirectXTK</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\3rdparty\d3dx12.h">
+      <Filter>3rdparty\d3dx12</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\src\video\d3d12\dx12buffer.cpp">
+      <Filter>video\d3d12</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\video\d3d12\dx12common.cpp">
+      <Filter>video\d3d12</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\video\d3d12\dx12context.cpp">
+      <Filter>video\d3d12</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\video\d3d12\dx12descriptorheap.cpp">
+      <Filter>video\d3d12</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\video\d3d12\dx12gpuprofiler.cpp">
+      <Filter>video\d3d12</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\video\d3d12\dx12memory.cpp">
+      <Filter>video\d3d12</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\video\d3d12\dx12render.cpp">
+      <Filter>video\d3d12</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\video\d3d12\dx12shader.cpp">
+      <Filter>video\d3d12</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\video\d3d12\dx12texture.cpp">
+      <Filter>video\d3d12</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\video\d3d12\dx12vertexbuffer.cpp">
+      <Filter>video\d3d12</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\video\d3d11\dx11.cpp">
+      <Filter>video\d3d11</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\video\d3d11\dx11gpuprofiler.cpp">
+      <Filter>video\d3d11</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\system\camera.cpp">
+      <Filter>system</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\system\common.cpp">
+      <Filter>system</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\system\console.cpp">
+      <Filter>system</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\system\core.cpp">
+      <Filter>system</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\system\pch.cpp">
+      <Filter>system</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\system\input.cpp">
+      <Filter>system</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\system\mainwindow.cpp">
+      <Filter>system</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\system\gpuprofiler.cpp">
+      <Filter>system</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\system\filesystem.cpp">
+      <Filter>system</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\math\vmath.cpp">
+      <Filter>math</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\3rdparty\DirectXTex\DDSTextureLoader.cpp">
+      <Filter>3rdparty\DirectXTex</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\3rdparty\DirectXTex\DDSTextureLoader12.cpp">
+      <Filter>3rdparty\DirectXTex</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\3rdparty\DirectXTK\Src\DirectXHelpers.cpp">
+      <Filter>3rdparty\DirectXTK</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\3rdparty\DirectXTK\Src\GraphicsMemory.cpp">
+      <Filter>3rdparty\DirectXTK</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\3rdparty\DirectXTK\Src\LinearAllocator.cpp">
+      <Filter>3rdparty\DirectXTK</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="3rdparty">
+      <UniqueIdentifier>{44d481ae-1679-420e-9b4b-b2171aebccb5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="3rdparty\DirectXTex">
+      <UniqueIdentifier>{c8cff5e9-3fd5-4601-a92c-6ee82e89429e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="3rdparty\DirectXTK">
+      <UniqueIdentifier>{bb8e2c7f-1671-470f-a74e-9c18e2b6f33f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="video">
+      <UniqueIdentifier>{2dd8c45f-f507-4230-b1e4-51d6bc1894af}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="video\d3d12">
+      <UniqueIdentifier>{f9e91744-f179-4542-a887-fde8eb0e4efa}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="video\d3d11">
+      <UniqueIdentifier>{e85d5c10-9c33-400e-9070-fc3d38ec6f52}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="system">
+      <UniqueIdentifier>{7daa09c0-d640-4525-8c1e-bf3856046182}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="math">
+      <UniqueIdentifier>{8b43198f-97a4-441c-957a-47ba0e532222}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="3rdparty\d3dx12">
+      <UniqueIdentifier>{6e35b92a-b0d5-471d-88e4-5324157484c2}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>
