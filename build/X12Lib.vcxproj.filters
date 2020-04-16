@@ -74,25 +74,25 @@
       <Filter>math</Filter>
     </ClInclude>
     <ClInclude Include="..\src\3rdparty\DirectXTex\DDSTextureLoader.h">
-      <Filter>3rdparty\DirectXTex</Filter>
+      <Filter>external\DirectXTex</Filter>
     </ClInclude>
     <ClInclude Include="..\src\3rdparty\DirectXTex\DDSTextureLoader12.h">
-      <Filter>3rdparty\DirectXTex</Filter>
+      <Filter>external\DirectXTex</Filter>
     </ClInclude>
     <ClInclude Include="..\src\3rdparty\DirectXTK\Inc\DirectXHelpers.h">
-      <Filter>3rdparty\DirectXTK</Filter>
+      <Filter>external\DirectXTK</Filter>
     </ClInclude>
     <ClInclude Include="..\src\3rdparty\DirectXTK\Inc\GraphicsMemory.h">
-      <Filter>3rdparty\DirectXTK</Filter>
+      <Filter>external\DirectXTK</Filter>
     </ClInclude>
     <ClInclude Include="..\src\3rdparty\DirectXTK\Src\LinearAllocator.h">
-      <Filter>3rdparty\DirectXTK</Filter>
+      <Filter>external\DirectXTK</Filter>
     </ClInclude>
     <ClInclude Include="..\src\3rdparty\DirectXTK\Src\PlatformHelpers.h">
-      <Filter>3rdparty\DirectXTK</Filter>
+      <Filter>external\DirectXTK</Filter>
     </ClInclude>
     <ClInclude Include="..\src\3rdparty\d3dx12.h">
-      <Filter>3rdparty\d3dx12</Filter>
+      <Filter>external\d3dx12</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -163,31 +163,22 @@
       <Filter>math</Filter>
     </ClCompile>
     <ClCompile Include="..\src\3rdparty\DirectXTex\DDSTextureLoader.cpp">
-      <Filter>3rdparty\DirectXTex</Filter>
+      <Filter>external\DirectXTex</Filter>
     </ClCompile>
     <ClCompile Include="..\src\3rdparty\DirectXTex\DDSTextureLoader12.cpp">
-      <Filter>3rdparty\DirectXTex</Filter>
+      <Filter>external\DirectXTex</Filter>
     </ClCompile>
     <ClCompile Include="..\src\3rdparty\DirectXTK\Src\DirectXHelpers.cpp">
-      <Filter>3rdparty\DirectXTK</Filter>
+      <Filter>external\DirectXTK</Filter>
     </ClCompile>
     <ClCompile Include="..\src\3rdparty\DirectXTK\Src\GraphicsMemory.cpp">
-      <Filter>3rdparty\DirectXTK</Filter>
+      <Filter>external\DirectXTK</Filter>
     </ClCompile>
     <ClCompile Include="..\src\3rdparty\DirectXTK\Src\LinearAllocator.cpp">
-      <Filter>3rdparty\DirectXTK</Filter>
+      <Filter>external\DirectXTK</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <Filter Include="3rdparty">
-      <UniqueIdentifier>{44d481ae-1679-420e-9b4b-b2171aebccb5}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="3rdparty\DirectXTex">
-      <UniqueIdentifier>{c8cff5e9-3fd5-4601-a92c-6ee82e89429e}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="3rdparty\DirectXTK">
-      <UniqueIdentifier>{bb8e2c7f-1671-470f-a74e-9c18e2b6f33f}</UniqueIdentifier>
-    </Filter>
     <Filter Include="video">
       <UniqueIdentifier>{2dd8c45f-f507-4230-b1e4-51d6bc1894af}</UniqueIdentifier>
     </Filter>
@@ -203,7 +194,16 @@
     <Filter Include="math">
       <UniqueIdentifier>{8b43198f-97a4-441c-957a-47ba0e532222}</UniqueIdentifier>
     </Filter>
-    <Filter Include="3rdparty\d3dx12">
+    <Filter Include="external">
+      <UniqueIdentifier>{44d481ae-1679-420e-9b4b-b2171aebccb5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="external\DirectXTex">
+      <UniqueIdentifier>{c8cff5e9-3fd5-4601-a92c-6ee82e89429e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="external\DirectXTK">
+      <UniqueIdentifier>{bb8e2c7f-1671-470f-a74e-9c18e2b6f33f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="external\d3dx12">
       <UniqueIdentifier>{6e35b92a-b0d5-471d-88e4-5324157484c2}</UniqueIdentifier>
     </Filter>
   </ItemGroup>

@@ -5,6 +5,7 @@
 #include "dx12buffer.h"
 #include "filesystem.h"
 #include <string>
+#include <iostream>
 
 using namespace x12;
 
@@ -31,14 +32,20 @@ int main()
 
 		str.clear();
 
-		for (size_t c = 0; c < float4chunks; c++)
-			str += std::to_string((int)result[c * 4]) + ' ';
+		std::cout << "Result (pow of two): ";
 
+		for (size_t c = 0; c < float4chunks; c++)
+		{
+			str += std::to_string((int)result[c * 4]) + ' ';
+			std::cout << result[c * 4] << ' ';
+		}
 		file.WriteStr(str.c_str());
 	}
 
 	core->Free();
 	delete core;
+
+	system("pause");
 
 	return 0;
 }
@@ -53,7 +60,7 @@ std::vector<float> ExecuteGPU()
 	Dx12GraphicCommandContext* context = renderer->GetGraphicCommmandContext();	
 
 	{
-		auto text = CORE->GetFS()->LoadFile("uav.shader");
+		auto text = CORE->GetFS()->LoadFile(SHADER_DIR "uav.shader");
 
 		const ConstantBuffersDesc buffersdesc[] =
 		{

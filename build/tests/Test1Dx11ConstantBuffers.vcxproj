@@ -19,7 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="test1_dx11_constantbuffers.cpp" />
+    <ClCompile Include="..\..\src\tests\constant_buffers\test1_dx11_constantbuffers.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\X12Lib.vcxproj">
@@ -27,7 +27,7 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="test1_shared.h" />
+    <ClInclude Include="..\..\src\tests\_shared\test1_shared.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
@@ -35,7 +35,7 @@
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>Test1Dx11ConstantBuffers</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
-    <ProjectName>Test1_dx11_constantbuffers</ProjectName>
+    <ProjectName>dx11constantbuffers</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -84,26 +84,26 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <OutDir>..\bin\</OutDir>
-    <IntDir>..\obj\test1_dx11\$(Platform)\$(Configuration)\</IntDir>
+    <OutDir>..\..\bin\</OutDir>
+    <IntDir>..\..\obj\test1_dx11\$(Platform)\$(Configuration)\</IntDir>
     <TargetName>$(ProjectName)_x64</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
-    <OutDir>..\bin\</OutDir>
-    <IntDir>..\obj\test1_dx11\$(Platform)\$(Configuration)\</IntDir>
+    <OutDir>..\..\bin\</OutDir>
+    <IntDir>..\..\obj\test1_dx11\$(Platform)\$(Configuration)\</IntDir>
     <TargetName>$(ProjectName)_x86d</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <OutDir>..\bin\</OutDir>
-    <IntDir>..\obj\test1_dx11\$(Platform)\$(Configuration)\</IntDir>
+    <OutDir>..\..\bin\</OutDir>
+    <IntDir>..\..\obj\test1_dx11\$(Platform)\$(Configuration)\</IntDir>
     <TargetName>$(ProjectName)_x64d</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
-    <OutDir>..\bin\</OutDir>
-    <IntDir>..\obj\test1_dx11\$(Platform)\$(Configuration)\</IntDir>
+    <OutDir>..\..\bin\</OutDir>
+    <IntDir>..\..\obj\test1_dx11\$(Platform)\$(Configuration)\</IntDir>
     <TargetName>$(ProjectName)_x86</TargetName>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -118,7 +118,7 @@
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);$(ProjectDir)..\;$(ProjectDir)..\corerender\;$(ProjectDir)..\corerender\dx12\;$(ProjectDir)..\3rdparty\;$(ProjectDir)..\dx11\</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);$(ProjectDir)..\..\src\math\;$(ProjectDir)..\..\src\system\;$(ProjectDir)..\..\src\video\;$(ProjectDir)..\..\src\video\d3d12\;$(ProjectDir)..\..\src\video\d3d11\;$(ProjectDir)..\..\src\3rdparty\;$(ProjectDir)..\..\src\3rdparty\DirectXTex\;$(ProjectDir)..\..\src\3rdparty\DirectXTK\Inc\;$(ProjectDir)..\..\src\tests\_shared\</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -126,7 +126,7 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>X12Lib_x64.lib;dxguid.lib;dxgi.lib;d3d12.lib;d3d11.lib;d3dcompiler.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>C:\Program Files (x86)\Visual Leak Detector\lib\Win64;%(AdditionalLibraryDirectories);$(ProjectDir)..\bin\;</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>C:\Program Files (x86)\Visual Leak Detector\lib\Win64;%(AdditionalLibraryDirectories);$(ProjectDir)..\..\bin\;</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -139,13 +139,13 @@
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);$(ProjectDir)..\;$(ProjectDir)..\corerender\;$(ProjectDir)..\corerender\dx12\;$(ProjectDir)..\3rdparty\;$(ProjectDir)..\dx11\</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);$(ProjectDir)..\..\src\math\;$(ProjectDir)..\..\src\system\;$(ProjectDir)..\..\src\video\;$(ProjectDir)..\..\src\video\d3d12\;$(ProjectDir)..\..\src\video\d3d11\;$(ProjectDir)..\..\src\3rdparty\;$(ProjectDir)..\..\src\3rdparty\DirectXTex\;$(ProjectDir)..\..\src\3rdparty\DirectXTK\Inc\;$(ProjectDir)..\..\src\tests\_shared\</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>X12Lib_x86d.lib;dxguid.lib;dxgi.lib;d3d12.lib;d3d11.lib;d3dcompiler.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>C:\Program Files (x86)\Visual Leak Detector\lib\Win32;%(AdditionalLibraryDirectories);$(ProjectDir)..\bin\;</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>C:\Program Files (x86)\Visual Leak Detector\lib\Win32;%(AdditionalLibraryDirectories);$(ProjectDir)..\..\bin\;</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -158,13 +158,13 @@
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);$(ProjectDir)..\;$(ProjectDir)..\corerender\;$(ProjectDir)..\corerender\dx12\;$(ProjectDir)..\3rdparty\;$(ProjectDir)..\dx11\</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);$(ProjectDir)..\..\src\math\;$(ProjectDir)..\..\src\system\;$(ProjectDir)..\..\src\video\;$(ProjectDir)..\..\src\video\d3d12\;$(ProjectDir)..\..\src\video\d3d11\;$(ProjectDir)..\..\src\3rdparty\;$(ProjectDir)..\..\src\3rdparty\DirectXTex\;$(ProjectDir)..\..\src\3rdparty\DirectXTK\Inc\;$(ProjectDir)..\..\src\tests\_shared\</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>X12Lib_x64d.lib;dxguid.lib;dxgi.lib;d3d12.lib;d3d11.lib;d3dcompiler.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>C:\Program Files (x86)\Visual Leak Detector\lib\Win64;%(AdditionalLibraryDirectories);$(ProjectDir)..\bin\;</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>C:\Program Files (x86)\Visual Leak Detector\lib\Win64;%(AdditionalLibraryDirectories);$(ProjectDir)..\..\bin\;</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -179,7 +179,7 @@
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);$(ProjectDir)..\;$(ProjectDir)..\corerender\;$(ProjectDir)..\corerender\dx12\;$(ProjectDir)..\3rdparty\;$(ProjectDir)..\dx11\</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);$(ProjectDir)..\..\src\math\;$(ProjectDir)..\..\src\system\;$(ProjectDir)..\..\src\video\;$(ProjectDir)..\..\src\video\d3d12\;$(ProjectDir)..\..\src\video\d3d11\;$(ProjectDir)..\..\src\3rdparty\;$(ProjectDir)..\..\src\3rdparty\DirectXTex\;$(ProjectDir)..\..\src\3rdparty\DirectXTK\Inc\;$(ProjectDir)..\..\src\tests\_shared\</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -187,7 +187,7 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>X12Lib_x86.lib;dxguid.lib;dxgi.lib;d3d12.lib;d3d11.lib;d3dcompiler.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>C:\Program Files (x86)\Visual Leak Detector\lib\Win32;%(AdditionalLibraryDirectories);$(ProjectDir)..\bin\;</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>C:\Program Files (x86)\Visual Leak Detector\lib\Win32;%(AdditionalLibraryDirectories);$(ProjectDir)..\..\bin\;</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

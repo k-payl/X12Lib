@@ -185,7 +185,7 @@ void Render()
 
 void Init()
 {
-	auto text = CORE->GetFS()->LoadFile("mesh.shader");
+	auto text = CORE->GetFS()->LoadFile(SHADER_DIR "mesh.shader");
 
 	dx11::CreateVertexShader(text, res->vertexShader);
 	dx11::CreatePixelShader(text, res->pixelShader);
