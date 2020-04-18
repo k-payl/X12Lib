@@ -11,4 +11,5 @@ CommandContext - class that can record gpu commands.
 2) __Per-frame updates__: Create separate ICoreBuffer with BUFFER_FLAGS::CPU_WRITE flags (fast uploading). For camera MVP matrix, positions... Further updates are made through __ICoreBuffer::SetData()__
 3) __Per-draw updates__: No need create separate buffer. Send to creation shader options { "[constant buffer name]", CONSTANT_BUFFER_UPDATE_FRIQUENCY::PER_DRAW}. Then update constant buffer through __CommandContext::UpdateInlineConstantBuffer()__
 
-![Alt text](preview.png?raw=true "Preview")
+![Alt text](d3d12.png?raw=true "d3d12")
+![Alt text](d3d11.png?raw=true "d3d11")
