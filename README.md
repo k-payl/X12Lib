@@ -7,6 +7,8 @@ ResourceSet - prebuild set of static resources that binds to pipeline fast at on
 CommandContext - class that can record gpu commands.
 
 ## Constant buffer workflows:
-1) __Rare updates__ (manual): Create separate ICoreBuffer with BUFFER_FLAGS::GPU_READ__ flags (fast GPU access). For common engine parameters, settings, viewport... Further updates are made through __ICoreBuffer::SetData()__
+1) __Rare updates__ (manual): Create separate ICoreBuffer with BUFFER_FLAGS::GPU_READ flags (fast GPU access). For common engine parameters, settings, viewport... Further updates are made through __ICoreBuffer::SetData()__
 2) __Per-frame updates__: Create separate ICoreBuffer with BUFFER_FLAGS::CPU_WRITE flags (fast uploading). For camera MVP matrix, positions... Further updates are made through __ICoreBuffer::SetData()__
-3) __Per-draw updates__: No need create separate buffer. Send to creation shader options { "[name constant buffer]", CONSTANT_BUFFER_UPDATE_FRIQUENCY::PER_DRAW}. Then update constant buffer through __CommandContext::UpdateInlineConstantBuffer()__
+3) __Per-draw updates__: No need create separate buffer. Send to creation shader options { "[constant buffer name]", CONSTANT_BUFFER_UPDATE_FRIQUENCY::PER_DRAW}. Then update constant buffer through __CommandContext::UpdateInlineConstantBuffer()__
+
+![Alt text](preview.png?raw=true "Preview")
