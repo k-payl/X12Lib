@@ -53,23 +53,18 @@ void Dx12GraphicCommandContext::SetGraphicPipelineState(const GraphicPipelineSta
 	if (checksum == state.pso.PsoChecksum && !state.pso.isCompute)
 		return;
 
-	Dx12CoreShader* dx12Shader = resource_cast(pso.shader);
-	Dx12CoreVertexBuffer* dx12vb = resource_cast(pso.vb);
+	Dx12CoreShader* dx12Shader = resource_cast(pso.shader.get());
+	Dx12CoreVertexBuffer* dx12vb = resource_cast(pso.vb.get());
 
 	resetOnlyPSOState();
-
-	state.pso.shader = dx12Shader;
-	state.pso.vb = dx12vb;
 
 	auto d3dstate = GetCoreRender()->GetGraphicPSO(pso, checksum);
 	setGraphicPipeline(checksum, d3dstate.Get());
 
-	if (state.primitiveTopology != pso.primitiveTopology)
+	if (state.pso.graphicDesc.primitiveTopology != pso.primitiveTopology)
 	{
-		state.primitiveTopology = pso.primitiveTopology;
-
 		D3D12_PRIMITIVE_TOPOLOGY d3dtopology;
-		switch (state.primitiveTopology)
+		switch (pso.primitiveTopology)
 		{
 			case PRIMITIVE_TOPOLOGY::LINE: d3dtopology = D3D_PRIMITIVE_TOPOLOGY_LINELIST; break;
 			case PRIMITIVE_TOPOLOGY::POINT: d3dtopology = D3D_PRIMITIVE_TOPOLOGY_POINTLIST; break;
@@ -81,13 +76,14 @@ void Dx12GraphicCommandContext::SetGraphicPipelineState(const GraphicPipelineSta
 		d3dCmdList->IASetPrimitiveTopology(d3dtopology);
 	}
 
-
 	if (!dx12Shader->HasResources())
 		state.pso.d3drootSignature = GetCoreRender()->GetDefaultRootSignature();
 	else
 		state.pso.d3drootSignature = dx12Shader->resourcesRootSignature;
 
 	d3dCmdList->SetGraphicsRootSignature(state.pso.d3drootSignature.Get());
+
+	state.pso.graphicDesc = pso;
 }
 
 void Dx12GraphicCommandContext::SetComputePipelineState(const ComputePipelineState& pso)
@@ -99,19 +95,15 @@ void Dx12GraphicCommandContext::SetComputePipelineState(const ComputePipelineSta
 
 	resetOnlyPSOState();
 
-	Dx12CoreShader* dx12Shader = resource_cast(pso.shader);
+	// Reset graphci states
+	state.surface = nullptr;
+	state.viewport = {};
+	state.scissor = {};
 
-	state.pso.shader = dx12Shader;
+	Dx12CoreShader* dx12Shader = resource_cast(pso.shader);
 
 	auto d3dstate = GetCoreRender()->GetComputePSO(pso, checksum);
 	setComputePipeline(checksum, d3dstate.Get());
-
-	//auto d3dstate = GetCoreRender()->GetComputePSO(pso, checksum);
-	//d3dCmdList->SetPipelineState(d3dstate.Get());
-	//++statistic.stateChanges;
-	//state.pso.isCompute = true;
-	//state.pso.computePsoChecksum = checksum;
-	//state.pso.d3dpso = std::move(d3dstate);
 
 	if (!dx12Shader->HasResources())
 		state.pso.d3drootSignature = GetCoreRender()->GetDefaultRootSignature();
@@ -119,6 +111,8 @@ void Dx12GraphicCommandContext::SetComputePipelineState(const ComputePipelineSta
 		state.pso.d3drootSignature = dx12Shader->resourcesRootSignature;
 
 	d3dCmdList->SetComputeRootSignature(state.pso.d3drootSignature.Get());
+
+	state.pso.computeDesc = pso;
 }
 
 void Dx12GraphicCommandContext::SetVertexBuffer(ICoreVertexBuffer* vb)// TODO add vb to tracked resources
@@ -127,7 +121,7 @@ void Dx12GraphicCommandContext::SetVertexBuffer(ICoreVertexBuffer* vb)// TODO ad
 
 	Dx12CoreVertexBuffer* dxBuffer = resource_cast(vb);
 
-	state.pso.vb = dxBuffer;
+	state.pso.graphicDesc.vb = dxBuffer;
 
 	UINT numBarriers;
 	D3D12_RESOURCE_BARRIER barriers[2];
@@ -192,7 +186,9 @@ void Dx12GraphicCommandContext::Draw(const ICoreVertexBuffer* vb, uint32_t verte
 {
 	const Dx12CoreVertexBuffer* dx12Vb = resource_cast(vb);
 
-	state.pso.vb = const_cast<Dx12CoreVertexBuffer*>(dx12Vb);
+	if (state.pso.graphicDesc.vb.get() != const_cast<Dx12CoreVertexBuffer*>(dx12Vb))
+		SetVertexBuffer(const_cast<ICoreVertexBuffer*>(vb));
+
 	cmdList->TrackResource(const_cast<Dx12CoreVertexBuffer*>(dx12Vb));
 
 	if (vertexCount > 0)
@@ -517,41 +513,20 @@ void Dx12GraphicCommandContext::PopState()
 {
 	StateCache& state_ = statesStack.top();
 
-	BindSurface(state_.surface);
-
-	if (state_.pso.isCompute) [[unlikely]]
-	{
-		if (state.pso.PsoChecksum != state_.pso.PsoChecksum)
-		{
-			setComputePipeline(state_.pso.PsoChecksum, state_.pso.d3dpso.Get());
-
-			state.pso.shader = state_.pso.shader; // TODO:remove  copy paste
-			state.pso.vb = state_.pso.vb;
-			state.primitiveTopology = state_.primitiveTopology;
-		}
-	}
+	if (state_.pso.isCompute)
+		SetComputePipelineState(state_.pso.computeDesc);
 	else
+		SetGraphicPipelineState(state_.pso.graphicDesc);
+
+	BindResourceSet(state_.set_.get());
+
+	if (!state_.pso.isCompute)
 	{
-		if (state.pso.PsoChecksum != state_.pso.PsoChecksum)
-		{
-			setGraphicPipeline(state_.pso.PsoChecksum, state_.pso.d3dpso.Get());
-
-			state.pso.shader = state_.pso.shader;
-			state.pso.vb = state_.pso.vb;
-			state.primitiveTopology = state_.primitiveTopology;
-		}
+		BindSurface(state_.surface);
+		SetVertexBuffer(state_.pso.graphicDesc.vb.get());
+		SetScissor(state_.scissor.left, state_.scissor.top, state_.scissor.right, state_.scissor.bottom);
+		SetViewport((unsigned)state_.viewport.Width, (unsigned)state_.viewport.Height);
 	}
-
-	d3dCmdList->SetGraphicsRootSignature(state_.pso.d3drootSignature.Get());
-
-	if (state_.pso.vb)
-		SetVertexBuffer(state_.pso.vb.get());
-
-	SetScissor(state_.scissor.left, state_.scissor.top, state_.scissor.right, state_.scissor.bottom);
-
-	SetViewport((unsigned)state_.viewport.Width, (unsigned)state_.viewport.Height);
-
-	// ...
 
 	state = state_;
 

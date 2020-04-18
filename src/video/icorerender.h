@@ -1,5 +1,6 @@
 #pragma once
 #include "common.h"
+#include "intrusiveptr.h"
 
 inline constexpr size_t MaxBindedResourcesPerFrame = 1'024;
 inline constexpr unsigned MaxResourcesPerShader = 8;
@@ -192,8 +193,8 @@ enum class BLEND_FACTOR
 
 struct GraphicPipelineState
 {
-	ICoreShader* shader;
-	ICoreVertexBuffer* vb;
+	intrusive_ptr<ICoreShader> shader;
+	intrusive_ptr<ICoreVertexBuffer> vb;
 	PRIMITIVE_TOPOLOGY primitiveTopology;
 	BLEND_FACTOR src;
 	BLEND_FACTOR dst;

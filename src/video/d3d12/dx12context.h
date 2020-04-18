@@ -117,15 +117,12 @@ namespace x12
 			{
 				bool isCompute;
 				psomap_checksum_t PsoChecksum; // 0 not set. Compute or graphic checksum
-				intrusive_ptr<Dx12CoreShader> shader;
+				GraphicPipelineState graphicDesc;
+				ComputePipelineState computeDesc;
 				ComPtr<ID3D12RootSignature> d3drootSignature;
 				ComPtr<ID3D12PipelineState> d3dpso;
-
-				// Graphic only
-				intrusive_ptr<Dx12CoreVertexBuffer> vb;
 			}pso;
 
-			PRIMITIVE_TOPOLOGY primitiveTopology;
 			intrusive_ptr<Dx12ResourceSet> set_;
 
 		} state;

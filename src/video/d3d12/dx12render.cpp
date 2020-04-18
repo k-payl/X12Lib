@@ -360,8 +360,8 @@ psomap_checksum_t x12::CalculateChecksum(const GraphicPipelineState& pso)
 
 	static_assert(11 == static_cast<int>(BLEND_FACTOR::NUM));
 
-	auto* dx12buffer = static_cast<Dx12CoreVertexBuffer*>(pso.vb);
-	auto* dx12shader = static_cast<Dx12CoreShader*>(pso.shader);
+	auto* dx12buffer = static_cast<Dx12CoreVertexBuffer*>(pso.vb.get());
+	auto* dx12shader = static_cast<Dx12CoreShader*>(pso.shader.get());
 
 	assert(dx12buffer != nullptr);
 	assert(dx12shader != nullptr);
@@ -393,8 +393,8 @@ ComPtr<ID3D12PipelineState> x12::Dx12CoreRenderer::GetGraphicPSO(const GraphicPi
 
 	lock.unlock();
 
-	Dx12CoreShader* dx12Shader = static_cast<Dx12CoreShader*>(pso.shader);
-	Dx12CoreVertexBuffer* dx12vb = static_cast<Dx12CoreVertexBuffer*>(pso.vb);
+	Dx12CoreShader* dx12Shader = static_cast<Dx12CoreShader*>(pso.shader.get());
+	Dx12CoreVertexBuffer* dx12vb = static_cast<Dx12CoreVertexBuffer*>(pso.vb.get());
 
 	// Create PSO
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = {};

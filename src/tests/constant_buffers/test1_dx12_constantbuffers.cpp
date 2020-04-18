@@ -9,7 +9,7 @@
 #include "dx12buffer.h"
 #include "test1_shared.h"
 
-//#define TEST_PUSH_POP // define to test push/pop states
+#define TEST_PUSH_POP // define to test push/pop states
 #define CAMERA_SEPARATE_BUFFER
 
 using namespace std::chrono;
@@ -20,6 +20,7 @@ constexpr inline UINT float4chunks = 10;
 static HWND hwnd;
 static size_t mvpIdx;
 static size_t transformIdx;
+static size_t chunkIdx;
 
 static struct Resources
 {
@@ -34,7 +35,8 @@ static struct Resources
 
 #ifdef TEST_PUSH_POP
 	intrusive_ptr<ICoreShader> comp;
-	intrusive_ptr<ICoreBuffer> compSB;
+	intrusive_ptr<IResourceSet> compSB;
+	intrusive_ptr<ICoreBuffer> compBuffer;
 #endif
 	Resources()
 	{
@@ -155,35 +157,44 @@ void Render()
 		}
 	};
 
-	drawCubes(.0f);
+	drawCubes(-5.f);
 
 #ifdef TEST_PUSH_POP
+	context->PushState();
 	{
-		context->PushState();
-
 		ComputePipelineState cpso{};
 		cpso.shader = res->comp.get();
 
-		context->SetComputePipelineState(cpso);
-		context->BindUniformBuffer(0, res->compCB, SHADER_TYPE::SHADER_COMPUTE);
-		context->BindUnorderedAccessStructuredBuffer(1, res->compSB.get(), SHADER_TYPE::SHADER_COMPUTE);
-
-		for (UINT i = 0; i< float4chunks; ++i)
+		if (!res->compSB)
 		{
-			context->UpdateUniformBuffer(res->compCB, &i, 0, 4);
+			renderer->CreateResourceSet(res->compSB.getAdressOf(), res->comp.get());
+			res->compSB->BindStructuredBufferUAV("tex_out", res->compBuffer.get());
+			context->BuildResourceSet(res->compSB.get());
+			chunkIdx = res->compSB->FindInlineBufferIndex("ChunkNumber");
+		}
+
+		context->SetComputePipelineState(cpso);
+
+		context->BindResourceSet(res->compSB.get());
+
+		for (UINT i = 0; i < float4chunks; ++i)
+		{
+			context->UpdateInlineConstantBuffer(chunkIdx, &i, 4);
 			context->Dispatch(1, 1);
-			context->EmitUAVBarrier(res->compSB.get());
+			context->EmitUAVBarrier(res->compBuffer.get());
 		}
 
 		float ss[4 * float4chunks];
 		memset(ss, 0, sizeof(ss));
-
-		res->compSB->GetData(ss);
+	
+		res->compBuffer->GetData(ss);
 		int y = 0;
-
-		context->PopState();
 	}
+	context->PopState();
+	
 #endif
+
+	drawCubes(5.f);
 
 	context->TimerEnd(0);
 	float frameGPU = context->TimerGetTimeInMs(0);
@@ -267,12 +278,16 @@ void Init()
 
 #ifdef TEST_PUSH_POP
 	{
-		auto text = CORE->GetFS()->LoadFile("uav.shader");
+		auto text = CORE->GetFS()->LoadFile(SHADER_DIR "uav.shader");
 
-		
-		renderer->CreateComputeShader(res->comp.getAdressOf(), L"uav.shader", text.get());
+		const ConstantBuffersDesc buffersdesc[] =
+		{
+			"ChunkNumber",	CONSTANT_BUFFER_UPDATE_FRIQUENCY::PER_DRAW
+		};
+		renderer->CreateComputeShader(res->comp.getAdressOf(), L"uav.shader", text.get(), buffersdesc,
+									  _countof(buffersdesc));
 	}
-	renderer->CreateStructuredBuffer(res->compSB.getAdressOf(), L"Unordered buffer for test barriers", 16, float4chunks, nullptr, BUFFER_FLAGS::UNORDERED_ACCESS);
+	renderer->CreateStructuredBuffer(res->compBuffer.getAdressOf(), L"Unordered buffer for test barriers", 16, float4chunks, nullptr, BUFFER_FLAGS::UNORDERED_ACCESS);
 #endif
 }
 
