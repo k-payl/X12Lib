@@ -6,5 +6,5 @@ platform:
 - x64
 - x86
 build:
-  project: X12Lib.sln
+  project: build\X12Lib.sln
   verbosity: minimal
