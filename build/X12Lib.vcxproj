@@ -52,10 +52,8 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-	<PropertyGroup Label="PlatformToolset">
 	<DefaultPlatformToolset Condition=" '$(DefaultPlatformToolset)' == '' ">v142</DefaultPlatformToolset>
     <PlatformToolset>$(DefaultPlatformToolset)</PlatformToolset>
-	</PropertyGroup>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
