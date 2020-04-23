@@ -30,47 +30,32 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-		<PropertyGroup Label="EmptyDefaultPlatformToolset">
-			<DefaultPlatformToolset Condition=" '$(DefaultPlatformToolset)' == '' ">v142</DefaultPlatformToolset>
-		</PropertyGroup>
-		<PropertyGroup Label="PlatformToolset">
-			<PlatformToolset>$(DefaultPlatformToolset)</PlatformToolset>
-		</PropertyGroup>
+	<DefaultPlatformToolset Condition=" '$(DefaultPlatformToolset)' == '' ">v142</DefaultPlatformToolset>
+    <PlatformToolset>$(DefaultPlatformToolset)</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-		<PropertyGroup Label="EmptyDefaultPlatformToolset">
-			<DefaultPlatformToolset Condition=" '$(DefaultPlatformToolset)' == '' ">v142</DefaultPlatformToolset>
-		</PropertyGroup>
-		<PropertyGroup Label="PlatformToolset">
-			<PlatformToolset>$(DefaultPlatformToolset)</PlatformToolset>
-		</PropertyGroup>
+	<DefaultPlatformToolset Condition=" '$(DefaultPlatformToolset)' == '' ">v142</DefaultPlatformToolset>
+    <PlatformToolset>$(DefaultPlatformToolset)</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-		<PropertyGroup Label="EmptyDefaultPlatformToolset">
-			<DefaultPlatformToolset Condition=" '$(DefaultPlatformToolset)' == '' ">v142</DefaultPlatformToolset>
-		</PropertyGroup>
-		<PropertyGroup Label="PlatformToolset">
-			<PlatformToolset>$(DefaultPlatformToolset)</PlatformToolset>
-		</PropertyGroup>
+	<DefaultPlatformToolset Condition=" '$(DefaultPlatformToolset)' == '' ">v142</DefaultPlatformToolset>
+    <PlatformToolset>$(DefaultPlatformToolset)</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-
-		<PropertyGroup Label="EmptyDefaultPlatformToolset">
-			<DefaultPlatformToolset Condition=" '$(DefaultPlatformToolset)' == '' ">v142</DefaultPlatformToolset>
-		</PropertyGroup>
-		<PropertyGroup Label="PlatformToolset">
-			<PlatformToolset>$(DefaultPlatformToolset)</PlatformToolset>
-		</PropertyGroup>
+	<PropertyGroup Label="PlatformToolset">
+	<DefaultPlatformToolset Condition=" '$(DefaultPlatformToolset)' == '' ">v142</DefaultPlatformToolset>
+    <PlatformToolset>$(DefaultPlatformToolset)</PlatformToolset>
+	</PropertyGroup>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
