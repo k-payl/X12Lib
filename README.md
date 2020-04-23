@@ -1,5 +1,4 @@
 # X12Lib
-
 Library for experiments with modern graphic API. VS 2019, and windows SDK 1809 (build 17763) are required.
 
 ## Terminology:
@@ -13,3 +12,5 @@ CommandContext - class that can record gpu commands.
 
 ![Alt text](d3d12.png?raw=true "d3d12")
 ![Alt text](d3d11.png?raw=true "d3d11")
+
+[![Build status](https://ci.appveyor.com/api/projects/status/cyhlpnavp2su9440?svg=true)](https://ci.appveyor.com/project/k-payl/x12lib)
