@@ -1,0 +1,10 @@
+version: 1.0.{build}
+configuration:
+- Debug
+- Release
+platform:
+- x64
+- x86
+build:
+  project: X12Lib.sln
+  verbosity: minimal
