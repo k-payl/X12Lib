@@ -17,7 +17,7 @@ static void mat4_mult(benchmark::State &state) {
 }
 
 static void mat4_inv(benchmark::State &state) {
-  for (auto _ : state) {	
+  for (auto _ : state) {
 	for (auto i = 0; i < iters; ++i) {
 		mat4 a(_m);
 		benchmark::DoNotOptimize(a.Inverse());
