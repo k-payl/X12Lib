@@ -11,7 +11,7 @@ CommandContext - class that can record gpu commands.
 3) __Per-draw updates__: No need create separate buffer. Send to creation shader options { "[constant buffer name]", CONSTANT_BUFFER_UPDATE_FRIQUENCY::PER_DRAW}. Then update constant buffer through __CommandContext::UpdateInlineConstantBuffer()__
 
 [![Build status](https://ci.appveyor.com/api/projects/status/cyhlpnavp2su9440?svg=true)](https://ci.appveyor.com/project/k-payl/x12lib)
-![Benchmark](https://github.com/k-payl/X12Lib/workflows/Benchmark/badge.svg)
+![Benchmark](https://github.com/k-payl/X12Lib/workflows/Benchmark/badge.svg?branch=master)
 https://k-payl.github.io/X12Lib/dev/bench/
 
 ![Alt text](d3d12.png?raw=true "d3d12")
