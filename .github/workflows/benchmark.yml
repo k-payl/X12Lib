@@ -13,7 +13,7 @@ jobs:
       - name: Cache Benchmark library
         uses: actions/cache@v1
         with:
-          path: benchmark
+          path: src/tests/bench/benchbenchmark
           key: ${{ runner.os }}-googlebenchmark-v1.5.0
       - name: Run benchmark
         run: make json
