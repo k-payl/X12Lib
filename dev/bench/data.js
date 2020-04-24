@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1587749025816,
+  "lastUpdate": 1587749133509,
   "repoUrl": "https://github.com/k-payl/X12Lib",
   "entries": {
     "C++ Benchmark": [
@@ -108,6 +108,42 @@ window.BENCHMARK_DATA = {
             "value": 130548082.99999839,
             "unit": "ns/iter",
             "extra": "iterations: 6\ncpu: 130492942.1666667 ns\nthreads: 1"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "k-payl@yandex.ru",
+            "name": "k-payl",
+            "username": "k-payl"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "bee893e30cd7ea7d27bc3c5265dc9aed2bc84b35",
+          "message": "Update README.md",
+          "timestamp": "2020-04-25T00:24:13+07:00",
+          "tree_id": "a7f4dfdb4ea1336b2e73e285568b8b92e606c502",
+          "url": "https://github.com/k-payl/X12Lib/commit/bee893e30cd7ea7d27bc3c5265dc9aed2bc84b35"
+        },
+        "date": 1587749132933,
+        "tool": "googlecpp",
+        "benches": [
+          {
+            "name": "mat4_mult",
+            "value": 22225040.258064613,
+            "unit": "ns/iter",
+            "extra": "iterations: 31\ncpu: 22220680.935483877 ns\nthreads: 1"
+          },
+          {
+            "name": "mat4_inv",
+            "value": 134754533.00000027,
+            "unit": "ns/iter",
+            "extra": "iterations: 5\ncpu: 134723972.20000002 ns\nthreads: 1"
           }
         ]
       }
