@@ -1,4 +1,4 @@
-name: Vector math benchmark
+name: Benchmark
 on:
   push:
     branches:
