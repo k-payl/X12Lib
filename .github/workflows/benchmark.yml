@@ -16,13 +16,13 @@ jobs:
           path: src/tests/bench/benchbenchmark
           key: ${{ runner.os }}-googlebenchmark-v1.5.0
       - name: Run benchmark
-        run: make json
+        run: cd src/tests/bench && make json
       - name: Store benchmark result
         uses: rhysd/github-action-benchmark@v1
         with:
           name: C++ Benchmark
           tool: 'googlecpp'
-          output-file-path: benchmark_result.json
+          output-file-path: src/tests/bench/benchmark_result.json
           # Use personal access token instead of GITHUB_TOKEN due to https://github.community/t5/GitHub-Actions/Github-action-not-triggering-gh-pages-upon-push/td-p/26869/highlight/false
           github-token: ${{ secrets.PERSONAL_GITHUB_TOKEN }}
           auto-push: true
