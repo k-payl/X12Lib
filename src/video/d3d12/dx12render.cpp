@@ -350,40 +350,6 @@ ComPtr<ID3D12RootSignature> x12::Dx12CoreRenderer::GetDefaultRootSignature()
 	return defaultRootSignature;
 }
 
-psomap_checksum_t x12::CalculateChecksum(const GraphicPipelineState& pso)
-{
-	// 0: 15 (16)  vb ID
-	// 16:31 (16)  shader ID
-	// 32:34 (3)   PRIMITIVE_TOPOLOGY
-	// 35:38 (4)   src blend
-	// 39:42 (4)   dst blend
-
-	static_assert(11 == static_cast<int>(BLEND_FACTOR::NUM));
-
-	auto* dx12buffer = static_cast<Dx12CoreVertexBuffer*>(pso.vb.get());
-	auto* dx12shader = static_cast<Dx12CoreShader*>(pso.shader.get());
-
-	assert(dx12buffer != nullptr);
-	assert(dx12shader != nullptr);
-
-	uint64_t checksum = uint64_t(dx12buffer->ID() << 0);
-	checksum |= uint64_t(dx12shader->ID() << 16);
-	checksum |= uint64_t(pso.primitiveTopology) << 32;
-	checksum |= uint64_t(pso.src) << 35;
-	checksum |= uint64_t(pso.dst) << 39;
-
-	return checksum;
-}
-psomap_checksum_t x12::CalculateChecksum(const ComputePipelineState& pso)
-{
-	auto* dx12shader = static_cast<Dx12CoreShader*>(pso.shader);
-	assert(dx12shader != nullptr);
-
-	uint64_t checksum = uint64_t(dx12shader->ID() << 0);
-
-	return checksum;
-}
-
 ComPtr<ID3D12PipelineState> x12::Dx12CoreRenderer::GetGraphicPSO(const GraphicPipelineState& pso, psomap_checksum_t checksum)
 {
 	std::unique_lock lock(psoMutex);

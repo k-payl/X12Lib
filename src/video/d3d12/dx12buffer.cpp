@@ -6,8 +6,6 @@
 
 using namespace x12;
 
-IdGenerator<uint16_t> x12::Dx12CoreBuffer::idGen;
-
 void x12::Dx12CoreBuffer::_GPUCopyToStaging()
 {
 	if (!stagingResource)
@@ -67,11 +65,6 @@ void x12::Dx12CoreBuffer::SetData(const void* data, size_t size)
 	}
 	else
 		notImplemented();
-}
-
-x12::Dx12CoreBuffer::Dx12CoreBuffer()
-{
-	id = idGen.getId();
 }
 
 x12::Dx12CoreBuffer::~Dx12CoreBuffer()

@@ -24,15 +24,11 @@ namespace x12
 
 		std::vector<D3D12_INPUT_ELEMENT_DESC> inputLayout;
 
-		uint16_t ID() { return id; }
 		const D3D12_INDEX_BUFFER_VIEW* pIndexBufferVew() const { return indexBufferView.SizeInBytes > 0 ? &indexBufferView : nullptr; }
 
 		bool GetReadBarrier(UINT *numBarrires, D3D12_RESOURCE_BARRIER *barriers);
 
 	private:
-
-		static IdGenerator<uint16_t> idGen;
-		uint16_t id;
 
 		std::wstring name;
 	};

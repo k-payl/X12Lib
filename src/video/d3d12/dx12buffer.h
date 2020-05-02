@@ -26,14 +26,9 @@ namespace x12
 		ComPtr<ID3D12Resource> stagingResource;
 		D3D12_RESOURCE_STATES stagingState;
 
-		static IdGenerator<uint16_t> idGen;
-		uint16_t id;
-
 		std::wstring name;
 
 	public:
-		uint16_t ID() { return id; }
-
 		D3D12_CPU_DESCRIPTOR_HANDLE GetSRV() const { return SRVdescriptor.descriptor; }
 		D3D12_CPU_DESCRIPTOR_HANDLE GetUAV() const { return UAVdescriptor.descriptor; }
 		D3D12_CPU_DESCRIPTOR_HANDLE GetCBV() const { return CBVdescriptor.descriptor; }
@@ -51,7 +46,6 @@ namespace x12
 		void GetData(void* data) override;
 		void SetData(const void* data, size_t size) override;
 
-		Dx12CoreBuffer();
 		~Dx12CoreBuffer();
 	};
 

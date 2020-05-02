@@ -9,10 +9,6 @@ namespace x12
 {
 	using psomap_t = std::map<psomap_checksum_t, ComPtr<ID3D12PipelineState>> ;
 
-	psomap_checksum_t CalculateChecksum(const GraphicPipelineState& pso);
-	psomap_checksum_t CalculateChecksum(const ComputePipelineState& pso);
-
-
 	class Dx12CoreRenderer
 	{
 		device_t *device{nullptr};

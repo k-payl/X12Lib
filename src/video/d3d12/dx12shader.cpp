@@ -6,7 +6,7 @@
 
 #define HLSL_VER "5_1"
 
-IdGenerator<uint16_t> x12::Dx12CoreShader::idGen;
+using namespace x12;
 
 
 static D3D12_DESCRIPTOR_RANGE_TYPE ResourceToView(D3D_SHADER_INPUT_TYPE resource)
@@ -131,8 +131,7 @@ static ComPtr<ID3DBlob> compileShader(const char* src, SHADER_TYPE type)
 	return shader;
 }
 
-x12::Dx12CoreShader::Dx12CoreShader() :
-	id(idGen.getId())
+x12::Dx12CoreShader::Dx12CoreShader()
 {
 }
 

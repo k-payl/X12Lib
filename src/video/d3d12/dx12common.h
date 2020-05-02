@@ -30,7 +30,6 @@ namespace x12
 	};
 
 	using surface_ptr = std::shared_ptr<Dx12WindowSurface>;
-	using psomap_checksum_t = uint64_t;
 
 	namespace impl
 	{
@@ -71,9 +70,3 @@ namespace x12
 		T inlineResource;
 	};
 }
-
-
-
-
-
-

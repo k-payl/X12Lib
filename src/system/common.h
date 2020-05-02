@@ -98,6 +98,7 @@ typedef ID3D12Device2 device_t;
 typedef IDXGIAdapter4 adapter_t;
 typedef IDXGISwapChain4 swapchain_t;
 typedef IDXGIFactory4 dxgifactory_t;
+typedef uint64_t psomap_checksum_t;
 
 typedef void (*WindowCallback)(HWND, WINDOW_MESSAGE, uint32_t, uint32_t, void*);
 typedef void (*RenderProcedure)();

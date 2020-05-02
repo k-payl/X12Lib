@@ -21,8 +21,6 @@ namespace x12
 		bool HasResources() { return hasResources; }
 		ComPtr<ID3D12RootSignature> resourcesRootSignature;
 
-		uint16_t ID() { return id; }
-
 		struct ShaderReflectionResource
 		{
 			std::string name;
@@ -46,9 +44,6 @@ namespace x12
 		void initResourcesMap();
 
 		bool hasResources{false};
-
-		static IdGenerator<uint16_t> idGen;
-		uint16_t id;
 
 		std::wstring name;
 	};

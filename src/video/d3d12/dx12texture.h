@@ -19,6 +19,5 @@ namespace x12
 		x12::descriptorheap::Alloc SRVdescriptor;
 		x12::descriptorheap::Alloc RTVdescriptor;
 	};
-
 }
 

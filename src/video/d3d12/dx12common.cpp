@@ -3,7 +3,7 @@
 #include "dx12render.h"
 
 static std::mutex resourcesMutex;
-std::vector<IResourceUnknown*> IResourceUnknown::resources;
+std::vector<x12::IResourceUnknown*> x12::IResourceUnknown::resources;
 
 bool x12::impl::CheckTearingSupport()
 {
@@ -31,14 +31,14 @@ bool x12::impl::CheckTearingSupport()
 	return allowTearing == TRUE;
 }
 
-IResourceUnknown::IResourceUnknown()
+x12::IResourceUnknown::IResourceUnknown(uint16_t id_) : id(id_)
 {
 	AddRef();
 	std::scoped_lock guard(resourcesMutex);
 	resources.push_back(this);
 }
 
-void IResourceUnknown::ReleaseResource(int& refs, IResourceUnknown* ptr)
+void x12::IResourceUnknown::ReleaseResource(int& refs, x12::IResourceUnknown* ptr)
 {
 	assert(refs == 1);
 
@@ -65,7 +65,7 @@ DXGI_FORMAT x12::impl::engineToDXGIFormat(VERTEX_BUFFER_FORMAT format)
 	return DXGI_FORMAT_UNKNOWN;
 }
 
-void IResourceUnknown::Release()
+void x12::IResourceUnknown::Release()
 {
 	--refs;
 	assert(refs > 0);
@@ -74,7 +74,7 @@ void IResourceUnknown::Release()
 		ReleaseResource(refs, this);
 }
 
-void IResourceUnknown::CheckResources()
+void x12::IResourceUnknown::CheckResources()
 {
 	for (auto& r : resources)
 	{

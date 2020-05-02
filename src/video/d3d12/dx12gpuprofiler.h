@@ -6,15 +6,15 @@
 class Dx12GpuProfiler : public GpuProfiler
 {
 	x12::Dx12GraphicCommandContext* context;
-	intrusive_ptr<ICoreShader> fontShader;
-	intrusive_ptr<ICoreShader> graphShader;
-	intrusive_ptr<ICoreBuffer> fontDataStructuredBuffer;
-	intrusive_ptr<ICoreTexture> fontTexture;
-	intrusive_ptr<ICoreBuffer> COLORCBUniformBuffer;
-	intrusive_ptr<ICoreBuffer> viewportUniformBuffer;
-	intrusive_ptr<IResourceSet> fontResourceSet;
+	intrusive_ptr<x12::ICoreShader> fontShader;
+	intrusive_ptr<x12::ICoreShader> graphShader;
+	intrusive_ptr<x12::ICoreBuffer> fontDataStructuredBuffer;
+	intrusive_ptr<x12::ICoreTexture> fontTexture;
+	intrusive_ptr<x12::ICoreBuffer> COLORCBUniformBuffer;
+	intrusive_ptr<x12::ICoreBuffer> viewportUniformBuffer;
+	intrusive_ptr<x12::IResourceSet> fontResourceSet;
 	size_t transformFontIndex;
-	intrusive_ptr<ICoreVertexBuffer> dymmyVertexBuffer;
+	intrusive_ptr<x12::ICoreVertexBuffer> dymmyVertexBuffer;
 
 	void Begin() override;
 	void BeginGraph() override;

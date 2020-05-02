@@ -2,10 +2,7 @@
 #include "dx12vertexbuffer.h"
 #include "dx12render.h"
 #include "dx12context.h"
-//#include "dx12common.h"
 #include "dx12memory.h"
-
-IdGenerator<uint16_t> x12::Dx12CoreVertexBuffer::idGen;
 
 static void UpdateBufferResource(LPCWSTR name, ID3D12GraphicsCommandList* pCmdList,
 								 ID3D12Resource* dest, ID3D12Resource** intermediate,
@@ -50,7 +47,6 @@ void x12::Dx12CoreVertexBuffer::Init(LPCWSTR name_, const void* vbData, const Ve
 {
 	name = name_;
 	usage = usage_;
-	id = idGen.getId();
 
 	const bool hasIndexBuffer = idxData != nullptr && idxDesc != nullptr;
 

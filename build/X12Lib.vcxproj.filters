@@ -16,9 +16,6 @@
     <ClInclude Include="..\src\video\d3d12\dx12descriptorheap.h">
       <Filter>video\d3d12</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\system\dx12gpuprofiler.h">
-      <Filter>video\d3d12</Filter>
-    </ClInclude>
     <ClInclude Include="..\src\video\d3d12\dx12memory.h">
       <Filter>video\d3d12</Filter>
     </ClInclude>
@@ -94,6 +91,7 @@
     <ClInclude Include="..\src\3rdparty\d3dx12.h">
       <Filter>external\d3dx12</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\video\vk\vkrender.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\src\video\d3d12\dx12buffer.cpp">
@@ -177,6 +175,10 @@
     <ClCompile Include="..\src\3rdparty\DirectXTK\Src\LinearAllocator.cpp">
       <Filter>external\DirectXTK</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\video\vk\vkrender.cpp" />
+    <ClCompile Include="..\src\video\icorerender.cpp">
+      <Filter>video</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="video">
@@ -205,6 +207,9 @@
     </Filter>
     <Filter Include="external\d3dx12">
       <UniqueIdentifier>{6e35b92a-b0d5-471d-88e4-5324157484c2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="video\vk">
+      <UniqueIdentifier>{dee111df-114d-4327-ac63-0421332f7630}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>
