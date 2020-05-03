@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1588489839014,
+  "lastUpdate": 1588490102911,
   "repoUrl": "https://github.com/k-payl/X12Lib",
   "entries": {
     "C++ Benchmark": [
@@ -252,6 +252,42 @@ window.BENCHMARK_DATA = {
             "value": 116703151.6666673,
             "unit": "ns/iter",
             "extra": "iterations: 6\ncpu: 116701115.66666667 ns\nthreads: 1"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aaa@bbb.com",
+            "name": "k-payl",
+            "username": "xkarlois"
+          },
+          "committer": {
+            "email": "aaa@bbb.com",
+            "name": "k-payl",
+            "username": "xkarlois"
+          },
+          "distinct": true,
+          "id": "e5e1e68116415d0f7ad4aeec918f9f73a3f105cd",
+          "message": ".appveyor.yml",
+          "timestamp": "2020-05-03T14:11:02+07:00",
+          "tree_id": "fe913f544e4dc9d4950e63161cb50a5cb33afb18",
+          "url": "https://github.com/k-payl/X12Lib/commit/e5e1e68116415d0f7ad4aeec918f9f73a3f105cd"
+        },
+        "date": 1588490102143,
+        "tool": "googlecpp",
+        "benches": [
+          {
+            "name": "mat4_mult",
+            "value": 21985390.281249907,
+            "unit": "ns/iter",
+            "extra": "iterations: 32\ncpu: 21983371.25 ns\nthreads: 1"
+          },
+          {
+            "name": "mat4_inv",
+            "value": 145641842.00000057,
+            "unit": "ns/iter",
+            "extra": "iterations: 5\ncpu: 145609419.20000002 ns\nthreads: 1"
           }
         ]
       }
