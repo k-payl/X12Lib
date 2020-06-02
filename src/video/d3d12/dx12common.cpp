@@ -1,11 +1,12 @@
 #include "pch.h"
 #include "dx12common.h"
 #include "dx12render.h"
+#include "dx12context.h"
 
 static std::mutex resourcesMutex;
 std::vector<x12::IResourceUnknown*> x12::IResourceUnknown::resources;
 
-bool x12::impl::CheckTearingSupport()
+bool x12::d3d12::CheckTearingSupport()
 {
 	BOOL allowTearing = FALSE;
 
@@ -55,7 +56,7 @@ void x12::IResourceUnknown::ReleaseResource(int& refs, x12::IResourceUnknown* pt
 	delete ptr;
 }
 
-DXGI_FORMAT x12::impl::engineToDXGIFormat(VERTEX_BUFFER_FORMAT format)
+DXGI_FORMAT x12::d3d12::engineToDXGIFormat(VERTEX_BUFFER_FORMAT format)
 {
 	switch (format)
 	{
@@ -83,8 +84,11 @@ void x12::IResourceUnknown::CheckResources()
 	}
 }
 
-void x12::Dx12WindowSurface::Init(HWND hwnd, ID3D12CommandQueue* queue)
+void x12::Dx12WindowSurface::Init(HWND hwnd, ICoreRenderer* render)
 {
+	auto ctx = render->GetGraphicCommandContext();
+	ID3D12CommandQueue* queue = static_cast<Dx12GraphicCommandContext*>(ctx)->GetD3D12CmdQueue();
+
 	RECT r;
 	GetClientRect(hwnd, &r);
 
@@ -96,13 +100,13 @@ void x12::Dx12WindowSurface::Init(HWND hwnd, ID3D12CommandQueue* queue)
 	swapChainDesc.Height = height;
 	swapChainDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 	swapChainDesc.Stereo = FALSE;
-	swapChainDesc.SampleDesc = { 1, 0 };
+	swapChainDesc.SampleDesc = {1, 0};
 	swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
 	swapChainDesc.BufferCount = DeferredBuffers;
 	swapChainDesc.Scaling = DXGI_SCALING_STRETCH;
 	swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
 	swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
-	swapChainDesc.Flags = x12::impl::CheckTearingSupport() ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0; // It is recommended to always allow tearing if tearing support is available.
+	swapChainDesc.Flags = x12::d3d12::CheckTearingSupport() ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0; // It is recommended to always allow tearing if tearing support is available.
 
 	ComPtr<dxgifactory_t> dxgiFactory4;
 
@@ -119,11 +123,11 @@ void x12::Dx12WindowSurface::Init(HWND hwnd, ID3D12CommandQueue* queue)
 
 	ThrowIfFailed(swapChain1.As(&swapChain));
 
-	descriptorHeapRTV = CreateDescriptorHeap(CR_GetD3DDevice(), DeferredBuffers, D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-	x12::impl::set_name(descriptorHeapRTV.Get(), L"Descriptor heap for backbuffers buffer %u RTV descriptors", DeferredBuffers);
+	descriptorHeapRTV = CreateDescriptorHeap(d3d12::CR_GetD3DDevice(), DeferredBuffers, D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+	x12::d3d12::set_name(descriptorHeapRTV.Get(), L"Descriptor heap for backbuffers buffer %u RTV descriptors", DeferredBuffers);
 
-	descriptorHeapDSV = CreateDescriptorHeap(CR_GetD3DDevice(), 1, D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
-	x12::impl::set_name(descriptorHeapDSV.Get(), L"Descriptor heap for backbuffers buffer %u DSV descriptors", 1);
+	descriptorHeapDSV = CreateDescriptorHeap(d3d12::CR_GetD3DDevice(), 1, D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+	x12::d3d12::set_name(descriptorHeapDSV.Get(), L"Descriptor heap for backbuffers buffer %u DSV descriptors", 1);
 
 	ResizeBuffers(width, height);
 }
@@ -150,24 +154,24 @@ void x12::Dx12WindowSurface::ResizeBuffers(unsigned width_, unsigned height_)
 		ComPtr<ID3D12Resource> color;
 		ThrowIfFailed(swapChain->GetBuffer(i, IID_PPV_ARGS(&color)));
 
-		CR_GetD3DDevice()->CreateRenderTargetView(color.Get(), nullptr, rtvHandle);
+		d3d12::CR_GetD3DDevice()->CreateRenderTargetView(color.Get(), nullptr, rtvHandle);
 
-		x12::impl::set_name(color.Get(), L"Swapchain back buffer #%d", i);
+		x12::d3d12::set_name(color.Get(), L"Swapchain back buffer #%d", i);
 
 		colorBuffers[i] = color;
 
-		rtvHandle.Offset(CR_RTV_DescriptorsSize());
+		rtvHandle.Offset(d3d12::CR_RTV_DescriptorsSize());
 	}
 
 	// Create a depth buffer
 	D3D12_CLEAR_VALUE optimizedClearValue = {};
 	optimizedClearValue.Format = DXGI_FORMAT_D32_FLOAT;
-	optimizedClearValue.DepthStencil = { 1.0f, 0 };
+	optimizedClearValue.DepthStencil = {1.0f, 0};
 
 	x12::memory::CreateCommitted2DTexture(&depthBuffer, width, height, 1, DXGI_FORMAT_D32_FLOAT,
 										  D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL, D3D12_RESOURCE_STATE_DEPTH_WRITE, &optimizedClearValue);
 
-	x12::impl::set_name(depthBuffer.Get(), L"Swapchain back depth buffer");
+	x12::d3d12::set_name(depthBuffer.Get(), L"Swapchain back depth buffer");
 
 	// Create handles for depth stencil
 	D3D12_DEPTH_STENCIL_VIEW_DESC dsv = {};
@@ -176,13 +180,13 @@ void x12::Dx12WindowSurface::ResizeBuffers(unsigned width_, unsigned height_)
 	dsv.Texture2D.MipSlice = 0;
 	dsv.Flags = D3D12_DSV_FLAG_NONE;
 
-	CR_GetD3DDevice()->CreateDepthStencilView(depthBuffer.Get(), &dsv, descriptorHeapDSV->GetCPUDescriptorHandleForHeapStart());
+	d3d12::CR_GetD3DDevice()->CreateDepthStencilView(depthBuffer.Get(), &dsv, descriptorHeapDSV->GetCPUDescriptorHandleForHeapStart());
 }
 
 void x12::Dx12WindowSurface::Present()
 {
-	UINT syncInterval = CR_IsVSync() ? 1 : 0;
-	UINT presentFlags = CR_IsTearingSupport() && !CR_IsVSync() ? DXGI_PRESENT_ALLOW_TEARING : 0;
+	UINT syncInterval = d3d12::CR_IsVSync() ? 1 : 0;
+	UINT presentFlags = d3d12::CR_IsTearingSupport() && !d3d12::CR_IsVSync() ? DXGI_PRESENT_ALLOW_TEARING : 0;
 
 	ThrowIfFailed(swapChain->Present(syncInterval, presentFlags));
 }

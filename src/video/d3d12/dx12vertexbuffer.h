@@ -26,7 +26,7 @@ namespace x12
 
 		const D3D12_INDEX_BUFFER_VIEW* pIndexBufferVew() const { return indexBufferView.SizeInBytes > 0 ? &indexBufferView : nullptr; }
 
-		bool GetReadBarrier(UINT *numBarrires, D3D12_RESOURCE_BARRIER *barriers);
+		bool GetReadBarrier(UINT* numBarrires, D3D12_RESOURCE_BARRIER* barriers);
 
 	private:
 

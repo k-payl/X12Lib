@@ -264,8 +264,8 @@ void x12::Dx12CoreShader::initRootSignature(const std::vector<D3D12_ROOT_PARAMET
 		ID3DBlob* signature;
 		ThrowIfFailed(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, nullptr));
 
-		ThrowIfFailed(CR_GetD3DDevice()->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&resourcesRootSignature)));
-		x12::impl::set_name(resourcesRootSignature.Get(), L"Root signature for shader '%s'", name.c_str());
+		ThrowIfFailed(d3d12::CR_GetD3DDevice()->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&resourcesRootSignature)));
+		x12::d3d12::set_name(resourcesRootSignature.Get(), L"Root signature for shader '%s'", name.c_str());
 	}
 }
 

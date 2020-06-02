@@ -27,7 +27,7 @@ namespace x12
 
 		std::unordered_map<std::string, std::pair<size_t, int>> resourcesMap; // {parameter index, table index}. (table index=-1 if inline)
 
-		bool dirty{ false };
+		bool dirty{false};
 
 		size_t rootParametersNum;
 
@@ -39,10 +39,10 @@ namespace x12
 	public:
 		Dx12ResourceSet(const Dx12CoreShader* shader);
 
-		void BindConstantBuffer(const char* name, ICoreBuffer *buffer) override;
-		void BindStructuredBufferSRV(const char* name, ICoreBuffer *buffer) override;
-		void BindStructuredBufferUAV(const char* name, ICoreBuffer *buffer) override;
-		void BindTextueSRV(const char* name, ICoreTexture *texture) override;
+		void BindConstantBuffer(const char* name, ICoreBuffer* buffer) override;
+		void BindStructuredBufferSRV(const char* name, ICoreBuffer* buffer) override;
+		void BindStructuredBufferUAV(const char* name, ICoreBuffer* buffer) override;
+		void BindTextueSRV(const char* name, ICoreTexture* texture) override;
 
 		size_t FindInlineBufferIndex(const char* name) override;
 
@@ -81,9 +81,9 @@ namespace x12
 	//	Can be created multiplie instance of it in Dx12CoreRenderer.
 	//	Can be recorded only in one thread.
 	//
-	class Dx12GraphicCommandContext
+	class Dx12GraphicCommandContext : public ICoreGraphicCommandList
 	{
-		ID3D12CommandQueue *d3dCommandQueue{};
+		ID3D12CommandQueue* d3dCommandQueue{};
 
 		ID3D12Fence* d3dFence{};
 		HANDLE fenceEvent{};
@@ -148,7 +148,7 @@ namespace x12
 			CommandList(CommandList&&) = delete;
 			CommandList& operator=(CommandList&&) = delete;
 
-			Dx12GraphicCommandContext *parent;
+			Dx12GraphicCommandContext* parent;
 			device_t* device;
 
 			ID3D12CommandAllocator* d3dCommandAllocator{};
@@ -221,49 +221,49 @@ namespace x12
 		{
 			WCHAR wstr[256];
 			wsprintf(wstr, L"Graphic context #%d %s", contextNum, format);
-			x12::impl::set_name(obj, wstr, args...);
+			x12::d3d12::set_name(obj, wstr, args...);
 		}
 
 	public:
 		// API
 
-		void BindSurface(const surface_ptr& surface_); // TODO: bind arbitary textures
+		void BindSurface(surface_ptr& surface_) override; // TODO: bind arbitary textures
 
-		void CommandsBegin();
-		void CommandsEnd();
-		void FrameEnd();
+		void CommandsBegin() override;
+		void CommandsEnd() override;
+		void FrameEnd() override;
 
-		void Submit();
+		void Submit() override;
 
-		void WaitGPUFrame();
-		void WaitGPUAll();
+		void WaitGPUFrame() override;
+		void WaitGPUAll() override;
 
-		void PushState();
-		void PopState();
+		void PushState() override;
+		void PopState() override;
 
-		void SetGraphicPipelineState(const GraphicPipelineState& gpso);
-		void SetComputePipelineState(const ComputePipelineState& cpso);
-		void SetVertexBuffer(ICoreVertexBuffer* vb);
-		void SetViewport(unsigned width, unsigned heigth);
-		void GetViewport(unsigned& width, unsigned& heigth);
-		void SetScissor(unsigned x, unsigned y, unsigned width, unsigned heigth);
+		void SetGraphicPipelineState(const GraphicPipelineState& gpso) override;
+		void SetComputePipelineState(const ComputePipelineState& cpso) override;
+		void SetVertexBuffer(ICoreVertexBuffer* vb) override;
+		void SetViewport(unsigned width, unsigned heigth) override;
+		void GetViewport(unsigned& width, unsigned& heigth) override;
+		void SetScissor(unsigned x, unsigned y, unsigned width, unsigned heigth) override;
 
-		void Draw(const ICoreVertexBuffer* vb, uint32_t vertexCount = 0, uint32_t vertexOffset = 0);
-		void Dispatch(uint32_t x, uint32_t y, uint32_t z = 1);
+		void Draw(const ICoreVertexBuffer* vb, uint32_t vertexCount = 0, uint32_t vertexOffset = 0) override;
+		void Dispatch(uint32_t x, uint32_t y, uint32_t z = 1) override;
 		void Clear();
 
-		void BuildResourceSet(IResourceSet* set_);
-		void BindResourceSet(IResourceSet* set_);
-		void UpdateInlineConstantBuffer(size_t idx, const void* data, size_t size);
+		void BuildResourceSet(IResourceSet* set_) override;
+		void BindResourceSet(IResourceSet* set_) override;
+		void UpdateInlineConstantBuffer(size_t idx, const void* data, size_t size) override;
 
-		void EmitUAVBarrier(ICoreBuffer* buffer);
+		void EmitUAVBarrier(ICoreBuffer* buffer) override;
 
-		void TimerBegin(uint32_t timerID);
-		void TimerEnd(uint32_t timerID);
-		auto TimerGetTimeInMs(uint32_t timerID) -> float;
+		void TimerBegin(uint32_t timerID) override;
+		void TimerEnd(uint32_t timerID) override;
+		float TimerGetTimeInMs(uint32_t timerID)  override;
 	};
 
-	class Dx12CopyCommandContext
+	class Dx12CopyCommandContext : public ICoreCopyCommandList
 	{
 		ID3D12CommandAllocator* d3dCommandAllocator{};
 		ID3D12GraphicsCommandList* d3dCommandList{};
@@ -280,7 +280,7 @@ namespace x12
 		{
 			WCHAR wstr[256];
 			wsprintf(wstr, L"Copy context #%d %s", contextNum, format);
-			x12::impl::set_name(obj, wstr, args...);
+			x12::d3d12::set_name(obj, wstr, args...);
 		}
 
 	public:
@@ -290,11 +290,11 @@ namespace x12
 		ID3D12CommandQueue* GetD3D12CmdQueue() { return d3dCommandQueue; }
 		ID3D12GraphicsCommandList* GetD3D12CmdList() { return d3dCommandList; }
 
-		void Free();
-		void CommandsBegin();
-		void CommandsEnd();
-		void Submit();
-		void WaitGPUAll();
+		void Free() override;
+		void CommandsBegin() override;
+		void CommandsEnd() override;
+		void Submit() override;
+		void WaitGPUAll() override;
 	};
 }
 

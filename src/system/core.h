@@ -1,5 +1,6 @@
 #pragma once
 #include "common.h"
+#include "icorerender.h"
 
 extern Core* core__;
 #define CORE core__
@@ -10,7 +11,8 @@ enum class INIT_FLAGS
 	NO_CONSOLE = 1 << 1,
 	NO_WINDOW = 1 << 2,
 	NO_INPUT = 1 << 2,
-	BUILT_IN_DX12_RENDERER = 1 << 3,
+	DIRECTX12_RENDERER = 1 << 3,
+	VULKAN_RENDERER = 1 << 4,
 };
 inline bool operator&(INIT_FLAGS a, INIT_FLAGS b)
 {
@@ -30,7 +32,7 @@ class Core
 	std::unique_ptr<GpuProfiler> renderprofiler;
 	std::unique_ptr<GpuProfiler> memoryprofiler;
 	std::unique_ptr<FileSystem> fs;
-	std::unique_ptr<x12::Dx12CoreRenderer> renderer;
+	std::unique_ptr<x12::ICoreRenderer> renderer;
 
 	Signal<> onRender;
 	Signal<> onInit;
@@ -63,7 +65,7 @@ public:
 	void AddUpdateProcedure(UpdateProcedure fn);
 	void AddFreeProcedure(FreeProcedure fn);
 
-	x12::Dx12CoreRenderer* GetCoreRenderer() const { return renderer.get(); }
+	x12::ICoreRenderer* GetCoreRenderer() const { return renderer.get(); }
 	MainWindow* GetWindow() { return window.get(); }
 	Input* GetInput() { return input.get(); }
 	FileSystem* GetFS() { return fs.get(); }

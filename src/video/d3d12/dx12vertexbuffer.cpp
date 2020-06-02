@@ -43,7 +43,7 @@ bool x12::Dx12CoreVertexBuffer::GetReadBarrier(UINT* numBarrires, D3D12_RESOURCE
 }
 
 void x12::Dx12CoreVertexBuffer::Init(LPCWSTR name_, const void* vbData, const VeretxBufferDesc* vbDesc,
-								const void* idxData, const IndexBufferDesc* idxDesc, BUFFER_FLAGS usage_)
+									 const void* idxData, const IndexBufferDesc* idxDesc, BUFFER_FLAGS usage_)
 {
 	name = name_;
 	usage = usage_;
@@ -80,14 +80,14 @@ void x12::Dx12CoreVertexBuffer::Init(LPCWSTR name_, const void* vbData, const Ve
 
 	x12::memory::CreateCommittedBuffer(vertexBuffer.GetAddressOf(), bufferSize, vbState, d3dheapProperties);
 
-	x12::impl::set_name(vertexBuffer.Get(), L"Vertex buffer '%s' %u bytes", name.c_str(), bufferSize);
+	x12::d3d12::set_name(vertexBuffer.Get(), L"Vertex buffer '%s' %u bytes", name.c_str(), bufferSize);
 
 	if (hasIndexBuffer)
 	{
 		idxBufferSize = (UINT64)formatInBytes(idxDesc->format) * idxDesc->vertexCount;
 		x12::memory::CreateCommittedBuffer(indexBuffer.GetAddressOf(), idxBufferSize, ibState, d3dheapProperties);
 
-		x12::impl::set_name(vertexBuffer.Get(), L"Index buffer for veretx buffer '%s' %u bytes", name.c_str(), idxBufferSize);
+		x12::d3d12::set_name(vertexBuffer.Get(), L"Index buffer for veretx buffer '%s' %u bytes", name.c_str(), idxBufferSize);
 	}
 
 	if (vbData)
@@ -116,7 +116,7 @@ void x12::Dx12CoreVertexBuffer::Init(LPCWSTR name_, const void* vbData, const Ve
 
 		v.SemanticName = vbDesc->attributes[i].semanticName;
 		v.SemanticIndex = 0;
-		v.Format = x12::impl::engineToDXGIFormat(vbDesc->attributes[i].format);
+		v.Format = x12::d3d12::engineToDXGIFormat(vbDesc->attributes[i].format);
 		v.InputSlot = i;
 		v.AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
 		v.InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
@@ -139,7 +139,8 @@ void x12::Dx12CoreVertexBuffer::SetData(const void* vbData, size_t vbSize, size_
 		assert(idxOffset == 0 && "Not impl");
 
 		auto copyContext = GetCoreRender()->GetCopyCommandContext();
-		auto d3dcommandList = copyContext->GetD3D12CmdList();
+		Dx12CopyCommandContext* dx12ctx = static_cast<Dx12CopyCommandContext*>(copyContext);
+		auto d3dcommandList = dx12ctx->GetD3D12CmdList();
 
 		ComPtr<ID3D12Resource> uploadVertexBuffer;
 		ComPtr<ID3D12Resource> uploadIndexBuffer;
@@ -185,7 +186,7 @@ static void UpdateBufferResource(LPCWSTR name, ID3D12GraphicsCommandList* pCmdLi
 	// No need fence to track copying RAM -> VRAM
 	x12::memory::CreateCommittedBuffer(intermediate, size, D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_HEAP_TYPE_UPLOAD);
 
-	x12::impl::set_name(*intermediate, L"Intermediate buffer (gpu read) '%s' %u bytes", name, size);
+	x12::d3d12::set_name(*intermediate, L"Intermediate buffer (gpu read) '%s' %u bytes", name, size);
 
 	D3D12_SUBRESOURCE_DATA subresourceData = {};
 	subresourceData.pData = data;

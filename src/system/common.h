@@ -32,6 +32,12 @@ using namespace Microsoft::WRL;
 #include <dxgi1_6.h>
 //#include <DirectXMath.h>
 
+// Vulkan specific headers.
+#ifdef _WIN32
+#define VK_USE_PLATFORM_WIN32_KHR
+#endif
+#include "vulkan.h"
+
 // D3D12 extension library.
 #include "d3dx12.h"
 
@@ -70,11 +76,13 @@ namespace x12 {
 	struct Dx12WindowSurface;
 	struct Dx12CoreVertexBuffer;
 	struct Dx12CoreBuffer;
-	class Dx12BaseCommandList;
 	class Dx12GraphicCommandContext;
 	class Dx12CopyCommandContext;
 	struct Dx12ResourceSet;
 	struct Dx12CoreTexture;
+
+	class VkGraphicCommandContext;
+	class VkCoreRenderer;
 }
 
 #define DEFINE_ENUM_OPERATORS(ENUM_NAME) \

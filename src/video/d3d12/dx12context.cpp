@@ -9,7 +9,7 @@
 #include "GraphicsMemory.h"
 
 using namespace x12;
-using namespace x12::impl;
+using namespace x12::d3d12;
 
 namespace
 {
@@ -28,7 +28,7 @@ namespace
 int Dx12GraphicCommandContext::contextNum;
 int Dx12CopyCommandContext::contextNum;
 
-uint64_t Signal(ID3D12CommandQueue *d3dCommandQueue, ID3D12Fence *d3dFence, uint64_t& fenceValue)
+uint64_t Signal(ID3D12CommandQueue* d3dCommandQueue, ID3D12Fence* d3dFence, uint64_t& fenceValue)
 {
 	uint64_t fenceValueForSignal = fenceValue;
 	ThrowIfFailed(d3dCommandQueue->Signal(d3dFence, fenceValueForSignal));
@@ -36,7 +36,7 @@ uint64_t Signal(ID3D12CommandQueue *d3dCommandQueue, ID3D12Fence *d3dFence, uint
 	return fenceValueForSignal;
 }
 
-void WaitForFenceValue(ID3D12Fence *d3dFence, uint64_t fenceValue, HANDLE fenceEvent,
+void WaitForFenceValue(ID3D12Fence* d3dFence, uint64_t fenceValue, HANDLE fenceEvent,
 					   std::chrono::milliseconds duration = std::chrono::milliseconds::max())
 {
 	if (d3dFence->GetCompletedValue() < fenceValue)
@@ -58,7 +58,7 @@ void Dx12GraphicCommandContext::SetGraphicPipelineState(const GraphicPipelineSta
 
 	resetOnlyPSOState();
 
-	auto d3dstate = GetCoreRender()->GetGraphicPSO(pso, checksum);
+	auto d3dstate = d3d12::D3D12GetCoreRender()->GetGraphicPSO(pso, checksum);
 	setGraphicPipeline(checksum, d3dstate.Get());
 
 	if (state.pso.graphicDesc.primitiveTopology != pso.primitiveTopology)
@@ -68,7 +68,7 @@ void Dx12GraphicCommandContext::SetGraphicPipelineState(const GraphicPipelineSta
 		{
 			case PRIMITIVE_TOPOLOGY::LINE: d3dtopology = D3D_PRIMITIVE_TOPOLOGY_LINELIST; break;
 			case PRIMITIVE_TOPOLOGY::POINT: d3dtopology = D3D_PRIMITIVE_TOPOLOGY_POINTLIST; break;
-			[[likely]]
+				[[likely]]
 			case PRIMITIVE_TOPOLOGY::TRIANGLE: d3dtopology = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST; break;
 			default:
 				notImplemented();
@@ -77,7 +77,7 @@ void Dx12GraphicCommandContext::SetGraphicPipelineState(const GraphicPipelineSta
 	}
 
 	if (!dx12Shader->HasResources())
-		state.pso.d3drootSignature = GetCoreRender()->GetDefaultRootSignature();
+		state.pso.d3drootSignature = d3d12::D3D12GetCoreRender()->GetDefaultRootSignature();
 	else
 		state.pso.d3drootSignature = dx12Shader->resourcesRootSignature;
 
@@ -102,11 +102,11 @@ void Dx12GraphicCommandContext::SetComputePipelineState(const ComputePipelineSta
 
 	Dx12CoreShader* dx12Shader = resource_cast(pso.shader);
 
-	auto d3dstate = GetCoreRender()->GetComputePSO(pso, checksum);
+	auto d3dstate = d3d12::D3D12GetCoreRender()->GetComputePSO(pso, checksum);
 	setComputePipeline(checksum, d3dstate.Get());
 
 	if (!dx12Shader->HasResources())
-		state.pso.d3drootSignature = GetCoreRender()->GetDefaultRootSignature();
+		state.pso.d3drootSignature = d3d12::D3D12GetCoreRender()->GetDefaultRootSignature();
 	else
 		state.pso.d3drootSignature = dx12Shader->resourcesRootSignature;
 
@@ -129,14 +129,14 @@ void Dx12GraphicCommandContext::SetVertexBuffer(ICoreVertexBuffer* vb)// TODO ad
 	if (dxBuffer->GetReadBarrier(&numBarriers, barriers))
 		d3dCmdList->ResourceBarrier(numBarriers, barriers);
 
-	
+
 	d3dCmdList->IASetVertexBuffers(0, 1, &dxBuffer->vertexBufferView);
 	d3dCmdList->IASetIndexBuffer(dxBuffer->pIndexBufferVew());
 }
 
 void Dx12GraphicCommandContext::SetViewport(unsigned width, unsigned heigth)
 {
-	D3D12_VIEWPORT v{ 0.0f, 0.0f, (float)width, (float)heigth, D3D12_MIN_DEPTH, D3D12_MAX_DEPTH };
+	D3D12_VIEWPORT v{0.0f, 0.0f, (float)width, (float)heigth, D3D12_MIN_DEPTH, D3D12_MAX_DEPTH};
 	if (memcmp(&state.viewport, &v, sizeof(D3D12_VIEWPORT)) != 0)
 	{
 		d3dCmdList->RSSetViewports(1, &v);
@@ -218,13 +218,15 @@ void Dx12GraphicCommandContext::Dispatch(uint32_t x, uint32_t y, uint32_t z)
 
 void Dx12GraphicCommandContext::Clear()
 {
-	CD3DX12_CPU_DESCRIPTOR_HANDLE rtv(state.surface->descriptorHeapRTV->GetCPUDescriptorHandleForHeapStart(), frameIndex, CR_RTV_DescriptorsSize());
-	D3D12_CPU_DESCRIPTOR_HANDLE dsv = state.surface->descriptorHeapDSV->GetCPUDescriptorHandleForHeapStart();
+	Dx12WindowSurface* dx12surface = static_cast<Dx12WindowSurface*>(state.surface.get());
+
+	CD3DX12_CPU_DESCRIPTOR_HANDLE rtv(dx12surface->descriptorHeapRTV->GetCPUDescriptorHandleForHeapStart(), frameIndex, CR_RTV_DescriptorsSize());
+	D3D12_CPU_DESCRIPTOR_HANDLE dsv = dx12surface->descriptorHeapDSV->GetCPUDescriptorHandleForHeapStart();
 
 	FLOAT depth = 1.0f;
 	d3dCmdList->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH, depth, 0, 0, nullptr);
 
-	const float color[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+	const float color[4] = {0.0f, 0.0f, 0.0f, 0.0f};
 	d3dCmdList->ClearRenderTargetView(rtv, color, 0, nullptr);
 }
 
@@ -346,7 +348,7 @@ auto Dx12GraphicCommandContext::TimerGetTimeInMs(uint32_t timerID) -> float
 	if (end < start)
 		return 0.f;
 
-	double time = double(end - start)* gpuTickDelta;
+	double time = double(end - start) * gpuTickDelta;
 
 	return static_cast<float>(time);
 }
@@ -539,19 +541,21 @@ void Dx12GraphicCommandContext::CommandsBegin()
 	d3dCmdList->Reset(cmdList->d3dCommandAllocator, nullptr);
 	d3dCmdList->SetDescriptorHeaps(1, gpuDescriptorHeap.GetAddressOf());
 }
-void Dx12GraphicCommandContext::BindSurface(const surface_ptr& surface_)
+void Dx12GraphicCommandContext::BindSurface(surface_ptr& surface_)
 {
 	if (surface_ == state.surface)
 		return;
 
 	state.surface = surface_;
 
-	ID3D12Resource* backBuffer = state.surface->colorBuffers[frameIndex].Get();
+	Dx12WindowSurface* dx12surface = static_cast<Dx12WindowSurface*>(state.surface.get());
+
+	ID3D12Resource* backBuffer = dx12surface->colorBuffers[frameIndex].Get();
 
 	transiteSurfaceToState(D3D12_RESOURCE_STATE_RENDER_TARGET);
 
-	CD3DX12_CPU_DESCRIPTOR_HANDLE rtv(state.surface->descriptorHeapRTV->GetCPUDescriptorHandleForHeapStart(), frameIndex, CR_RTV_DescriptorsSize());
-	D3D12_CPU_DESCRIPTOR_HANDLE dsv = state.surface->descriptorHeapDSV->GetCPUDescriptorHandleForHeapStart();
+	CD3DX12_CPU_DESCRIPTOR_HANDLE rtv(dx12surface->descriptorHeapRTV->GetCPUDescriptorHandleForHeapStart(), frameIndex, CR_RTV_DescriptorsSize());
+	D3D12_CPU_DESCRIPTOR_HANDLE dsv = dx12surface->descriptorHeapDSV->GetCPUDescriptorHandleForHeapStart();
 
 	d3dCmdList->OMSetRenderTargets(1, &rtv, FALSE, &dsv);
 }
@@ -574,7 +578,7 @@ void Dx12GraphicCommandContext::CommandsEnd()
 	UINT64* timingData;
 	ThrowIfFailed(queryReadBackBuffer->Map(0, &dataRange, reinterpret_cast<void**>(&timingData)));
 
-		memcpy(&queryTiming[0], (uint8_t*)timingData + readBackBaseOffset, sizeof(UINT64) * maxNumQuerySlots);
+	memcpy(&queryTiming[0], (uint8_t*)timingData + readBackBaseOffset, sizeof(UINT64) * maxNumQuerySlots);
 
 	queryReadBackBuffer->Unmap(0, &CD3DX12_RANGE(0, 0));
 
@@ -591,7 +595,7 @@ void Dx12GraphicCommandContext::CommandsEnd()
 
 void Dx12GraphicCommandContext::Submit()
 {
-	ID3D12CommandList* const commandLists[] = { d3dCmdList };
+	ID3D12CommandList* const commandLists[] = {d3dCmdList};
 	d3dCommandQueue->ExecuteCommandLists(1, commandLists);
 
 	frameMemory->Commit(d3dCommandQueue);
@@ -613,17 +617,19 @@ void Dx12GraphicCommandContext::transiteSurfaceToState(D3D12_RESOURCE_STATES new
 	if (!state.surface)
 		return;
 
-	if (state.surface->state == newState)
+	Dx12WindowSurface* dx12surface = static_cast<Dx12WindowSurface*>(state.surface.get());
+
+	if (dx12surface->state == newState)
 		return;
 
-	ID3D12Resource* backBuffer = state.surface->colorBuffers[frameIndex].Get();
+	ID3D12Resource* backBuffer = dx12surface->colorBuffers[frameIndex].Get();
 
 	CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(backBuffer,
-																			state.surface->state, newState);
+																			dx12surface->state, newState);
 
 	d3dCmdList->ResourceBarrier(1, &barrier);
 
-	state.surface->state = newState;
+	dx12surface->state = newState;
 }
 
 void Dx12GraphicCommandContext::resetStatistic()
@@ -734,7 +740,7 @@ void Dx12CopyCommandContext::CommandsEnd()
 
 void Dx12CopyCommandContext::Submit()
 {
-	ID3D12CommandList* const commandLists[1] = { d3dCommandList };
+	ID3D12CommandList* const commandLists[1] = {d3dCommandList};
 	d3dCommandQueue->ExecuteCommandLists(1, commandLists);
 
 	Signal(d3dCommandQueue, d3dFence, fenceValue);

@@ -6,7 +6,7 @@ void x12::memory::CreateCommittedBuffer(ID3D12Resource** out, UINT64 size, D3D12
 										D3D12_HEAP_TYPE heap, D3D12_HEAP_FLAGS flags,
 										D3D12_RESOURCE_FLAGS resFlags)
 {
-	ThrowIfFailed(CR_GetD3DDevice()->CreateCommittedResource(
+	ThrowIfFailed(d3d12::CR_GetD3DDevice()->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(heap),
 		flags,
 		&CD3DX12_RESOURCE_DESC::Buffer(size, resFlags),
@@ -30,7 +30,7 @@ void x12::memory::CreateCommitted2DTexture(ID3D12Resource** out, UINT width, UIN
 	desc.SampleDesc.Quality = 0;
 	desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
 
-	ThrowIfFailed(CR_GetD3DDevice()->CreateCommittedResource(
+	ThrowIfFailed(d3d12::CR_GetD3DDevice()->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(heap),
 		flags,
 		&desc,

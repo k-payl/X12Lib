@@ -1,6 +1,8 @@
 #include "pch.h"
 #include "icorerender.h"
 
+x12::ICoreRenderer* x12::_coreRender;
+
 IdGenerator<uint16_t> x12::ICoreShader::idGen;
 IdGenerator<uint16_t> x12::ICoreVertexBuffer::idGen;
 IdGenerator<uint16_t> x12::ICoreTexture::idGen;

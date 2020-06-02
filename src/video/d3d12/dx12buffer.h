@@ -33,7 +33,7 @@ namespace x12
 		D3D12_CPU_DESCRIPTOR_HANDLE GetUAV() const { return UAVdescriptor.descriptor; }
 		D3D12_CPU_DESCRIPTOR_HANDLE GetCBV() const { return CBVdescriptor.descriptor; }
 
-		void InitBuffer(size_t structureSize, size_t num, const void *data, BUFFER_FLAGS flags, LPCWSTR name);
+		void InitBuffer(size_t structureSize, size_t num, const void* data, BUFFER_FLAGS flags, LPCWSTR name);
 
 		ID3D12Resource* GetResource() const { return resource.Get(); }
 

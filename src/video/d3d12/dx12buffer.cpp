@@ -11,12 +11,13 @@ void x12::Dx12CoreBuffer::_GPUCopyToStaging()
 	if (!stagingResource)
 	{
 		x12::memory::CreateCommittedBuffer(stagingResource.GetAddressOf(), size, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_HEAP_TYPE_READBACK);
-		x12::impl::set_name(stagingResource.Get(), L"Staging buffer for gpu->cpu copying %u bytes for '%s'", size, name.c_str());
+		x12::d3d12::set_name(stagingResource.Get(), L"Staging buffer for gpu->cpu copying %u bytes for '%s'", size, name.c_str());
 	}
 
 	{
-		Dx12GraphicCommandContext* ctx = GetCoreRender()->GetGraphicCommmandContext();
-		auto d3dCmdList = ctx->GetD3D12CmdList();
+		auto* ctx = GetCoreRender()->GetGraphicCommandContext();
+		Dx12GraphicCommandContext* dx12ctx = static_cast<Dx12GraphicCommandContext*>(ctx);
+		auto d3dCmdList = dx12ctx->GetD3D12CmdList();
 
 		if (resourceState() != D3D12_RESOURCE_STATE_COPY_SOURCE)
 		{
@@ -39,8 +40,8 @@ void x12::Dx12CoreBuffer::_GetStagingData(void* data)
 
 void x12::Dx12CoreBuffer::GetData(void* data)
 {
-	Dx12CoreRenderer* renderer = CORE->GetCoreRenderer();
-	Dx12GraphicCommandContext* context = renderer->GetGraphicCommmandContext();
+	ICoreRenderer* renderer = CORE->GetCoreRenderer();
+	ICoreGraphicCommandList* context = renderer->GetGraphicCommandContext();
 
 	context->PushState();
 
@@ -120,18 +121,20 @@ void x12::Dx12CoreBuffer::InitBuffer(size_t structureSize, size_t num, const voi
 		x12::memory::CreateCommittedBuffer(uploadResource.GetAddressOf(), size,
 										   stagingState, D3D12_HEAP_TYPE_UPLOAD);
 
-		x12::impl::set_name(uploadResource.Get(), L"Upload buffer for cpu->gpu copying %u bytes for '%s'", size, name_);
-	
+		x12::d3d12::set_name(uploadResource.Get(), L"Upload buffer for cpu->gpu copying %u bytes for '%s'", size, name_);
+
 		D3D12_SUBRESOURCE_DATA initData = {};
 		initData.pData = data;
 		initData.RowPitch = size;
 		initData.SlicePitch = initData.RowPitch;
 
-		Dx12CopyCommandContext *copyContext = GetCoreRender()->GetCopyCommandContext();
+		auto* copyContext = GetCoreRender()->GetCopyCommandContext();
 		copyContext->CommandsBegin();
-	
-		UpdateSubresources<1>(copyContext->GetD3D12CmdList(), resource.Get(),
-							  uploadResource.Get(), 0, 0, data ? 1 : 0, data? &initData : nullptr);
+
+		Dx12CopyCommandContext* dx12ctx = static_cast<Dx12CopyCommandContext*>(copyContext);
+
+		UpdateSubresources<1>(dx12ctx->GetD3D12CmdList(), resource.Get(),
+							  uploadResource.Get(), 0, 0, data ? 1 : 0, data ? &initData : nullptr);
 
 		copyContext->CommandsEnd();
 		copyContext->Submit();
@@ -152,10 +155,11 @@ void x12::Dx12CoreBuffer::InitBuffer(size_t structureSize, size_t num, const voi
 	{
 		initSRV((UINT)size, 1, D3D12_BUFFER_SRV_FLAG_RAW, DXGI_FORMAT_UNKNOWN); //crash wtf?
 		name = L"(raw buffer)" + name;
-	} else
+	}
+	else
 		name = L"(structured buffer)" + name;
 
-	x12::impl::set_name(resource.Get(), name.c_str());
+	x12::d3d12::set_name(resource.Get(), name.c_str());
 }
 
 void x12::Dx12CoreBuffer::initSRV(UINT num, UINT structireSize, D3D12_BUFFER_SRV_FLAGS flag, DXGI_FORMAT format)
@@ -168,9 +172,9 @@ void x12::Dx12CoreBuffer::initSRV(UINT num, UINT structireSize, D3D12_BUFFER_SRV
 	srvDesc.Buffer.StructureByteStride = structireSize;
 	srvDesc.Buffer.Flags = flag;
 
-	SRVdescriptor = GetCoreRender()->AllocateDescriptor();
+	SRVdescriptor = d3d12::D3D12GetCoreRender()->AllocateDescriptor();
 
-	CR_GetD3DDevice()->CreateShaderResourceView(resource.Get(), &srvDesc, SRVdescriptor.descriptor);
+	d3d12::CR_GetD3DDevice()->CreateShaderResourceView(resource.Get(), &srvDesc, SRVdescriptor.descriptor);
 }
 
 void x12::Dx12CoreBuffer::initUAV(UINT num, UINT structireSize, D3D12_BUFFER_UAV_FLAGS flag, DXGI_FORMAT format)
@@ -182,18 +186,18 @@ void x12::Dx12CoreBuffer::initUAV(UINT num, UINT structireSize, D3D12_BUFFER_UAV
 	srvDesc.Buffer.StructureByteStride = structireSize;
 	srvDesc.Buffer.Flags = flag;
 
-	UAVdescriptor = GetCoreRender()->AllocateDescriptor();
+	UAVdescriptor = d3d12::D3D12GetCoreRender()->AllocateDescriptor();
 
-	CR_GetD3DDevice()->CreateUnorderedAccessView(resource.Get(), nullptr, &srvDesc, UAVdescriptor.descriptor);
+	d3d12::CR_GetD3DDevice()->CreateUnorderedAccessView(resource.Get(), nullptr, &srvDesc, UAVdescriptor.descriptor);
 }
 
 void x12::Dx12CoreBuffer::initCBV(UINT size)
 {
-	CBVdescriptor = GetCoreRender()->AllocateDescriptor();
+	CBVdescriptor = d3d12::D3D12GetCoreRender()->AllocateDescriptor();
 
 	D3D12_CONSTANT_BUFFER_VIEW_DESC desc;
 	desc.SizeInBytes = alignConstnatBufferSize(size);
 	desc.BufferLocation = resource->GetGPUVirtualAddress();
 
-	CR_GetD3DDevice()->CreateConstantBufferView(&desc, CBVdescriptor.descriptor);
+	d3d12::CR_GetD3DDevice()->CreateConstantBufferView(&desc, CBVdescriptor.descriptor);
 }

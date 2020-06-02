@@ -1,0 +1,68 @@
+#pragma once
+#include "vkcommon.h"
+
+namespace x12
+{
+	class VkGraphicCommandContext : public ICoreGraphicCommandList
+	{
+		std::vector<VkCommandBuffer>	commandBuffers;
+		UINT							frameIndex{}; // 0, 1, 2
+		UINT							swapchainIndex;
+
+		std::vector<VkFence>			fencesRenderFinished;
+		std::vector<VkSemaphore>		samaphoresImageAvailable;
+		std::vector<VkSemaphore>		semaphoresRenderFinished;
+
+		struct StateCache
+		{
+			surface_ptr surface;
+
+			//D3D12_VIEWPORT viewport;
+			//D3D12_RECT scissor;
+
+			//struct PSO
+			//{
+			//	bool isCompute;
+			//	psomap_checksum_t PsoChecksum; // 0 not set. Compute or graphic checksum
+			//	GraphicPipelineState graphicDesc;
+			//	ComputePipelineState computeDesc;
+			//	ComPtr<ID3D12RootSignature> d3drootSignature;
+			//	ComPtr<ID3D12PipelineState> d3dpso;
+			//}pso;
+
+			//intrusive_ptr<Dx12ResourceSet> set_;
+
+		} state;
+		std::stack<StateCache> statesStack;
+
+
+	public:
+		VkGraphicCommandContext();
+		~VkGraphicCommandContext();
+		void BindSurface(surface_ptr& surface_) override; // TODO: bind arbitary textures
+		void CommandsBegin() override;
+		void CommandsEnd() override;
+		void FrameEnd() override;
+		void Submit() override;
+		void WaitGPUFrame() override;
+		void WaitGPUAll() override;
+		void PushState() override;
+		void PopState() override;
+		void SetGraphicPipelineState(const GraphicPipelineState& gpso) override;
+		void SetComputePipelineState(const ComputePipelineState& cpso) override;
+		void SetVertexBuffer(ICoreVertexBuffer* vb) override;
+		void SetViewport(unsigned width, unsigned heigth) override;
+		void GetViewport(unsigned& width, unsigned& heigth) override;
+		void SetScissor(unsigned x, unsigned y, unsigned width, unsigned heigth) override;
+		void Draw(const ICoreVertexBuffer* vb, uint32_t vertexCount = 0, uint32_t vertexOffset = 0) override;
+		void Dispatch(uint32_t x, uint32_t y, uint32_t z = 1) override;
+		void Clear() override;
+		void BuildResourceSet(IResourceSet* set_) override;
+		void BindResourceSet(IResourceSet* set_) override;
+		void UpdateInlineConstantBuffer(size_t idx, const void* data, size_t size) override;
+		void EmitUAVBarrier(ICoreBuffer* buffer) override;
+		void TimerBegin(uint32_t timerID) override;
+		void TimerEnd(uint32_t timerID) override;
+		float TimerGetTimeInMs(uint32_t timerID) override;
+	};
+}

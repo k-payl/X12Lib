@@ -1,8 +1,4 @@
 #include "core.h"
-#include "dx12render.h"
-#include "dx12shader.h"
-#include "dx12context.h"
-#include "dx12buffer.h"
 #include "filesystem.h"
 #include <string>
 #include <iostream>
@@ -16,7 +12,7 @@ std::vector<float> ExecuteGPU();
 int main()
 {
 	Core *core = new Core();
-	core->Init(nullptr, nullptr, INIT_FLAGS::NO_WINDOW | INIT_FLAGS::NO_INPUT | INIT_FLAGS::NO_CONSOLE | INIT_FLAGS::BUILT_IN_DX12_RENDERER);
+	core->Init(nullptr, nullptr, INIT_FLAGS::NO_WINDOW | INIT_FLAGS::NO_INPUT | INIT_FLAGS::NO_CONSOLE | INIT_FLAGS::DIRECTX12_RENDERER);
 
 	std::vector<float> result = ExecuteGPU();
 
@@ -56,8 +52,8 @@ std::vector<float> ExecuteGPU()
 	intrusive_ptr<ICoreBuffer> buffer;
 	intrusive_ptr<IResourceSet> resources;
 
-	Dx12CoreRenderer* renderer = CORE->GetCoreRenderer();
-	Dx12GraphicCommandContext* context = renderer->GetGraphicCommmandContext();	
+	ICoreRenderer* renderer = CORE->GetCoreRenderer();
+	ICoreGraphicCommandList* context = renderer->GetGraphicCommandContext();	
 
 	{
 		auto text = CORE->GetFS()->LoadFile(SHADER_DIR "uav.shader");

@@ -7,6 +7,159 @@ namespace x12
 	inline constexpr size_t MaxBindedResourcesPerFrame = 1'024;
 	inline constexpr unsigned MaxResourcesPerShader = 8;
 
+	enum class TEXTURE_FORMAT;
+	enum class TEXTURE_CREATE_FLAGS : uint32_t;
+	enum class TEXTURE_TYPE;
+	enum class VERTEX_BUFFER_FORMAT;
+	enum class VERTEX_BUFFER_FORMAT;
+	enum class INDEX_BUFFER_FORMAT;
+	enum class BUFFER_FLAGS;
+	class IWidowSurface;
+	class ICoreRenderer;
+	struct GraphicPipelineState;
+	struct ComputePipelineState;
+	struct ICoreVertexBuffer;
+	struct IResourceSet;
+	struct ICoreBuffer;
+	struct ICoreShader;
+	struct ConstantBuffersDesc;
+	struct VeretxBufferDesc;
+	struct IndexBufferDesc;
+	struct ICoreTexture;
+
+	extern ICoreRenderer* _coreRender;
+	inline ICoreRenderer* GetCoreRender() { return _coreRender; }
+
+	using surface_ptr = std::shared_ptr<IWidowSurface>;
+
+	class ICoreGraphicCommandList
+	{
+	public:
+		virtual ~ICoreGraphicCommandList() = default;
+		virtual void BindSurface(surface_ptr& surface_) = 0; // TODO: bind arbitary textures
+		virtual void CommandsBegin() = 0;
+		virtual void CommandsEnd() = 0;
+		virtual void FrameEnd() = 0;
+		virtual void Submit() = 0;
+		virtual void WaitGPUFrame() = 0;
+		virtual void WaitGPUAll() = 0;
+		virtual void PushState() = 0;
+		virtual void PopState() = 0;
+		virtual void SetGraphicPipelineState(const GraphicPipelineState& gpso) = 0;
+		virtual void SetComputePipelineState(const ComputePipelineState& cpso) = 0;
+		virtual void SetVertexBuffer(ICoreVertexBuffer* vb) = 0;
+		virtual void SetViewport(unsigned width, unsigned heigth) = 0;
+		virtual void GetViewport(unsigned& width, unsigned& heigth) = 0;
+		virtual void SetScissor(unsigned x, unsigned y, unsigned width, unsigned heigth) = 0;
+		virtual void Draw(const ICoreVertexBuffer* vb, uint32_t vertexCount = 0, uint32_t vertexOffset = 0) = 0;
+		virtual void Dispatch(uint32_t x, uint32_t y, uint32_t z = 1) = 0;
+		virtual void Clear() = 0;
+		virtual void BuildResourceSet(IResourceSet* set_) = 0;
+		virtual void BindResourceSet(IResourceSet* set_) = 0;
+		virtual void UpdateInlineConstantBuffer(size_t idx, const void* data, size_t size) = 0;
+		virtual void EmitUAVBarrier(ICoreBuffer* buffer) = 0;
+		virtual void TimerBegin(uint32_t timerID) = 0;
+		virtual void TimerEnd(uint32_t timerID) = 0;
+		virtual float TimerGetTimeInMs(uint32_t timerID) = 0;
+	};
+
+	class ICoreCopyCommandList
+	{
+	public:
+		virtual ~ICoreCopyCommandList() = default;
+		virtual void Free() = 0;
+		virtual void CommandsBegin() = 0;
+		virtual void CommandsEnd() = 0;
+		virtual void Submit() = 0;
+		virtual void WaitGPUAll() = 0;
+	};
+
+	class IWidowSurface
+	{
+	protected:
+		unsigned width, height;
+	public:
+		virtual ~IWidowSurface() = default;
+		void GetSubstents(unsigned& w, unsigned& h) { w = width; h = height; }
+		virtual void Init(HWND hwnd, ICoreRenderer* render) = 0;
+		virtual void ResizeBuffers(unsigned width_, unsigned height_) = 0;
+		virtual void Present() = 0;
+	};
+
+	struct CoreRenderStat
+	{
+		uint64_t UniformBufferUpdates;
+		uint64_t StateChanges;
+		uint64_t Triangles;
+		uint64_t DrawCalls;
+		size_t committedMemory{};     // Bytes of memory currently committed/in-flight
+		size_t totalMemory{};         // Total bytes of memory used by the allocators
+		size_t totalPages{};          // Total page count
+		size_t peakCommitedMemory{};  // Peak commited memory value since last reset
+		size_t peakTotalMemory{};     // Peak total bytes
+		size_t peakTotalPages{};      // Peak total page count
+	};
+
+	enum class BUFFER_FLAGS
+	{
+		NONE = 0,
+		CPU_WRITE = 1 << 0,
+		GPU_READ = 1 << 1,
+		UNORDERED_ACCESS = 1 << 2,
+		CONSTNAT_BUFFER = 1 << 3,
+		RAW_BUFFER = 1 << 4,
+	};
+	DEFINE_ENUM_OPERATORS(BUFFER_FLAGS)
+
+	class ICoreRenderer
+	{
+	protected:
+		uint64_t frame{};
+		bool Vsync{false};
+
+	public:
+		virtual ~ICoreRenderer() = default;
+		virtual auto Init() -> void = 0;
+		virtual auto Free() -> void = 0;
+		virtual auto GetGraphicCommandContext()->ICoreGraphicCommandList* = 0;
+		virtual auto GetCopyCommandContext()->ICoreCopyCommandList* = 0;
+
+		// Surfaces
+		virtual auto _FetchSurface(HWND hwnd)->surface_ptr = 0;
+		virtual auto RecreateBuffers(HWND hwnd, UINT newWidth, UINT newHeight) -> void = 0;
+		virtual auto GetWindowSurface(HWND hwnd)->surface_ptr = 0;
+		virtual auto PresentSurfaces() -> void = 0;
+
+		virtual auto GetStat(CoreRenderStat& stat) -> void = 0;
+
+		virtual auto IsVSync() -> bool = 0;
+
+		// Resurces
+		virtual bool CreateShader(ICoreShader** out, LPCWSTR name, const char* vertText, const char* fragText,
+								  const ConstantBuffersDesc* variabledesc = nullptr, uint32_t varNum = 0) = 0;
+
+		virtual bool CreateComputeShader(ICoreShader** out, LPCWSTR name, const char* text,
+										 const ConstantBuffersDesc* variabledesc = nullptr, uint32_t varNum = 0) = 0;
+
+		virtual bool CreateVertexBuffer(ICoreVertexBuffer** out, LPCWSTR name, const void* vbData, const VeretxBufferDesc* vbDesc,
+										const void* idxData, const IndexBufferDesc* idxDesc, BUFFER_FLAGS flags = BUFFER_FLAGS::GPU_READ) = 0;
+
+		virtual bool CreateConstantBuffer(ICoreBuffer** out, LPCWSTR name, size_t size, bool FastGPUread = false) = 0;
+
+		virtual bool CreateStructuredBuffer(ICoreBuffer** out, LPCWSTR name, size_t structureSize, size_t num,
+											const void* data = nullptr, BUFFER_FLAGS flags = BUFFER_FLAGS::NONE) = 0;
+
+		virtual bool CreateRawBuffer(ICoreBuffer** out, LPCWSTR name, size_t size) = 0;
+
+		//virtual bool CreateTexture(ICoreTexture** out, LPCWSTR name, std::unique_ptr<uint8_t[]> data, int32_t width, int32_t height,
+		//				   TEXTURE_TYPE type, TEXTURE_FORMAT format, TEXTURE_CREATE_FLAGS flags) = 0;
+
+		virtual bool CreateTextureFrom(ICoreTexture** out, LPCWSTR name, std::unique_ptr<uint8_t[]> ddsData,
+									   std::vector<D3D12_SUBRESOURCE_DATA> subresources, ID3D12Resource* d3dexistingtexture) = 0;
+
+		virtual bool CreateResourceSet(IResourceSet** out, const ICoreShader* shader) = 0;
+	};
+
 	enum class TEXTURE_FORMAT
 	{
 		// normalized
@@ -117,7 +270,7 @@ namespace x12
 
 	struct ConstantBuffersDesc
 	{
-		const char* name; 
+		const char* name;
 		CONSTANT_BUFFER_UPDATE_FRIQUENCY mode;
 	};
 
@@ -132,13 +285,12 @@ namespace x12
 
 	public:
 		IResourceUnknown(uint16_t id_);
+		virtual ~IResourceUnknown() = default;
 
 		void AddRef() const { refs++; }
 		int GetRefs() { return refs; }
 		void Release();
 		uint16_t ID() const { return id; }
-		virtual ~IResourceUnknown() = default;
-
 		static void CheckResources();
 	};
 
@@ -229,17 +381,6 @@ namespace x12
 		ICoreShader* shader;
 	};
 
-	enum class BUFFER_FLAGS
-	{
-		NONE = 0,
-		CPU_WRITE = 1 << 0,
-		GPU_READ = 1 << 1,
-		UNORDERED_ACCESS = 1 << 2,
-		CONSTNAT_BUFFER = 1 << 3,
-		RAW_BUFFER = 1 << 4,
-	};
-	DEFINE_ENUM_OPERATORS(BUFFER_FLAGS)
-
 	enum class SHADER_TYPE
 	{
 		SHADER_VERTEX,
@@ -267,7 +408,7 @@ namespace x12
 	};
 	DEFINE_ENUM_OPERATORS(RESOURCE_DEFINITION)
 
-	static UINT formatInBytes(VERTEX_BUFFER_FORMAT format)
+		static UINT formatInBytes(VERTEX_BUFFER_FORMAT format)
 	{
 		switch (format)
 		{

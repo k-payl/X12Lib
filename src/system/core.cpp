@@ -3,6 +3,7 @@
 #include "mainwindow.h"
 #include "input.h"
 #include "dx12render.h"
+#include "vkrender.h"
 #include "console.h"
 #include "filesystem.h"
 #include "dx12gpuprofiler.h"
@@ -84,12 +85,19 @@ void Core::Init(GpuProfiler* gpuprofiler_, InitRendererProcedure initRenderer, I
 		input->Init();
 	}
 
-	if (flags & INIT_FLAGS::BUILT_IN_DX12_RENDERER)
+	if (flags & INIT_FLAGS::DIRECTX12_RENDERER)
 	{
 		renderer = std::make_unique<x12::Dx12CoreRenderer>();
 		renderer->Init();
+	}
+	else if (flags & INIT_FLAGS::VULKAN_RENDERER)
+	{
+		renderer = std::make_unique<x12::VkCoreRenderer>();
+		renderer->Init();
+	}
 
-		assert(renderprofiler == nullptr);
+	if (renderer && flags & INIT_FLAGS::DIRECTX12_RENDERER)
+	{
 		renderprofiler = std::unique_ptr<GpuProfiler>(new Dx12GpuProfiler({ 0.6f, 0.6f, 0.6f, 1.0f }, 0.0f));
 		renderprofiler->Init();
 		renderprofiler->AddRecord("=== D3D12 Render ===",				true, false);
@@ -113,7 +121,7 @@ void Core::Init(GpuProfiler* gpuprofiler_, InitRendererProcedure initRenderer, I
 		renderprofiler.reset(gpuprofiler_);
 	}
 
-	if (renderer)
+	if (renderer && flags & INIT_FLAGS::DIRECTX12_RENDERER)
 	{
 		memoryprofiler = std::unique_ptr<GpuProfiler>(new Dx12GpuProfiler({ 0.6f, 0.6f, 0.6f, 1.0f }, 140.0f));
 		memoryprofiler->Init();
@@ -221,22 +229,27 @@ void Core::RenderProfiler(float gpu_, float cpu_)
 
 	if (dynamic_cast<Dx12GpuProfiler*>(renderprofiler.get()))
 	{
-		renderprofiler->UpdateRecord(3, renderer->StateChanges());
-		renderprofiler->UpdateRecord(4, renderer->Triangles());
-		renderprofiler->UpdateRecord(5, renderer->DrawCalls());
-	}
-	renderprofiler->Render();
+		x12::CoreRenderStat s;
+		renderer->GetStat(s);
 
-	if (memoryprofiler)
-	{
-		memoryprofiler->UpdateRecord(1, renderer->committedMemory);
-		memoryprofiler->UpdateRecord(2, renderer->totalMemory);
-		memoryprofiler->UpdateRecord(3, renderer->totalPages);
-		memoryprofiler->UpdateRecord(4, renderer->peakCommitedMemory);
-		memoryprofiler->UpdateRecord(5, renderer->peakTotalMemory);
-		memoryprofiler->UpdateRecord(6, renderer->peakTotalPages);
-		memoryprofiler->Render();
+		renderprofiler->UpdateRecord(3, s.StateChanges);
+		renderprofiler->UpdateRecord(4, s.Triangles);
+		renderprofiler->UpdateRecord(5, s.DrawCalls);
+
+		if (memoryprofiler)
+		{
+			memoryprofiler->UpdateRecord(1, s.committedMemory);
+			memoryprofiler->UpdateRecord(2, s.totalMemory);
+			memoryprofiler->UpdateRecord(3, s.totalPages);
+			memoryprofiler->UpdateRecord(4, s.peakCommitedMemory);
+			memoryprofiler->UpdateRecord(5, s.peakTotalMemory);
+			memoryprofiler->UpdateRecord(6, s.peakTotalPages);
+		}
 	}
+
+	renderprofiler->Render();
+	if (memoryprofiler)
+		memoryprofiler->Render();
 }
 
 void Core::AddRenderProcedure(RenderProcedure fn)

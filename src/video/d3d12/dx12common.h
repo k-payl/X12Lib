@@ -10,14 +10,8 @@ namespace DirectX {
 namespace x12
 {
 	// Resources associated with window
-	struct Dx12WindowSurface
+	struct Dx12WindowSurface : public IWidowSurface
 	{
-		void Init(HWND hwnd, ID3D12CommandQueue* queue);
-		void ResizeBuffers(unsigned width_, unsigned height_);
-		void Present();
-
-		unsigned width, height;
-
 		ComPtr<swapchain_t> swapChain;
 
 		ComPtr<ID3D12Resource> colorBuffers[DeferredBuffers];
@@ -27,17 +21,19 @@ namespace x12
 		ComPtr<ID3D12DescriptorHeap> descriptorHeapDSV;
 
 		D3D12_RESOURCE_STATES state{};
+
+		void Init(HWND hwnd, ICoreRenderer* render) override;
+		void ResizeBuffers(unsigned width_, unsigned height_) override;
+		void Present() override;
 	};
 
-	using surface_ptr = std::shared_ptr<Dx12WindowSurface>;
-
-	namespace impl
+	namespace d3d12
 	{
 		bool CheckTearingSupport();
 		DXGI_FORMAT engineToDXGIFormat(VERTEX_BUFFER_FORMAT format);
 
 		template<typename... Arguments>
-		void set_name(ID3D12Object *obj, LPCWSTR format, Arguments ...args)
+		void set_name(ID3D12Object* obj, LPCWSTR format, Arguments ...args)
 		{
 			WCHAR wstr[256];
 			wsprintf(wstr, format, args...);

@@ -36,6 +36,12 @@ using namespace Microsoft::WRL;
 #endif
 //#include <DirectXMath.h>
 
+// Vulkan specific headers.
+#ifdef _WIN32
+#define VK_USE_PLATFORM_WIN32_KHR
+#endif
+#include "vulkan.h"
+
 // D3D12 extension library.
 #include "d3dx12.h"
 

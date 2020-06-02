@@ -5,7 +5,7 @@
 
 class Dx12GpuProfiler : public GpuProfiler
 {
-	x12::Dx12GraphicCommandContext* context;
+	x12::ICoreGraphicCommandList* context;
 	intrusive_ptr<x12::ICoreShader> fontShader;
 	intrusive_ptr<x12::ICoreShader> graphShader;
 	intrusive_ptr<x12::ICoreBuffer> fontDataStructuredBuffer;

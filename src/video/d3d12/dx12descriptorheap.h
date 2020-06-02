@@ -35,7 +35,7 @@ namespace x12::descriptorheap
 	//
 	// Details: Allocator::Free() don't return the descriptors to the free list until the frame has completed
 	class Allocator
-	{	
+	{
 		friend class Page;
 
 		D3D12_DESCRIPTOR_HEAP_TYPE heapType;
@@ -83,7 +83,7 @@ namespace x12::descriptorheap
 			uint32_t Size;
 			uint64_t FrameNumber;
 		};
-		
+
 		FreeListByOffset freeListByOffset;
 		FreeListBySize freeListBySize;
 

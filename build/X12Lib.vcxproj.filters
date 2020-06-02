@@ -91,7 +91,15 @@
     <ClInclude Include="..\src\3rdparty\d3dx12.h">
       <Filter>external\d3dx12</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\video\vk\vkrender.h" />
+    <ClInclude Include="..\src\video\vk\vkrender.h">
+      <Filter>video\vk</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\video\vk\vkcommon.h">
+      <Filter>video\vk</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\video\vk\vkcontext.h">
+      <Filter>video\vk</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\src\video\d3d12\dx12buffer.cpp">
@@ -175,9 +183,17 @@
     <ClCompile Include="..\src\3rdparty\DirectXTK\Src\LinearAllocator.cpp">
       <Filter>external\DirectXTK</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\video\vk\vkrender.cpp" />
     <ClCompile Include="..\src\video\icorerender.cpp">
       <Filter>video</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\video\vk\vkrender.cpp">
+      <Filter>video\vk</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\video\vk\vkcommon.cpp">
+      <Filter>video\vk</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\video\vk\vkcontext.cpp">
+      <Filter>video\vk</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

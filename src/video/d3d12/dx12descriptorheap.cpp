@@ -113,7 +113,7 @@ Alloc& Alloc::operator=(Alloc&& other)
 D3D12_CPU_DESCRIPTOR_HANDLE Alloc::GetDescriptorHandle(uint32_t offset) const
 {
 	assert(offset < numDescriptors);
-	return { descriptor.ptr + (descriptorIncrementSize * offset) };
+	return {descriptor.ptr + (descriptorIncrementSize * offset)};
 }
 
 void Alloc::Free()
@@ -136,15 +136,15 @@ Page::Page(D3D12_DESCRIPTOR_HEAP_TYPE type, uint32_t numDescriptors, Allocator& 
 {
 #ifndef NTESTS
 
-	d3d12DescriptorHeap = CreateDescriptorHeap(CR_GetD3DDevice(), numDescriptorsInPage, heapType);
+	d3d12DescriptorHeap = CreateDescriptorHeap(d3d12::CR_GetD3DDevice(), numDescriptorsInPage, heapType);
 
-	x12::impl::set_name(d3d12DescriptorHeap.Get(), L"Descriptor heap page for static resources %u descriptors", numDescriptorsInPage);
+	x12::d3d12::set_name(d3d12DescriptorHeap.Get(), L"Descriptor heap page for static resources %u descriptors", numDescriptorsInPage);
 
 	baseDescriptor = d3d12DescriptorHeap->GetCPUDescriptorHandleForHeapStart();
 #else
 	descriptorIncrementSize = 1;
 #endif
-	
+
 	numFreeHandles = numDescriptorsInPage;
 
 	AddNewBlock(0, numFreeHandles);
@@ -213,13 +213,13 @@ Alloc Page::Allocate(uint32_t numDescriptors)
 	numFreeHandles -= numDescriptors;
 
 	return Alloc(
-		CD3DX12_CPU_DESCRIPTOR_HANDLE(baseDescriptor, blockOffset, CR_CBSRV_DescriptorsSize()),
-		numDescriptors, CR_CBSRV_DescriptorsSize(), shared_from_this());
+		CD3DX12_CPU_DESCRIPTOR_HANDLE(baseDescriptor, blockOffset, d3d12::CR_CBSRV_DescriptorsSize()),
+		numDescriptors, d3d12::CR_CBSRV_DescriptorsSize(), shared_from_this());
 }
 
 uint32_t Page::ComputeOffset(D3D12_CPU_DESCRIPTOR_HANDLE handle)
 {
-	return static_cast<uint32_t>(handle.ptr - baseDescriptor.ptr) / CR_CBSRV_DescriptorsSize();
+	return static_cast<uint32_t>(handle.ptr - baseDescriptor.ptr) / d3d12::CR_CBSRV_DescriptorsSize();
 }
 
 void Page::Free(const Alloc& alloc)

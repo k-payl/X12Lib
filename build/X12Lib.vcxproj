@@ -114,7 +114,7 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);$(ProjectDir)..\src\math\;$(ProjectDir)..\src\system\;$(ProjectDir)..\src\video\;$(ProjectDir)..\src\video\d3d12\;$(ProjectDir)..\src\video\d3d11\;$(ProjectDir)..\src\3rdparty\;$(ProjectDir)..\src\3rdparty\DirectXTex\;$(ProjectDir)..\src\3rdparty\DirectXTK\Inc\</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);$(ProjectDir)..\src\video\vk\;$(ProjectDir)..\src\math\;$(ProjectDir)..\src\system\;$(ProjectDir)..\src\video\;$(ProjectDir)..\src\video\d3d12\;$(ProjectDir)..\src\video\d3d11\;$(ProjectDir)..\src\3rdparty\;$(ProjectDir)..\src\3rdparty\DirectXTex\;$(ProjectDir)..\src\3rdparty\DirectXTK\Inc\;$(VULKAN_SDK)\Include\vulkan</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -132,7 +132,7 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);$(ProjectDir)..\src\math\;$(ProjectDir)..\src\system\;$(ProjectDir)..\src\video\;$(ProjectDir)..\src\video\d3d12\;$(ProjectDir)..\src\video\d3d11\;$(ProjectDir)..\src\3rdparty\;$(ProjectDir)..\src\3rdparty\DirectXTex\;$(ProjectDir)..\src\3rdparty\DirectXTK\Inc\</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);$(ProjectDir)..\src\video\vk\;$(ProjectDir)..\src\math\;$(ProjectDir)..\src\system\;$(ProjectDir)..\src\video\;$(ProjectDir)..\src\video\d3d12\;$(ProjectDir)..\src\video\d3d11\;$(ProjectDir)..\src\3rdparty\;$(ProjectDir)..\src\3rdparty\DirectXTex\;$(ProjectDir)..\src\3rdparty\DirectXTK\Inc\;$(VULKAN_SDK)\Include\vulkan</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -152,7 +152,7 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);$(ProjectDir)..\src\math\;$(ProjectDir)..\src\system\;$(ProjectDir)..\src\video\;$(ProjectDir)..\src\video\d3d12\;$(ProjectDir)..\src\video\d3d11\;$(ProjectDir)..\src\3rdparty\;$(ProjectDir)..\src\3rdparty\DirectXTex\;$(ProjectDir)..\src\3rdparty\DirectXTK\Inc\</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);$(ProjectDir)..\src\video\vk\;$(ProjectDir)..\src\math\;$(ProjectDir)..\src\system\;$(ProjectDir)..\src\video\;$(ProjectDir)..\src\video\d3d12\;$(ProjectDir)..\src\video\d3d11\;$(ProjectDir)..\src\3rdparty\;$(ProjectDir)..\src\3rdparty\DirectXTex\;$(ProjectDir)..\src\3rdparty\DirectXTK\Inc\;$(VULKAN_SDK)\Include\vulkan</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -174,7 +174,7 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);$(ProjectDir)..\src\math\;$(ProjectDir)..\src\system\;$(ProjectDir)..\src\video\;$(ProjectDir)..\src\video\d3d12\;$(ProjectDir)..\src\video\d3d11\;$(ProjectDir)..\src\3rdparty\;$(ProjectDir)..\src\3rdparty\DirectXTex\;$(ProjectDir)..\src\3rdparty\DirectXTK\Inc\</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);$(ProjectDir)..\src\video\vk\;$(ProjectDir)..\src\math\;$(ProjectDir)..\src\system\;$(ProjectDir)..\src\video\;$(ProjectDir)..\src\video\d3d12\;$(ProjectDir)..\src\video\d3d11\;$(ProjectDir)..\src\3rdparty\;$(ProjectDir)..\src\3rdparty\DirectXTex\;$(ProjectDir)..\src\3rdparty\DirectXTK\Inc\;$(VULKAN_SDK)\Include\vulkan</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -215,6 +215,8 @@
     <ClInclude Include="..\src\video\d3d12\dx12shader.h" />
     <ClInclude Include="..\src\video\d3d12\dx12vertexbuffer.h" />
     <ClInclude Include="..\src\video\d3d12\dx12render.h" />
+    <ClInclude Include="..\src\video\vk\vkcommon.h" />
+    <ClInclude Include="..\src\video\vk\vkcontext.h" />
     <ClInclude Include="..\src\video\vk\vkrender.h" />
   </ItemGroup>
   <ItemGroup>
@@ -489,7 +491,7 @@
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">pch.h</PrecompiledHeaderFile>
     </ClCompile>
     <ClCompile Include="..\src\video\icorerender.cpp">
-	  <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Use</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Use</PrecompiledHeader>
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">pch.h</PrecompiledHeaderFile>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Use</PrecompiledHeader>
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">pch.h</PrecompiledHeaderFile>
@@ -498,8 +500,30 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Use</PrecompiledHeader>
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">pch.h</PrecompiledHeaderFile>
     </ClCompile>
+    <ClCompile Include="..\src\video\vk\vkcommon.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Use</PrecompiledHeader>
+      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">pch.h</PrecompiledHeaderFile>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Use</PrecompiledHeader>
+      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">pch.h</PrecompiledHeaderFile>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Use</PrecompiledHeader>
+      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">pch.h</PrecompiledHeaderFile>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Use</PrecompiledHeader>
+      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">pch.h</PrecompiledHeaderFile>
+    </ClCompile>
+
+    <ClCompile Include="..\src\video\vk\vkcontext.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Use</PrecompiledHeader>
+      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">pch.h</PrecompiledHeaderFile>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Use</PrecompiledHeader>
+      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">pch.h</PrecompiledHeaderFile>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Use</PrecompiledHeader>
+      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">pch.h</PrecompiledHeaderFile>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Use</PrecompiledHeader>
+      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">pch.h</PrecompiledHeaderFile>
+    </ClCompile>
+
     <ClCompile Include="..\src\video\vk\vkrender.cpp">
-	  <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Use</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Use</PrecompiledHeader>
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">pch.h</PrecompiledHeaderFile>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Use</PrecompiledHeader>
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">pch.h</PrecompiledHeaderFile>

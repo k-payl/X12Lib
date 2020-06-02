@@ -186,13 +186,13 @@ void Dx12GpuProfiler::Init()
 	GetCoreRender()->CreateConstantBuffer(viewportUniformBuffer.getAdressOf(), L"Dx12GpuProfiler viewport", 16);
 	GetCoreRender()->CreateConstantBuffer(COLORCBUniformBuffer.getAdressOf(), L"Dx12GpuProfiler COLORCBUniformBuffer", 16);
 	COLORCBUniformBuffer->SetData(&color, 16);
-	context = GetCoreRender()->GetGraphicCommmandContext();
+	context = GetCoreRender()->GetGraphicCommandContext();
 
 	// Texture
 	std::unique_ptr<uint8_t[]> ddsData;
 	std::vector<D3D12_SUBRESOURCE_DATA> subresources;
 	ID3D12Resource* d3dtexture;
-	DirectX::LoadDDSTextureFromFile(CR_GetD3DDevice(), fontTexturePath, &d3dtexture, ddsData, subresources);
+	DirectX::LoadDDSTextureFromFile(d3d12::CR_GetD3DDevice(), fontTexturePath, &d3dtexture, ddsData, subresources);
 
 	GetCoreRender()->CreateTextureFrom(fontTexture.getAdressOf(), fontTexturePath, std::move(ddsData), subresources, d3dtexture);
 
@@ -217,7 +217,7 @@ void Dx12GpuProfiler::Init()
 }
 void Dx12GpuProfiler::Begin()
 {
-	context = GetCoreRender()->GetGraphicCommmandContext();
+	context = GetCoreRender()->GetGraphicCommandContext();
 
 	context->GetViewport(w, h);
 }
