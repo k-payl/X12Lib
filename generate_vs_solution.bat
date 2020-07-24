@@ -1,3 +1,4 @@
+mkdir build
 cd build
 "C:\Program Files\CMake\bin\cmake.exe" -G "Visual Studio 16 2019" ../
 rem -DVK_ENABLE=ON
