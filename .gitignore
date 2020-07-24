@@ -18,6 +18,7 @@
 *.log
 *.exe
 
+x12lib.sln
 dx11.csv
 dx12.csv
 
@@ -27,6 +28,7 @@ build/engine/Editor/x64
 err_compile.shader
 x64/
 obj/
+build/
 
 out/test*
 

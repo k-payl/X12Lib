@@ -10,10 +10,10 @@ install:
 - ps: Start-FileDownload 'https://vulkan.lunarg.com/sdk/download/1.2.135.0/windows/VulkanSDK-1.2.135.0-Installer.exe?Human=true'
 - cmd: VulkanSDK-1.2.135.0-Installer.exe /S
 - cmd: set VULKAN_SDK=C:\VulkanSDK\1.2.135.0
-build:
-  project: build\X12Lib.sln
-  verbosity: minimal
-  parallel: true
+build_script:
+    - cd build
+    - cmake %CMAKE_CONFIGURE_FLAGS% ../
+    - cmake --build . %CMAKE_BUILD_FLAGS%
 notifications:
 - provider: Email
   to:
