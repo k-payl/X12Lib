@@ -11,6 +11,7 @@ install:
 - cmd: VulkanSDK-1.2.135.0-Installer.exe /S
 - cmd: set VULKAN_SDK=C:\VulkanSDK\1.2.135.0
 build_script:
+    - mkdir build
     - cd build
     - cmake %CMAKE_CONFIGURE_FLAGS% ../
     - cmake --build . %CMAKE_BUILD_FLAGS%
