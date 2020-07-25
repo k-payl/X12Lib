@@ -6,28 +6,23 @@ on:
 
 jobs:
   benchmark:
-    name: Run vector math benchmark
+    name: Vector math benchmark
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - name: Cache Benchmark library
-        uses: actions/cache@v1
-        with:
-          path: src/tests/bench/benchbenchmark
-          key: ${{ runner.os }}-googlebenchmark-v1.5.0
-      - name: Run benchmark
-        run: cd src/tests/bench && make json
-      - name: Store benchmark result
+      - name: Build and run
+        run: cd src/benchmarks && make json
+      - name: Store result
         uses: rhysd/github-action-benchmark@v1
         with:
           name: C++ Benchmark
           tool: 'googlecpp'
-          output-file-path: src/tests/bench/benchmark_result.json
+          output-file-path: src/benchmarks/benchmark_result.json
           # Use personal access token instead of GITHUB_TOKEN due to https://github.community/t5/GitHub-Actions/Github-action-not-triggering-gh-pages-upon-push/td-p/26869/highlight/false
           github-token: ${{ secrets.PERSONAL_GITHUB_TOKEN }}
           auto-push: true
           # Show alert with commit comment on detecting possible performance regression
           alert-threshold: '200%'
           comment-on-alert: true
-          alert-comment-cc-users: '@frame-r'
+          alert-comment-cc-users: '@k-payl'
           max-items-in-chart: 30
