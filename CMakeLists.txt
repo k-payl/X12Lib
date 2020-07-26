@@ -4,6 +4,15 @@ project (x12lib)
 
 option(VK_ENABLE "Enable vulkan renderer" OFF)
 
+if (VK_ENABLE)
+	find_package(Vulkan REQUIRED FATAL_ERROR)
+	if (NOT Vulkan_FOUND)
+		message(FATAL_ERROR "Vulkan not find!")
+	else()
+		message(STATUS "Vulkan lib path: " ${Vulkan_LIBRARY})
+	endif()
+endif()
+
 add_definitions ( -D_UNICODE )
 add_definitions ( -DUNICODE )
 remove_definitions ( -D_MBCS )
@@ -25,12 +34,23 @@ file(GLOB HEADERS_3RDPARTY
     src/engine/3rdparty/DirectXTK/Inc/*.h
     src/engine/3rdparty/DirectXTex/*.h)
 
+# Vulkan
+if (VK_ENABLE)
+	add_definitions(-DVK_ENABLE=1)
+	file(GLOB SOURCES_VK src/engine/video/vk/*.cpp)
+	file(GLOB HEADERS_VK src/engine/video/vk/*.h)
+	set(SOURCES_VIDEO ${SOURCES_VIDEO} ${SOURCES_VK})
+	set(HEADERS_VIDEO ${HEADERS_VIDEO} ${HEADERS_VK})
+	include_directories(src/engine/video/vk)
+	set(HEADERS ${HEADERS} ${Vulkan_INCLUDE_DIR}/vulkan/)
+endif()
+
 set(SOURCES ${SOURCES} ${SOURCES_SYSTEM} ${SOURCES_VIDEO} ${SOURCES_3RDPARTY})
 set(HEADERS ${HEADERS} ${HEADERS_SYSTEM} ${HEADERS_VIDEO} ${HEADERS_3RDPARTY})
-
+set(VIDEO_FILES ${SOURCES_VIDEO} ${HEADERS_VIDEO})
 source_group("system" FILES ${SOURCES_SYSTEM} ${HEADERS_SYSTEM})
 source_group("3rdparty" FILES ${SOURCES_3RDPARTY} ${HEADERS_3RDPARTY})
-source_group("video" FILES ${SOURCES_VIDEO} ${HEADERS_VIDEO})
+source_group("video" FILES ${VIDEO_FILES})
 
 include_directories(src/engine/video 
 	src/engine/video/d3d12
@@ -41,19 +61,7 @@ include_directories(src/engine/video
     src/engine/3rdparty/DirectXTK/Inc
     src/engine/3rdparty/DirectXTex)
 	
-# Vulkan
-if (VK_ENABLE)
-	add_definitions(-DVK_ENABLE=1)
-	file(GLOB SOURCES_VK src/engine/video/vk/*.cpp)
-	file(GLOB HEADERS_VK src/engine/video/vk/*.h)
-	set(SOURCES ${SOURCES} ${SOURCES_VK})
-	set(HEADERS ${HEADERS} ${HEADERS_VK})
-	include_directories(src/engine/video/vk)
-endif()
-	
-#message("SOURCES = ${SOURCES}")
-#message("HEADERS = ${HEADERS}")
-#message("CMAKE_CURRENT_SOURCE_DIR = ${CMAKE_CURRENT_SOURCE_DIR}")
+#message("VIDEO_FILES = ${VIDEO_FILES}")
 
 include(CheckCXXCompilerFlag)
 CHECK_CXX_COMPILER_FLAG("/std:c++latest" _cpp_latest_flag_supported)
@@ -66,9 +74,13 @@ endif()
 include_directories(${HEADERS})
 
 # engine
+set(ENGINE_LIBS dxguid dxgi d3d12 d3dcompiler)
+if (VK_ENABLE)
+	set(ENGINE_LIBS ${ENGINE_LIBS} ${Vulkan_LIBRARY})
+endif()
 add_library(engine SHARED ${SOURCES})
 target_precompile_headers(engine PRIVATE src/engine/system/pch.h)
-target_link_libraries(engine dxguid dxgi d3d12 d3dcompiler)
+target_link_libraries(engine ${ENGINE_LIBS})
 target_compile_definitions(engine PUBLIC _DLL_EXPORTS)
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /SUBSYSTEM:WINDOWS")
 
@@ -85,7 +97,7 @@ target_include_directories(constantbuffers PRIVATE src/examples)
 target_link_libraries(constantbuffers engine)
 set_property(TARGET constantbuffers PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/build")
 
-# uav_barriers example
+# uav barriers example
 add_executable(uavbarriers src/examples/uavbarriers.cpp)
 target_link_libraries(uavbarriers engine)
 set_target_properties(uavbarriers PROPERTIES LINK_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /SUBSYSTEM:CONSOLE")

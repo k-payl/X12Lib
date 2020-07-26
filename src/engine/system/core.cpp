@@ -142,16 +142,19 @@ Core::~Core() = default;
 
 void Core::Init(INIT_FLAGS flags, GpuProfiler* gpuprofiler_, InitRendererProcedure initRenderer)
 {
+#define FLAG(arg) (flags & arg)
+#define NOT(arg) (!(flags & arg))
+
 	fs = std::make_unique<FileSystem>(DATA_DIR);
 	sceneManager = std::make_unique<SceneManager>();
 
-	if (!(flags & INIT_FLAGS::NO_CONSOLE))
+	if (NOT(INIT_FLAGS::NO_CONSOLE))
 	{
 		console = std::make_unique<Console>();
 		console->Create();
 	}
 
-	if (!(flags & INIT_FLAGS::NO_WINDOW))
+	if (NOT(INIT_FLAGS::NO_WINDOW))
 	{
 		SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
 
@@ -161,30 +164,29 @@ void Core::Init(INIT_FLAGS flags, GpuProfiler* gpuprofiler_, InitRendererProcedu
 		window->SetCaption(L"Test DX12");
 	}
 
-	if (!(flags & INIT_FLAGS::NO_INPUT))
+	if (NOT(INIT_FLAGS::NO_INPUT))
 	{
 		input = std::make_unique<Input>();
 		input->Init();
 	}
 
-	if (flags & INIT_FLAGS::DIRECTX12_RENDERER)
+	if (FLAG(INIT_FLAGS::DIRECTX12_RENDERER))
 	{
 		renderer = std::make_unique<x12::Dx12CoreRenderer>();
-		renderer->Init();
 	}
-
-	else if (flags & INIT_FLAGS::VULKAN_RENDERER)
+	else if (FLAG(INIT_FLAGS::VULKAN_RENDERER))
 	{
 	#if VK_ENABLE
 		renderer = std::make_unique<x12::VkCoreRenderer>();
-		renderer->Init();
 	#else
-		throw "Vulkan disabled";
+		throw "Vulkan disabled. Use -DVK_ENABLE=ON in cmake";
 	#endif
 	}
 
+	if (renderer)
+		renderer->Init();
 
-	if (renderer && flags & INIT_FLAGS::DIRECTX12_RENDERER)
+	if (renderer && FLAG(INIT_FLAGS::DIRECTX12_RENDERER))
 	{
 		renderprofiler = std::unique_ptr<GpuProfiler>(new Dx12GpuProfiler({ 0.6f, 0.6f, 0.6f, 1.0f }, 0.0f));
 		renderprofiler->Init();
@@ -209,7 +211,7 @@ void Core::Init(INIT_FLAGS flags, GpuProfiler* gpuprofiler_, InitRendererProcedu
 		renderprofiler.reset(gpuprofiler_);
 	}
 
-	if (renderer && flags & INIT_FLAGS::DIRECTX12_RENDERER)
+	if (renderer && FLAG(INIT_FLAGS::DIRECTX12_RENDERER))
 	{
 		memoryprofiler = std::unique_ptr<GpuProfiler>(new Dx12GpuProfiler({ 0.6f, 0.6f, 0.6f, 1.0f }, 140.0f));
 		memoryprofiler->Init();
@@ -222,7 +224,7 @@ void Core::Init(INIT_FLAGS flags, GpuProfiler* gpuprofiler_, InitRendererProcedu
 		memoryprofiler->AddRecord("peakTotalPages: %zu",			false, false);		// Peak total page count
 	}
 
-	if (flags & INIT_FLAGS::HIGH_LEVEL_RENDER)
+	if (FLAG(INIT_FLAGS::HIGH_LEVEL_RENDER))
 	{
 		render = std::make_unique<Render>();
 		render->Init();
@@ -235,6 +237,9 @@ void Core::Init(INIT_FLAGS flags, GpuProfiler* gpuprofiler_, InitRendererProcedu
 	}
 
 	onInit.Invoke();
+
+#undef FLAG
+#undef NOT
 }
 
 void Core::Free()
