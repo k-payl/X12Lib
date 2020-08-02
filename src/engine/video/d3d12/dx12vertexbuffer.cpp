@@ -51,14 +51,7 @@ void x12::Dx12CoreVertexBuffer::Init(LPCWSTR name_, const void* vbData, const Ve
 
 	const bool hasIndexBuffer = idxData != nullptr && idxDesc != nullptr;
 
-	UINT vertexStride = 0;
-	for (int i = 0; i < vbDesc->attributesCount; ++i)
-	{
-		VertexAttributeDesc& attr = vbDesc->attributes[i];
-		vertexStride += formatInBytes(attr.format);
-	}
-
-	UINT64 bufferSize = (UINT64)vbDesc->vertexCount * vertexStride;
+	UINT64 bufferSize = getBufferSize(vbDesc);
 
 	UINT64 idxBufferSize;
 
@@ -126,7 +119,7 @@ void x12::Dx12CoreVertexBuffer::Init(LPCWSTR name_, const void* vbData, const Ve
 
 	vertexBufferView.BufferLocation = vertexBuffer->GetGPUVirtualAddress();
 	vertexBufferView.SizeInBytes = (UINT)bufferSize;
-	vertexBufferView.StrideInBytes = vertexStride;
+	vertexBufferView.StrideInBytes = getBufferStride(vbDesc);
 
 	vertexCount = vbDesc->vertexCount;
 	indexCount = hasIndexBuffer ? idxDesc->vertexCount : 0;

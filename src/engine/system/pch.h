@@ -46,6 +46,7 @@ using namespace Microsoft::WRL;
 
 #if VK_ENABLE
 #include "vulkan.h"
+#include "vk_mem_alloc.h"
 #endif
 
 #include <stdint.h>

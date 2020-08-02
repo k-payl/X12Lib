@@ -42,6 +42,7 @@ if (VK_ENABLE)
 	set(SOURCES_VIDEO ${SOURCES_VIDEO} ${SOURCES_VK})
 	set(HEADERS_VIDEO ${HEADERS_VIDEO} ${HEADERS_VK})
 	include_directories(src/engine/video/vk)
+	include_directories(src/engine/3rdparty/VulkanMemoryAllocator)
 	set(HEADERS ${HEADERS} ${Vulkan_INCLUDE_DIR}/vulkan/)
 endif()
 

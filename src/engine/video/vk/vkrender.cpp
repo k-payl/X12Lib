@@ -2,6 +2,7 @@
 #include "vkrender.h"
 #include "vkcommon.h"
 #include "vkcontext.h"
+#include "vkvertexbuffer.h"
 
 x12::VkCoreRenderer::VkCoreRenderer()
 {
@@ -48,10 +49,18 @@ auto x12::VkCoreRenderer::Init() -> void
 	VK_CHECK(vkCreateCommandPool(device, &poolInfo, 0, &commandPool));
 
 	graphicCommandContext = new VkGraphicCommandList();
+
+	VmaAllocatorCreateInfo allocatorInfo = {};
+	allocatorInfo.physicalDevice = physicalDevice;
+	allocatorInfo.device = device;
+	allocatorInfo.instance = instance;
+
+	vmaCreateAllocator(&allocatorInfo, &allocator);
 }
 
 auto x12::VkCoreRenderer::Free() -> void
 {
+	vmaDestroyAllocator(allocator);
 	vkDestroyCommandPool(device, commandPool, nullptr);
 	vkDestroyDevice(device, 0);
 	vkDestroyInstance(instance, 0);
@@ -140,6 +149,11 @@ bool x12::VkCoreRenderer::CreateComputeShader(ICoreShader** out, LPCWSTR name, c
 
 bool x12::VkCoreRenderer::CreateVertexBuffer(ICoreVertexBuffer** out, LPCWSTR name, const void* vbData, const VeretxBufferDesc* vbDesc, const void* idxData, const IndexBufferDesc* idxDesc, BUFFER_FLAGS flags)
 {
+	auto* ptr = new VkCoreVertexBuffer{};
+	ptr->Init(name, vbData, vbDesc, idxData, idxDesc, flags);
+	ptr->AddRef();
+	*out = ptr;
+
 	return false;
 }
 

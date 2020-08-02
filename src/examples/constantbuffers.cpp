@@ -11,7 +11,7 @@ using namespace x12;
 
 //#define TEST_PUSH_POP // define to test push/pop states
 #define CAMERA_SEPARATE_BUFFER
-#define VIDEO_API engine::INIT_FLAGS::DIRECTX12_RENDERER
+#define VIDEO_API engine::INIT_FLAGS::VULKAN_RENDERER
 
 void Init();
 void Render();

@@ -37,6 +37,8 @@ namespace x12
 
 		CoreRenderStat stat;
 
+		VmaAllocator allocator{};
+
 	public:
 		VkCoreRenderer();
 		~VkCoreRenderer();
@@ -47,6 +49,7 @@ namespace x12
 		VkCommandPool CommandPool() const { return commandPool; }
 		VkQueue GraphicQueue() const { return graphicsQueue; }
 		const uint32_t& FamilyIndex() const { return familyIndex; }
+		VmaAllocator& Allocator() { return allocator; }
 
 		auto Init() -> void override;
 		auto Free() -> void override;
@@ -107,5 +110,6 @@ namespace x12
 		inline VkInstance GetInstance() { return VkGetCoreRender()->Instance(); }
 		inline VkCommandPool GetCommandPool() { return VkGetCoreRender()->CommandPool(); }
 		inline VkQueue GetGraphicQueue() { return VkGetCoreRender()->GraphicQueue(); }
+		inline VmaAllocator& GetAllocator() { return VkGetCoreRender()->Allocator(); }
 	}
 }

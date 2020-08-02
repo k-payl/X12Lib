@@ -452,5 +452,7 @@ namespace x12
 
 	psomap_checksum_t CalculateChecksum(const GraphicPipelineState& pso);
 	psomap_checksum_t CalculateChecksum(const ComputePipelineState& pso);
+	UINT64 getBufferSize(const VeretxBufferDesc* vbDesc);
+	UINT64 getBufferStride(const VeretxBufferDesc* vbDesc);
 }
 
