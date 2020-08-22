@@ -1,5 +1,5 @@
 # X12Lib
-Library for experiments with modern graphic API. VS 2019, and windows SDK 1809 (build 17763) are required.
+Library for experiments with modern graphic API. Cmake 3.16, VS 2019, and windows SDK 2004 (build 19041) are required.
 DirectX 12 only
 
 [![Build status](https://ci.appveyor.com/api/projects/status/cyhlpnavp2su9440?svg=true)](https://ci.appveyor.com/project/k-payl/x12lib)

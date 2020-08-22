@@ -292,7 +292,7 @@ void x12::VkWindowSurface::ResizeBuffers(unsigned width_, unsigned height_)
 
 	VkSwapchainCreateInfoKHR createInfo = { VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR };
 	createInfo.surface = surface;
-	createInfo.minImageCount = DeferredBuffers > surfaceCaps.minImageCount ? DeferredBuffers : surfaceCaps.minImageCount;
+	createInfo.minImageCount = engine::DeferredBuffers > surfaceCaps.minImageCount ? engine::DeferredBuffers : surfaceCaps.minImageCount;
 	createInfo.imageFormat = swapchainFormat;
 	createInfo.imageColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
 	createInfo.imageExtent.width = width;
@@ -315,8 +315,8 @@ void x12::VkWindowSurface::ResizeBuffers(unsigned width_, unsigned height_)
 	swapChainImages.resize(imageCount);
 	VK_CHECK(vkGetSwapchainImagesKHR(vk::GetDevice(), swapchain, &imageCount, swapChainImages.data()));
 
-	swapChainImageViews.resize(DeferredBuffers);
-	for (size_t i = 0; i < DeferredBuffers; i++)
+	swapChainImageViews.resize(engine::DeferredBuffers);
+	for (size_t i = 0; i < engine::DeferredBuffers; i++)
 	{
 		VkImageViewCreateInfo createInfo{};
 		createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -363,4 +363,9 @@ void x12::VkWindowSurface::Present()
 	}
 
 	waitSubmitedSempahore = VK_NULL_HANDLE;
+}
+
+void* x12::VkWindowSurface::GetNativeResource(int i)
+{
+	return swapChainImages[i];
 }

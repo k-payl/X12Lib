@@ -6,12 +6,14 @@
 #include "constantbuffers_shared.h"
 #include "scenemanager.h"
 
-using namespace std::chrono;
+#include "resourcemanager.h"
+#include "mesh.h"
+
 using namespace x12;
 
 //#define TEST_PUSH_POP // define to test push/pop states
 #define CAMERA_SEPARATE_BUFFER
-#define VIDEO_API engine::INIT_FLAGS::VULKAN_RENDERER
+#define VIDEO_API engine::INIT_FLAGS::DIRECTX12_RENDERER
 
 void Init();
 void Render();
@@ -185,7 +187,7 @@ void Init()
 	idxDesc.format = INDEX_BUFFER_FORMAT::UNSIGNED_16;
 	idxDesc.vertexCount = idxCount;
 
-	renderer->CreateVertexBuffer(res->vertexBuffer.getAdressOf(), L"cube", vertexData, &desc, indexData, &idxDesc);
+	renderer->CreateVertexBuffer(res->vertexBuffer.getAdressOf(), L"cube", vertexData, &desc, indexData, &idxDesc, MEMORY_TYPE::GPU_READ);
 
 	{
 		auto text = engine::GetFS()->LoadFile(SHADER_DIR "mesh.shader");
@@ -213,6 +215,9 @@ void Init()
 	}
 	renderer->CreateStructuredBuffer(res->compBuffer.getAdressOf(), L"Unordered buffer for test barriers", 16, float4chunks, nullptr, BUFFER_FLAGS::UNORDERED_ACCESS);
 #endif
+
+	auto ptr = engine::GetResourceManager()->CreateStreamMesh("meshes\\Teapot_Node.mesh");
+	ptr.get();
 }
 
 

@@ -246,6 +246,11 @@ void engine::Console::ExecuteCommand(const wchar_t* str)
 
 	if (cmd)
 		cmd->value = value > 0;
+	else
+	{
+		OutputTxt(("Unknow command '" + commandName + "'").c_str());
+		PrintAllRegisteredCommands(commandName);
+	}
 
 	if (history.empty() || history.back() != str)
 		history.push_back(str);
@@ -264,6 +269,15 @@ void engine::Console::SetEditText(const wchar_t* str)
 {
 	SetWindowText(hEdit_, str);
 	SetCursorToEnd();
+}
+
+void engine::Console::PrintAllRegisteredCommands(const std::string& commandName)
+{
+	OutputTxt("All registered commands:");
+	for (auto* c : Commands())
+	{
+		OutputTxt(c->name.c_str());
+	}
 }
 
 void engine::Console::CompleteNextHistory()

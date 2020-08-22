@@ -4,7 +4,7 @@
 #define VMA_IMPLEMENTATION
 #include "vk_mem_alloc.h"
 
-void x12::VkCoreVertexBuffer::Init(LPCWSTR name, const void* vbData, const VeretxBufferDesc* vbDesc, const void* idxData, const IndexBufferDesc* idxDesc, BUFFER_FLAGS usage)
+void x12::VkCoreVertexBuffer::Init(LPCWSTR name, const void* vbData, const VeretxBufferDesc* vbDesc, const void* idxData, const IndexBufferDesc* idxDesc, MEMORY_TYPE mem)
 {
 	const bool hasIndexBuffer = idxData != nullptr && idxDesc != nullptr;
 

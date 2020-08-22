@@ -65,14 +65,14 @@ using namespace Microsoft::WRL;
 
 // TODO: split to private an public part
 
-inline constexpr int DeferredBuffers = 3;
-inline constexpr int QueryNum = DeferredBuffers + 1;
-
 #define DATA_DIR "..//resources//"
 #define WDATA_DIR L"..//resources//"
 #define SHADER_DIR "shaders//"
 
 namespace engine {
+	inline constexpr int DeferredBuffers = 3;
+	inline constexpr int QueryNum = DeferredBuffers + 1;
+
 	enum class WINDOW_MESSAGE;
 	class MainWindow;
 	class Core;
@@ -156,14 +156,14 @@ inline void notImplemented()
 namespace x12
 {
 	template<class T>
-	inline constexpr T alignConstnatBufferSize(T size)
+	inline constexpr T alignConstantBufferSize(T size)
 	{
 		return (size + 255) & ~255;
 	}
 
-	inline UINT alignResource(UINT size, UINT alignment)
+	inline UINT Align(UINT size, UINT alignment)
 	{
-		return (size + alignment - 1) & ~(alignment - 1);
+		return (size + (alignment - 1)) & ~(alignment - 1);
 	}
 }
 
@@ -246,6 +246,80 @@ namespace engine
 		std::vector<RuntimeDescriptor> handles;
 	};
 
+#pragma pack(push, 1)
+	struct MeshHeader // 128 bytes
+	{
+		char magic[2];
+		char version;
+		char attributes; // 0 - positions, 1 - normals, 2 - uv, 3 - tangent, 4 - binormal, 5 -color,
+		uint32_t __future1[2];
+		uint32_t numberOfVertex;
+		uint32_t positionOffset;
+		uint32_t positionStride;
+		uint32_t normalOffset;
+		uint32_t normalStride;
+		uint32_t tangentOffset;
+		uint32_t tangentStride;
+		uint32_t binormalOffset;
+		uint32_t binormalStride;
+		uint32_t uvOffset;
+		uint32_t uvStride;
+		uint32_t colorOffset;
+		uint32_t colorStride;
+		float minX;
+		float maxX;
+		float minY;
+		float maxY;
+		float minZ;
+		float maxZ;
+		uint32_t __future2[10];
+	};
+#pragma pack(pop)
+
+	struct MeshDataDesc
+	{
+		unsigned numberOfVertex{0};
+
+		unsigned positionOffset{0};
+		unsigned positionStride{0};
+
+		bool normalsPresented{false};
+		unsigned normalOffset{0};
+		unsigned normalStride{0};
+
+		bool tangentPresented{false};
+		unsigned tangentOffset{0};
+		unsigned tangentStride{0};
+
+		bool binormalPresented{false};
+		unsigned binormalOffset{0};
+		unsigned binormalStride{0};
+
+		bool texCoordPresented{false};
+		unsigned texCoordOffset{0};
+		unsigned texCoordStride{0};
+
+		bool colorPresented{false};
+		unsigned colorOffset{0};
+		unsigned colorStride{0};
+
+		uint8_t* pData{nullptr};
+	};
+
+	enum class MESH_INDEX_FORMAT
+	{
+		NONE,
+		INT32,
+		INT16
+	};
+
+	struct MeshIndexDesc
+	{
+		uint8_t* pData{nullptr};
+		unsigned number{0}; // number of indexes
+		MESH_INDEX_FORMAT format{MESH_INDEX_FORMAT::NONE};
+	};
+
 	enum class WINDOW_MESSAGE
 	{
 		SIZE,
@@ -262,6 +336,15 @@ namespace engine
 		WINDOW_UNMINIMIZED,
 		WINDOW_REDRAW,
 		WINDOW_CLOSE
+	};
+
+	enum class INPUT_ATTRUBUTE
+	{
+		UNKNOWN = 0,
+		POSITION = 1 << 0,
+		NORMAL = 1 << 1,
+		TEX_COORD = 1 << 2,
+		COLOR = 1 << 3
 	};
 
 	enum class KEYBOARD_KEY_CODES

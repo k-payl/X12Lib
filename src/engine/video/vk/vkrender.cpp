@@ -147,10 +147,10 @@ bool x12::VkCoreRenderer::CreateComputeShader(ICoreShader** out, LPCWSTR name, c
 	return false;
 }
 
-bool x12::VkCoreRenderer::CreateVertexBuffer(ICoreVertexBuffer** out, LPCWSTR name, const void* vbData, const VeretxBufferDesc* vbDesc, const void* idxData, const IndexBufferDesc* idxDesc, BUFFER_FLAGS flags)
+bool x12::VkCoreRenderer::CreateVertexBuffer(ICoreVertexBuffer** out, LPCWSTR name, const void* vbData, const VeretxBufferDesc* vbDesc, const void* idxData, const IndexBufferDesc* idxDesc, MEMORY_TYPE mem)
 {
 	auto* ptr = new VkCoreVertexBuffer{};
-	ptr->Init(name, vbData, vbDesc, idxData, idxDesc, flags);
+	ptr->Init(name, vbData, vbDesc, idxData, idxDesc, mem);
 	ptr->AddRef();
 	*out = ptr;
 
@@ -167,7 +167,7 @@ bool x12::VkCoreRenderer::CreateStructuredBuffer(ICoreBuffer** out, LPCWSTR name
 	return false;
 }
 
-bool x12::VkCoreRenderer::CreateRawBuffer(ICoreBuffer** out, LPCWSTR name, size_t size)
+bool x12::VkCoreRenderer::CreateRawBuffer(ICoreBuffer** out, LPCWSTR name, size_t size, BUFFER_FLAGS flags)
 {
 	return false;
 }

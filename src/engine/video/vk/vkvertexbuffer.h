@@ -5,7 +5,7 @@ namespace x12
 {
 	struct VkCoreVertexBuffer : public ICoreVertexBuffer
 	{
-		void Init(LPCWSTR name, const void* vbData, const VeretxBufferDesc* vbDesc, const void* idxData, const IndexBufferDesc* idxDesc, BUFFER_FLAGS usage = BUFFER_FLAGS::GPU_READ);
+		void Init(LPCWSTR name, const void* vbData, const VeretxBufferDesc* vbDesc, const void* idxData, const IndexBufferDesc* idxDesc, MEMORY_TYPE mem);
 		void SetData(const void* vbData, size_t vbSize, size_t vbOffset, const void* idxData, size_t idxSize, size_t idxOffset) override;
 
 		~VkCoreVertexBuffer();

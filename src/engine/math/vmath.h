@@ -2,6 +2,13 @@
 #include <cmath> // sqrt
 #pragma warning(disable : 4201) // ignore non standard unnamed struct in union
 
+#ifdef _DLL_EXPORTS
+#define MATH_API __declspec(dllexport)
+#else
+#define MATH_API __declspec(dllimport)
+#endif
+
+
 namespace math
 {
 	inline constexpr float EPSILON = 1e-5f;
@@ -966,10 +973,10 @@ namespace math
 		return max(min(a, 1.0f), 0.0f);
 	}
 
-	void orthonormalize(mat3& ret, const mat3& m);
-	void decompositeTransform(const mat4& transform, vec3& t, quat& r, vec3& s);
-	void compositeTransform(mat4& transform, const vec3& t, const quat& r, const vec3& s);
-	mat4 perspectiveRH_ZO(float fovRad, float aspect, float zNear, float zFar);
+	MATH_API void orthonormalize(mat3& ret, const mat3& m);
+	MATH_API void decompositeTransform(const mat4& transform, vec3& t, quat& r, vec3& s);
+	MATH_API void compositeTransform(mat4& transform, const vec3& t, const quat& r, const vec3& s);
+	MATH_API mat4 perspectiveRH_ZO(float fovRad, float aspect, float zNear, float zFar);
 }
 
 #pragma warning(default : 4201)

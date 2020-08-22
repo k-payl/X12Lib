@@ -8,9 +8,9 @@
 namespace x12
 {
 	// Prebuild combination of static resources.
-//	that binds to context fast.
-//	Dynamic resources can be updated through CommandContext.
-//
+	//	that binds to context fast.
+	//	Dynamic constant buffer can be updated through Dx12GraphicCommandList::UpdateInlineConstantBuffer().
+	//
 	struct Dx12ResourceSet : IResourceSet
 	{
 		using resource_index = std::pair<size_t, int>;

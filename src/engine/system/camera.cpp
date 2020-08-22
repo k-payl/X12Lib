@@ -4,7 +4,7 @@
 #include "core.h"
 #include "input.h"
 
-#define MOVE_SPEED 30.f
+#define MOVE_SPEED 10.f
 #define ROTATE_SPEED 0.2f
 
 using math::vec2;
@@ -24,31 +24,41 @@ void engine::Camera::Update(float dt)
 
 	Input* input = GetInput();
 
-	mat4 transform;
-	compositeTransform(transform, pos_, rot_, vec3(1, 1, 1));
+	vec3 rightDirection;
+	vec3 forwardDirection;
 
-	vec3 rightDirection = getRightDirection(transform);
-	vec3 forwardDirection = getBackDirection(transform);
+	{
+		mat4 transform;
+		compositeTransform(transform, pos_, rot_, vec3(1, 1, 1));
+
+		rightDirection = getRightDirection(transform);
+		forwardDirection = getBackDirection(transform);
+	}
 
 	float dS = MOVE_SPEED * dt;
 
+	vec3 newPos = worldPos_;
+
 	if (input->IsKeyPressed(KEYBOARD_KEY_CODES::KEY_A))
-		pos_ -= rightDirection * dS;
+		newPos -= rightDirection * dS;
 
 	if (input->IsKeyPressed(KEYBOARD_KEY_CODES::KEY_D))
-		pos_ += rightDirection * dS;
+		newPos += rightDirection * dS;
 
 	if (input->IsKeyPressed(KEYBOARD_KEY_CODES::KEY_W))
-		pos_ += forwardDirection * dS;
+		newPos += forwardDirection * dS;
 
 	if (input->IsKeyPressed(KEYBOARD_KEY_CODES::KEY_S))
-		pos_ -= forwardDirection * dS;
+		newPos -= forwardDirection * dS;
 
 	if (input->IsKeyPressed(KEYBOARD_KEY_CODES::KEY_Q))
-		pos_.z -= dS;
+		newPos.z -= dS;
 
 	if (input->IsKeyPressed(KEYBOARD_KEY_CODES::KEY_E))
-		pos_.z += dS;
+		newPos.z += dS;
+
+	if (newPos != worldPos_)
+		SetWorldPosition(newPos);
 
 	if (input->IsMoisePressed(MOUSE_BUTTON::LEFT))
 	{
@@ -57,7 +67,9 @@ void engine::Camera::Update(float dt)
 		quat dxRot = quat(-deltaMouse.y * ROTATE_SPEED, 0.0f, 0.0f);
 		quat dyRot = quat(0.0f, 0.0f, -deltaMouse.x * ROTATE_SPEED);
 
-		rot_ = dyRot * rot_ * dxRot;
+		quat newRot = dyRot * worldRot_ * dxRot;
+
+		SetWorldRotation(newRot);
 	}
 }
 
@@ -97,7 +109,7 @@ void engine::Camera::Copy(GameObject * original)
 engine::Camera::Camera()
 {
 	type_ = OBJECT_TYPE::CAMERA;
-	SetWorldPosition(vec3(0.0f, -5.0f, 5.0f));
+	SetWorldPosition(vec3(0.0f, -10.0f, 5.0f));
 	SetLocalRotation(quat(65.0f, 0.0f, 0.0f));
 }
 

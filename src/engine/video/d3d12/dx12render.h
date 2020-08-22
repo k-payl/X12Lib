@@ -27,7 +27,7 @@ namespace x12
 			ID3D12Fence* d3dFence{};
 			HANDLE fenceEvent{};
 			uint64_t nextFenceValue{1}; // fence value ready to signal
-			uint64_t submitedValues[DeferredBuffers]{};
+			uint64_t submitedValues[engine::DeferredBuffers]{};
 			uint64_t completedValue{};
 
 		private:
@@ -66,19 +66,22 @@ namespace x12
 		std::unique_ptr<DirectX::GraphicsMemory> frameMemory;
 
 		std::mutex psoMutex;
-		psomap_t psoMap;										// All Pipeline State Objects. checksum -> PSO
+		psomap_t psoMap; // All Pipeline State Objects. checksum -> PSO
 		uint64_t psoNum{};
 
-		// GPU descriptor heap
-		x12::descriptorheap::Allocator* descriptorAllocator;	// Descriptors for static long-lived resources
-		ComPtr<ID3D12RootSignature> defaultRootSignature;		// Root signature for shaders without input resources
-		UINT descriptorSizeCBSRV;
-		UINT descriptorSizeRTV;
-		UINT descriptorSizeDSV;
-		ComPtr<ID3D12DescriptorHeap> gpuDescriptorHeap;
+		x12::descriptorheap::Allocator* descriptorAllocator; // Pre created descriptors for long-lived resources. Keeps a lot of ID3D12DescriptorHeap's
+		
+		ComPtr<ID3D12DescriptorHeap> gpuDescriptorHeap; // Descriptor heap using at rendering. TODO: make deallocation
+		const size_t NumStaticGpuHadles = 1'024;
 		UINT gpuDescriptorsOffset{};
 		D3D12_CPU_DESCRIPTOR_HANDLE gpuDescriptorHeapStart{0};
 		D3D12_GPU_DESCRIPTOR_HANDLE gpuDescriptorHeapStartGPU{0};
+
+		ComPtr<ID3D12RootSignature> defaultRootSignature; // Root signature for shaders without input resources
+
+		UINT descriptorSizeCBSRV;
+		UINT descriptorSizeRTV;
+		UINT descriptorSizeDSV;
 
 		bool tearingSupported;
 		float gpuTickDelta{};
@@ -121,14 +124,14 @@ namespace x12
 								 const ConstantBuffersDesc* variabledesc = nullptr, uint32_t varNum = 0) override;
 
 		bool CreateVertexBuffer(ICoreVertexBuffer** out, LPCWSTR name, const void* vbData, const VeretxBufferDesc* vbDesc,
-								const void* idxData, const IndexBufferDesc* idxDesc, BUFFER_FLAGS flags = BUFFER_FLAGS::GPU_READ) override;
+								const void* idxData, const IndexBufferDesc* idxDesc, MEMORY_TYPE mem) override;
 
 		bool CreateConstantBuffer(ICoreBuffer** out, LPCWSTR name, size_t size, bool FastGPUread = false) override;
 
 		bool CreateStructuredBuffer(ICoreBuffer** out, LPCWSTR name, size_t structureSize, size_t num,
-									const void* data = nullptr, BUFFER_FLAGS flags = BUFFER_FLAGS::NONE) override;
+									const void* data, BUFFER_FLAGS flags) override;
 
-		bool CreateRawBuffer(ICoreBuffer** out, LPCWSTR name, size_t size);
+		bool CreateRawBuffer(ICoreBuffer** out, LPCWSTR name, size_t size, BUFFER_FLAGS flags) override;
 
 		bool CreateTextureFrom(ICoreTexture** out, LPCWSTR name, std::unique_ptr<uint8_t[]> ddsData,
 							   std::vector<D3D12_SUBRESOURCE_DATA> subresources, ID3D12Resource* d3dexistingtexture) override;
@@ -136,6 +139,8 @@ namespace x12
 		bool CreateResourceSet(IResourceSet** out, const ICoreShader* shader) override;
 
 		bool CreateQuery(ICoreQuery** out) override;
+
+		void* GetNativeDevice() override { return device; }
 
 		// dx12 specific
 		auto GetDevice() -> device_t* { return device; }

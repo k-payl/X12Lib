@@ -337,6 +337,11 @@ void x12::Dx12GraphicCommandList::StopQuery(ICoreQuery* query)
 	d3dCmdList->ResolveQueryData(dx12query->Heap(), D3D12_QUERY_TYPE_TIMESTAMP, 0, 2, dx12query->ReadbackBuffer(), 0);
 }
 
+void* x12::Dx12GraphicCommandList::GetNativeResource()
+{
+	return d3dCmdList;
+}
+
 void Dx12GraphicCommandList::TrackResource(IResourceUnknown* res)
 {
 	if (trakedResources.empty())

@@ -1,5 +1,8 @@
 cmake_minimum_required (VERSION 3.16)
- 
+
+# cd build
+# "C:\Program Files\CMake\bin\cmake.exe" -G "Visual Studio 16 2019" ../
+
 project (x12lib)
 
 option(VK_ENABLE "Enable vulkan renderer" OFF)
@@ -12,6 +15,10 @@ if (VK_ENABLE)
 		message(STATUS "Vulkan lib path: " ${Vulkan_LIBRARY})
 	endif()
 endif()
+
+set(CMAKE_SYSTEM_VERSION "10.0.19041.0" CACHE STRING INTERNAL FORCE)
+set(CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION "10.0.19041.0" CACHE STRING INTERNAL FORCE)
+
 
 add_definitions ( -D_UNICODE )
 add_definitions ( -DUNICODE )
@@ -61,9 +68,13 @@ include_directories(src/engine/video
     src/engine/3rdparty/pugixml
     src/engine/3rdparty/DirectXTK/Inc
     src/engine/3rdparty/DirectXTex)
-	
-#message("VIDEO_FILES = ${VIDEO_FILES}")
 
+# TODO: fix C: drive
+set(DXC_PATH "C:\\Program Files (x86)\\Windows Kits\\10\\bin\\${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION}\\x64\\dxcompiler.dll")
+set(DXIL_PATH "C:\\Program Files (x86)\\Windows Kits\\10\\bin\\${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION}\\x64\\dxil.dll")
+message("DXC_PATH = ${DXC_PATH}")
+message("DXIL_PATH = ${DXIL_PATH}")
+		
 include(CheckCXXCompilerFlag)
 CHECK_CXX_COMPILER_FLAG("/std:c++latest" _cpp_latest_flag_supported)
 if (_cpp_latest_flag_supported)
@@ -103,3 +114,22 @@ add_executable(uavbarriers src/examples/uavbarriers.cpp)
 target_link_libraries(uavbarriers engine)
 set_target_properties(uavbarriers PROPERTIES LINK_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /SUBSYSTEM:CONSOLE")
 set_property(TARGET uavbarriers PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/build")
+
+# raytracing
+add_executable(raytracing src/examples/raytracing.cpp src/examples/raytracing_utils.cpp)
+target_include_directories(raytracing PRIVATE src/examples)
+target_link_libraries(raytracing engine)
+target_link_libraries(raytracing dxcompiler)
+set_property(TARGET raytracing PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/build")
+
+	# copy dxcompiler.dll for raytracing
+	add_custom_command(TARGET raytracing POST_BUILD
+		COMMAND ${CMAKE_COMMAND} -E copy_if_different
+		"${DXC_PATH}"
+		$<TARGET_FILE_DIR:raytracing>)
+
+	# copy dxil.dll for raytracing
+	add_custom_command(TARGET raytracing POST_BUILD
+		COMMAND ${CMAKE_COMMAND} -E copy_if_different
+		"${DXIL_PATH}"
+		$<TARGET_FILE_DIR:raytracing>)

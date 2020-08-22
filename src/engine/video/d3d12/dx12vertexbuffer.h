@@ -5,12 +5,12 @@ namespace x12
 {
 	struct Dx12CoreVertexBuffer final : public ICoreVertexBuffer
 	{
-		void Init(LPCWSTR name, const void* vbData, const VeretxBufferDesc* vbDesc, const void* idxData, const IndexBufferDesc* idxDesc, BUFFER_FLAGS usage = BUFFER_FLAGS::GPU_READ);
+		void Init(LPCWSTR name, const void* vbData, const VeretxBufferDesc* vbDesc, const void* idxData, const IndexBufferDesc* idxDesc, MEMORY_TYPE memory_type_);
 		void SetData(const void* vbData, size_t vbSize, size_t vbOffset, const void* idxData, size_t idxSize, size_t idxOffset) override;
 
 		~Dx12CoreVertexBuffer();
 
-		BUFFER_FLAGS usage;
+		MEMORY_TYPE memoryType;
 
 		uint32_t vertexCount;
 		ComPtr<ID3D12Resource> vertexBuffer;

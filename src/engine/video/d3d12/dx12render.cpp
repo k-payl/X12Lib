@@ -292,7 +292,7 @@ auto x12::Dx12CoreRenderer::FrameEnd() -> void
 	stat.peakTotalPages = memStat.peakTotalPages;
 
 	++frame;
-	frameIndex = (frameIndex + 1u) % DeferredBuffers;
+	frameIndex = (frameIndex + 1u) % engine::DeferredBuffers;
 
 	//_ReleaseGraphicQueueResources();
 }
@@ -320,7 +320,7 @@ auto x12::Dx12CoreRenderer::WaitGPUAll() -> void
 	{
 		uint64_t valueToWait = 0;
 
-		for (int j = 0; j < DeferredBuffers; ++j)
+		for (int j = 0; j < engine::DeferredBuffers; ++j)
 			valueToWait = std::max(queues[i].submitedValues[j], valueToWait);
 		uint64_t valueCompleted = queues[i].completedValue;
 
@@ -420,10 +420,10 @@ bool x12::Dx12CoreRenderer::CreateComputeShader(ICoreShader** out, LPCWSTR name,
 }
 
 bool x12::Dx12CoreRenderer::CreateVertexBuffer(ICoreVertexBuffer** out, LPCWSTR name, const void* vbData, const VeretxBufferDesc* vbDesc,
-	const void* idxData, const IndexBufferDesc* idxDesc, BUFFER_FLAGS usage)
+	const void* idxData, const IndexBufferDesc* idxDesc, MEMORY_TYPE mem)
 {
 	auto* ptr = new Dx12CoreVertexBuffer{};
-	ptr->Init(name, vbData, vbDesc, idxData, idxDesc, usage);
+	ptr->Init(name, vbData, vbDesc, idxData, idxDesc, mem);
 	ptr->AddRef();
 	*out = ptr;
 
@@ -432,14 +432,8 @@ bool x12::Dx12CoreRenderer::CreateVertexBuffer(ICoreVertexBuffer** out, LPCWSTR 
 
 bool x12::Dx12CoreRenderer::CreateConstantBuffer(ICoreBuffer**out, LPCWSTR name, size_t size, bool FastGPUread)
 {
-	BUFFER_FLAGS flags = BUFFER_FLAGS::CONSTNAT_BUFFER;
-	if (FastGPUread)
-		flags = flags| BUFFER_FLAGS::GPU_READ;
-	else
-		flags = flags | BUFFER_FLAGS::CPU_WRITE;
-
-	auto* ptr = new Dx12CoreBuffer;
-	ptr->InitBuffer(size, 1, nullptr, flags, name);
+	auto* ptr = new Dx12CoreBuffer(alignConstantBufferSize(size), nullptr, FastGPUread? MEMORY_TYPE::GPU_READ : MEMORY_TYPE::CPU, BUFFER_FLAGS::CONSTANT_BUFFER, name);
+	ptr->initCBV(size);
 	ptr->AddRef();
 	*out = ptr;
 
@@ -449,18 +443,30 @@ bool x12::Dx12CoreRenderer::CreateConstantBuffer(ICoreBuffer**out, LPCWSTR name,
 bool x12::Dx12CoreRenderer::CreateStructuredBuffer(ICoreBuffer** out, LPCWSTR name, size_t structureSize,
 											  size_t num, const void* data, BUFFER_FLAGS flags)
 {
-	auto* ptr = new Dx12CoreBuffer;
-	ptr->InitBuffer(structureSize, num, data, flags, name);
+	auto* ptr = new Dx12CoreBuffer(structureSize * num, data, MEMORY_TYPE::GPU_READ, flags, name);
+
+	if (flags & BUFFER_FLAGS::SHADER_RESOURCE)
+		ptr->initSRV(num, structureSize, false);
+
+	if (flags & BUFFER_FLAGS::UNORDERED_ACCESS)
+		ptr->initUAV(num, structureSize, false);
+
 	ptr->AddRef();
 	*out = ptr;
 
 	return ptr != nullptr;
 }
 
-bool x12::Dx12CoreRenderer::CreateRawBuffer(ICoreBuffer** out, LPCWSTR name, size_t size)
+bool x12::Dx12CoreRenderer::CreateRawBuffer(ICoreBuffer** out, LPCWSTR name, size_t size, BUFFER_FLAGS flags)
 {
-	auto* ptr = new Dx12CoreBuffer;
-	ptr->InitBuffer(size, 1, nullptr, BUFFER_FLAGS::RAW_BUFFER, name);
+	auto* ptr = new Dx12CoreBuffer(size, nullptr, MEMORY_TYPE::GPU_READ, flags, name);
+
+	if (flags & BUFFER_FLAGS::SHADER_RESOURCE)
+		ptr->initSRV(size, 0, true);
+
+	if (flags & BUFFER_FLAGS::UNORDERED_ACCESS)
+		ptr->initUAV(size, 0, true);
+
 	ptr->AddRef();
 	*out = ptr;
 

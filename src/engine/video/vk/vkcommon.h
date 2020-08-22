@@ -32,6 +32,7 @@ namespace x12
 		void Init(HWND hwnd, ICoreRenderer* render) override;
 		void ResizeBuffers(unsigned width_, unsigned height_) override;
 		void Present() override;
+		void* GetNativeResource(int i) override;
 
 		void UpdateSubmitedSemaphore(VkSemaphore sem)
 		{

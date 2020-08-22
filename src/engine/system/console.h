@@ -34,6 +34,7 @@ namespace engine
 		void CompletePrevHistory();
 		void CompleteCommand(std::string& tmp);
 		void SetEditText(const wchar_t* str);
+		void PrintAllRegisteredCommands(const std::string& commandName);
 
 	public:
 		struct Hint

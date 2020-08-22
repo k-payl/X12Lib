@@ -191,3 +191,8 @@ void x12::Dx12WindowSurface::Present()
 
 	throwIfFailed(swapChain->Present(syncInterval, presentFlags));
 }
+
+void* x12::Dx12WindowSurface::GetNativeResource(int i)
+{
+	return colorBuffers[i].Get();
+}

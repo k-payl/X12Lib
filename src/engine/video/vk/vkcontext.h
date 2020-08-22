@@ -61,5 +61,6 @@ namespace x12
 		void EmitUAVBarrier(ICoreBuffer* buffer) override;
 		void StartQuery(ICoreQuery* query) override;
 		void StopQuery(ICoreQuery* query) override;
+		void* GetNativeResource() override;
 	};
 }

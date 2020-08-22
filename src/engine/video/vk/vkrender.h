@@ -82,14 +82,14 @@ namespace x12
 										 const ConstantBuffersDesc* variabledesc = nullptr, uint32_t varNum = 0) override;
 
 		bool CreateVertexBuffer(ICoreVertexBuffer** out, LPCWSTR name, const void* vbData, const VeretxBufferDesc* vbDesc,
-										const void* idxData, const IndexBufferDesc* idxDesc, BUFFER_FLAGS flags = BUFFER_FLAGS::GPU_READ) override;
+										const void* idxData, const IndexBufferDesc* idxDesc, MEMORY_TYPE mem) override;
 
 		bool CreateConstantBuffer(ICoreBuffer** out, LPCWSTR name, size_t size, bool FastGPUread = false) override;
 
 		bool CreateStructuredBuffer(ICoreBuffer** out, LPCWSTR name, size_t structureSize, size_t num,
-											const void* data = nullptr, BUFFER_FLAGS flags = BUFFER_FLAGS::NONE) override;
+											const void* data, BUFFER_FLAGS flags) override;
 
-		bool CreateRawBuffer(ICoreBuffer** out, LPCWSTR name, size_t size) override;
+		bool CreateRawBuffer(ICoreBuffer** out, LPCWSTR name, size_t size, BUFFER_FLAGS flags) override;
 
 		//bool CreateTexture(ICoreTexture** out, LPCWSTR name, std::unique_ptr<uint8_t[]> data, int32_t width, int32_t height,
 		//				   TEXTURE_TYPE type, TEXTURE_FORMAT format, TEXTURE_CREATE_FLAGS flags) override;
@@ -100,6 +100,8 @@ namespace x12
 		bool CreateResourceSet(IResourceSet** out, const ICoreShader* shader) override;
 
 		bool CreateQuery(ICoreQuery** out) override;
+
+		void* GetNativeDevice() override { return device; }
 	};
 
 	namespace vk

@@ -1,6 +1,7 @@
 #pragma once
 #include "common.h"
 #include "icorerender.h"
+#include "console.h"
 
 extern engine::Core* core__;
 
@@ -15,6 +16,8 @@ namespace engine
 	X12_API FileSystem*				GetFS();
 	X12_API SceneManager*			GetSceneManager();
 	X12_API ResourceManager*		GetResourceManager();
+	X12_API Console*				GetConsole();
+	X12_API void					Log(const char* str);
 
 	enum class INIT_FLAGS
 	{
@@ -87,6 +90,8 @@ namespace engine
 		int64_t frame{};
 		int64_t frameIndex{};
 
+		std::mutex logMtx;
+
 		void X12_API Init(INIT_FLAGS flags, GpuProfiler* gpuprofiler_ = nullptr, InitRendererProcedure initRenderer = nullptr);
 		void X12_API Free();
 		void X12_API Start(Camera* cam = 0);
@@ -107,8 +112,37 @@ namespace engine
 		FileSystem* GetFS() { return fs.get(); }
 		SceneManager* GetSceneManager() { return sceneManager.get(); }
 		ResourceManager* GetResourceManager() { return resourceManager.get(); }
+		Console* GetConsole() { return console.get(); }
+
+		template<class T, typename... Arguments>
+		void _Log(T a, Arguments ...args)
+		{
+			std::lock_guard<std::mutex> guard(logMtx);
+			
+			static char logBuffer__[5000];
+
+			if (strlen(a) > sizeof(logBuffer__))
+				abort();
+
+			sprintf(logBuffer__, a, args...);
+
+			if (console)
+				console->OutputTxt(logBuffer__);
+		}
 
 		bool isRenderProfiler{true};
 	};
+
+	template<typename... Arguments>
+	void Log(Arguments ...args)
+	{
+		core__->_Log(args...);
+	}
+
+	template<typename... Arguments>
+	void LogCritical(Arguments ...args) // TODO
+	{
+		core__->_Log(args...);
+	}
 }
 

@@ -32,3 +32,4 @@ std::wstring engine::ConvertFromUtf8ToUtf16(const string& str)
 	}
 	return res;
 }
+

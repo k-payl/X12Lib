@@ -11,29 +11,21 @@ static void UpdateBufferResource(LPCWSTR name, ID3D12GraphicsCommandList* pCmdLi
 
 x12::Dx12CoreVertexBuffer::~Dx12CoreVertexBuffer()
 {
-	if (usage & BUFFER_FLAGS::CPU_WRITE)
-	{
-		vertexBuffer->Unmap(0, nullptr);
-		if (indexBuffer)
-			indexBuffer->Unmap(0, nullptr);
-	}
 }
 
 bool x12::Dx12CoreVertexBuffer::GetReadBarrier(UINT* numBarrires, D3D12_RESOURCE_BARRIER* barriers)
 {
 	UINT num = 0;
 
-	if ((usage & BUFFER_FLAGS::GPU_READ) && vbState != D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER)
+	if (vbState != D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER && memoryType & MEMORY_TYPE::GPU_READ)
 	{
-		++num;
-		barriers[0] = CD3DX12_RESOURCE_BARRIER::Transition(vertexBuffer.Get(), vbState, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
+		barriers[num++] = CD3DX12_RESOURCE_BARRIER::Transition(vertexBuffer.Get(), vbState, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
 		vbState = D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER;
 	}
 
-	if ((usage & BUFFER_FLAGS::GPU_READ) && ibState != D3D12_RESOURCE_STATE_INDEX_BUFFER)
+	if (indexBuffer && ibState != D3D12_RESOURCE_STATE_INDEX_BUFFER && memoryType & MEMORY_TYPE::GPU_READ)
 	{
-		++num;
-		barriers[1] = CD3DX12_RESOURCE_BARRIER::Transition(indexBuffer.Get(), ibState, D3D12_RESOURCE_STATE_INDEX_BUFFER);
+		barriers[num++] = CD3DX12_RESOURCE_BARRIER::Transition(indexBuffer.Get(), ibState, D3D12_RESOURCE_STATE_INDEX_BUFFER);
 		ibState = D3D12_RESOURCE_STATE_INDEX_BUFFER;
 	}
 
@@ -44,10 +36,10 @@ bool x12::Dx12CoreVertexBuffer::GetReadBarrier(UINT* numBarrires, D3D12_RESOURCE
 }
 
 void x12::Dx12CoreVertexBuffer::Init(LPCWSTR name_, const void* vbData, const VeretxBufferDesc* vbDesc,
-									 const void* idxData, const IndexBufferDesc* idxDesc, BUFFER_FLAGS usage_)
+									 const void* idxData, const IndexBufferDesc* idxDesc, MEMORY_TYPE memoryType_)
 {
 	name = name_;
-	usage = usage_;
+	memoryType = memoryType_;
 
 	const bool hasIndexBuffer = idxData != nullptr && idxDesc != nullptr;
 
@@ -57,15 +49,13 @@ void x12::Dx12CoreVertexBuffer::Init(LPCWSTR name_, const void* vbData, const Ve
 
 	D3D12_HEAP_TYPE d3dheapProperties;
 
-	usage = usage_;
-
-	if (usage_ & BUFFER_FLAGS::GPU_READ)
+	if (memoryType & MEMORY_TYPE::GPU_READ)
 	{
 		d3dheapProperties = D3D12_HEAP_TYPE_DEFAULT;
 		vbState = D3D12_RESOURCE_STATE_COPY_DEST; // for copy cmd list
 		ibState = D3D12_RESOURCE_STATE_COPY_DEST;
 	}
-	else if (usage_ & BUFFER_FLAGS::CPU_WRITE)
+	else if (memoryType & MEMORY_TYPE::CPU)
 	{
 		d3dheapProperties = D3D12_HEAP_TYPE_UPLOAD;
 		vbState = D3D12_RESOURCE_STATE_GENERIC_READ; // for upload heap
@@ -127,7 +117,7 @@ void x12::Dx12CoreVertexBuffer::Init(LPCWSTR name_, const void* vbData, const Ve
 
 void x12::Dx12CoreVertexBuffer::SetData(const void* vbData, size_t vbSize, size_t vbOffset, const void* idxData, size_t idxSize, size_t idxOffset)
 {
-	if (usage & BUFFER_FLAGS::GPU_READ)
+	if (memoryType & MEMORY_TYPE::GPU_READ)
 	{
 		assert(vbOffset == 0 && "Not impl");
 		assert(idxOffset == 0 && "Not impl");
@@ -157,7 +147,7 @@ void x12::Dx12CoreVertexBuffer::SetData(const void* vbData, size_t vbSize, size_
 
 		renderer->WaitGPUAll(); // wait GPU copying upload -> default heap
 	}
-	else if (usage & BUFFER_FLAGS::CPU_WRITE)
+	else if (memoryType & MEMORY_TYPE::CPU)
 	{
 		{
 			UINT8* pVertexDataBegin;
@@ -172,6 +162,11 @@ void x12::Dx12CoreVertexBuffer::SetData(const void* vbData, size_t vbSize, size_
 			throwIfFailed(indexBuffer->Map(0, &readRange, reinterpret_cast<void**>(&pIdxDataBegin)));
 			memcpy(pIdxDataBegin + idxOffset, idxData, idxSize);
 		}
+
+		vertexBuffer->Unmap(0, nullptr);
+		if (indexBuffer)
+			indexBuffer->Unmap(0, nullptr);
+
 	}
 }
 

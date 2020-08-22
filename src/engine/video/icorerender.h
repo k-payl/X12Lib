@@ -4,7 +4,6 @@
 
 namespace x12
 {
-	inline constexpr size_t NumStaticGpuHadles = 1'024;
 	inline constexpr unsigned MaxResourcesPerShader = 8;
 
 	enum class TEXTURE_FORMAT;
@@ -72,6 +71,7 @@ namespace x12
 		virtual X12_API void EmitUAVBarrier(ICoreBuffer* buffer) = 0;
 		virtual X12_API void StartQuery(ICoreQuery* query) = 0;
 		virtual X12_API void StopQuery(ICoreQuery* query) = 0;
+		virtual X12_API void* GetNativeResource() = 0;
 	};
 
 	class IWidowSurface
@@ -84,6 +84,7 @@ namespace x12
 		virtual void Init(HWND hwnd, ICoreRenderer* render) = 0;
 		virtual void ResizeBuffers(unsigned width_, unsigned height_) = 0;
 		virtual void Present() = 0;
+		virtual void* GetNativeResource(int i) = 0;
 	};
 
 	struct CoreRenderStat
@@ -103,13 +104,20 @@ namespace x12
 	enum class BUFFER_FLAGS
 	{
 		NONE = 0,
-		CPU_WRITE = 1 << 0,
-		GPU_READ = 1 << 1,
 		UNORDERED_ACCESS = 1 << 2,
-		CONSTNAT_BUFFER = 1 << 3,
+		CONSTANT_BUFFER = 1 << 3,
 		RAW_BUFFER = 1 << 4,
+		SHADER_RESOURCE = 1 << 5,
 	};
 	DEFINE_ENUM_OPERATORS(BUFFER_FLAGS)
+
+	enum class MEMORY_TYPE
+	{
+		CPU = 1,
+		GPU_READ = 1 << 2,
+		READBACK = 1 << 3
+	};
+	DEFINE_ENUM_OPERATORS(MEMORY_TYPE)
 
 	class ICoreRenderer
 	{
@@ -153,14 +161,14 @@ namespace x12
 										 const ConstantBuffersDesc* variabledesc = nullptr, uint32_t varNum = 0) = 0;
 
 		virtual X12_API bool CreateVertexBuffer(ICoreVertexBuffer** out, LPCWSTR name, const void* vbData, const VeretxBufferDesc* vbDesc,
-										const void* idxData, const IndexBufferDesc* idxDesc, BUFFER_FLAGS flags = BUFFER_FLAGS::GPU_READ) = 0;
+										const void* idxData, const IndexBufferDesc* idxDesc, MEMORY_TYPE mem) = 0;
 
 		virtual X12_API bool CreateConstantBuffer(ICoreBuffer** out, LPCWSTR name, size_t size, bool FastGPUread = false) = 0;
 
 		virtual X12_API bool CreateStructuredBuffer(ICoreBuffer** out, LPCWSTR name, size_t structureSize, size_t num,
-											const void* data = nullptr, BUFFER_FLAGS flags = BUFFER_FLAGS::NONE) = 0;
+											const void* data, BUFFER_FLAGS flags) = 0;
 
-		virtual X12_API bool CreateRawBuffer(ICoreBuffer** out, LPCWSTR name, size_t size) = 0;
+		virtual X12_API bool CreateRawBuffer(ICoreBuffer** out, LPCWSTR name, size_t size, BUFFER_FLAGS flags) = 0;
 
 		//virtual bool CreateTexture(ICoreTexture** out, LPCWSTR name, std::unique_ptr<uint8_t[]> data, int32_t width, int32_t height,
 		//				   TEXTURE_TYPE type, TEXTURE_FORMAT format, TEXTURE_CREATE_FLAGS flags) = 0;
@@ -171,6 +179,8 @@ namespace x12
 		virtual X12_API bool CreateResourceSet(IResourceSet** out, const ICoreShader* shader) = 0;
 
 		virtual X12_API bool CreateQuery(ICoreQuery** out) = 0;
+
+		virtual X12_API void* GetNativeDevice() = 0;
 	};
 
 	enum class TEXTURE_FORMAT

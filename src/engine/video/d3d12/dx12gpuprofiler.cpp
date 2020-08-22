@@ -95,7 +95,7 @@ struct Dx12GraphRenderer : public GraphRenderer
 		WCHAR name[256];
 		wsprintf(name, L"profiler graph vb screen width=%u", w);
 
-		GetCoreRender()->CreateVertexBuffer(graphVertexBuffer.getAdressOf(), name, graphData, &desc, nullptr, nullptr, BUFFER_FLAGS::CPU_WRITE);
+		GetCoreRender()->CreateVertexBuffer(graphVertexBuffer.getAdressOf(), name, graphData, &desc, nullptr, nullptr, MEMORY_TYPE::CPU);
 	}
 };
 
@@ -130,7 +130,7 @@ struct Dx12RenderProfilerRecord : public RenderProfilerRecord
 		WCHAR name[256];
 		wsprintf(name, L"profiler text buffer '%s'", format.c_str());
 
-		GetCoreRender()->CreateVertexBuffer(&vertexBuffer, name, nullptr, &desc, nullptr, nullptr, BUFFER_FLAGS::CPU_WRITE);
+		GetCoreRender()->CreateVertexBuffer(&vertexBuffer, name, nullptr, &desc, nullptr, nullptr, MEMORY_TYPE::CPU);
 	}
 
 	void UpdateBuffer(void* data) override
@@ -189,7 +189,8 @@ void Dx12GpuProfiler::Init()
 
 	// Font
 	loadFont();
-	GetCoreRender()->CreateStructuredBuffer(fontDataStructuredBuffer.getAdressOf(), L"font's data", sizeof(FontChar), fontData.size(), &fontData[0]);
+	GetCoreRender()->CreateStructuredBuffer(fontDataStructuredBuffer.getAdressOf(), L"font's data", sizeof(FontChar), fontData.size(), &fontData[0],
+											BUFFER_FLAGS::SHADER_RESOURCE);
 
 	// Vertex buffer
 	VertexAttributeDesc attr[1];
@@ -203,7 +204,7 @@ void Dx12GpuProfiler::Init()
 	desc.vertexCount = 1;
 
 	GetCoreRender()->CreateVertexBuffer(dymmyVertexBuffer.getAdressOf(), L"Dx12GpuProfiler dymmyVertexBuffer",
-										nullptr, &desc, nullptr, nullptr, BUFFER_FLAGS::GPU_READ);
+										nullptr, &desc, nullptr, nullptr, MEMORY_TYPE::CPU);
 
 }
 void Dx12GpuProfiler::Begin(void* c)

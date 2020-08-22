@@ -1,4 +1,6 @@
 #include "resource.h"
+#include "mesh.h"
+#include "core.h"
 
 template <class T>
 void engine::StreamPtr<T>::release()
@@ -19,7 +21,7 @@ template<typename T>
 engine::Resource<T>::Resource(const std::string& path) :
 	path_(path)
 {
-	Log("Resource created '%s'", path.c_str());
+	engine::Log("Resource created '%s'", path.c_str());
 }
 
 template <class T>
@@ -27,7 +29,7 @@ T* engine::Resource<T>::get()
 {
 	if (pointer_)
 	{
-		frame_ = _core->frame();
+		frame_ = core__->frame;
 		return pointer_.get();
 	}
 	if (loadingFailed)
@@ -39,11 +41,9 @@ T* engine::Resource<T>::get()
 	if (loadingFailed)
 		pointer_ = nullptr;
 
-	frame_ = _core->frame();
+	frame_ = core__->frame;
 	return pointer_.get();
 }
 
-//template class engine::Resource<engine::Mesh>;
-//template class engine::Resource<engine::Texture>;
-//template class DLLEXPORT engine::StreamPtr<engine::Mesh>;
-//template class DLLEXPORT engine::StreamPtr<engine::Texture>;
+template class engine::Resource<engine::Mesh>;
+template class X12_API engine::StreamPtr<engine::Mesh>;

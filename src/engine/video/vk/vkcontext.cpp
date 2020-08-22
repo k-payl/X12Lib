@@ -4,7 +4,7 @@
 
 x12::VkGraphicCommandList::VkGraphicCommandList()
 {
-	commandBuffers.resize(DeferredBuffers);
+	commandBuffers.resize(engine::DeferredBuffers);
 
 	VkCommandBufferAllocateInfo allocateInfo = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO };
 	allocateInfo.commandPool = x12::vk::GetCommandPool();
@@ -14,9 +14,9 @@ x12::VkGraphicCommandList::VkGraphicCommandList()
 	VK_CHECK(vkAllocateCommandBuffers(x12::vk::GetDevice(), &allocateInfo, commandBuffers.data()));
 
 	// Sync objects
-	samaphoresImageAvailable.resize(DeferredBuffers);
-	semaphoresRenderFinished.resize(DeferredBuffers);
-	fencesRenderFinished.resize(DeferredBuffers);
+	samaphoresImageAvailable.resize(engine::DeferredBuffers);
+	semaphoresRenderFinished.resize(engine::DeferredBuffers);
+	fencesRenderFinished.resize(engine::DeferredBuffers);
 
 	VkSemaphoreCreateInfo semaphoreInfo{};
 	semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
@@ -25,7 +25,7 @@ x12::VkGraphicCommandList::VkGraphicCommandList()
 	fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
 	fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
-	for (size_t i = 0; i < DeferredBuffers; i++)
+	for (size_t i = 0; i < engine::DeferredBuffers; i++)
 	{
 		VK_CHECK(vkCreateSemaphore(vk::GetDevice(), &semaphoreInfo, nullptr, &samaphoresImageAvailable[i]));
 		VK_CHECK(vkCreateSemaphore(vk::GetDevice(), &semaphoreInfo, nullptr, &semaphoresRenderFinished[i]));
@@ -37,7 +37,7 @@ x12::VkGraphicCommandList::~VkGraphicCommandList()
 {
 	vkFreeCommandBuffers(x12::vk::GetDevice(), x12::vk::GetCommandPool(), static_cast<uint32_t>(commandBuffers.size()), commandBuffers.data());
 
-	for (size_t i = 0; i < DeferredBuffers; i++)
+	for (size_t i = 0; i < engine::DeferredBuffers; i++)
 	{
 		vkDestroySemaphore(vk::GetDevice(), semaphoresRenderFinished[i], nullptr);
 		vkDestroySemaphore(vk::GetDevice(), samaphoresImageAvailable[i], nullptr);
@@ -133,5 +133,10 @@ void x12::VkGraphicCommandList::StartQuery(ICoreQuery* query)
 
 void x12::VkGraphicCommandList::StopQuery(ICoreQuery* query)
 {
+}
+
+void* x12::VkGraphicCommandList::GetNativeResource()
+{
+	return nullptr;
 }
 
