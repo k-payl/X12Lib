@@ -4,6 +4,9 @@
 #include "core.h"
 #include "input.h"
 
+#include "yaml-cpp/include/yaml-cpp/yaml.h"
+using namespace YAML;
+
 #define MOVE_SPEED 10.f
 #define ROTATE_SPEED 0.2f
 
@@ -77,24 +80,24 @@ void engine::Camera::SaveYAML(void *yaml)
 {
 	GameObject::SaveYAML(yaml);
 
-	//YAML::Emitter *_n = static_cast<YAML::Emitter*>(yaml);
-	//YAML::Emitter& n = *_n;
+	YAML::Emitter *_n = static_cast<YAML::Emitter*>(yaml);
+	YAML::Emitter& n = *_n;
 
-	//n << YAML::Key << "zNear" << YAML::Value << znear;
-	//n << YAML::Key << "zFar" << YAML::Value << zfar;
-	//n << YAML::Key << "fovAngle" << YAML::Value << fovAngle;
+	n << YAML::Key << "zNear" << YAML::Value << znear;
+	n << YAML::Key << "zFar" << YAML::Value << zfar;
+	n << YAML::Key << "fovAngle" << YAML::Value << fovAngle;
 }
 
 void engine::Camera::LoadYAML(void *yaml)
 {
 	GameObject::LoadYAML(yaml);
 
-	//YAML::Node *_n = static_cast<YAML::Node*>(yaml);
-	//YAML::Node& n = *_n;
+	YAML::Node *_n = static_cast<YAML::Node*>(yaml);
+	YAML::Node& n = *_n;
 
-	//if (n["zNear"]) znear = n["zNear"].as<float>();
-	//if (n["zFar"]) zfar = n["zFar"].as<float>();
-	//if (n["fovAngle"]) fovAngle = n["fovAngle"].as<float>();
+	if (n["zNear"]) znear = n["zNear"].as<float>();
+	if (n["zFar"]) zfar = n["zFar"].as<float>();
+	if (n["fovAngle"]) fovAngle = n["fovAngle"].as<float>();
 }
 
 void engine::Camera::Copy(GameObject * original)

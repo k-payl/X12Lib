@@ -39,7 +39,7 @@ IDxcBlob* CompileShader(LPCWSTR fileName)
 
 	// Compile
 	IDxcOperationResult* pResult;
-	throwIfFailed(pCompiler->Compile(pTextBlob, fileName, L"", L"lib_6_3", nullptr, 0, nullptr, 0,
+	throwIfFailed(pCompiler->Compile(pTextBlob, fileName, L"", L"lib_6_5", nullptr, 0, nullptr, 0,
 		dxcIncludeHandler, &pResult));
 
 	// Verify the result

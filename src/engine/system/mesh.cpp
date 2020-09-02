@@ -4,51 +4,54 @@
 #include "filesystem.h"
 #include "icorerender.h"
 
-static float vertexPlane[40] =
+static float vertexPlane[] =
 {
-	-1.0f, 1.0f, 0.0f, 1.0f,	0.0f, 0.0f, 1.0f, 0.0f,		0.0f, 1.0f,
-	 1.0f,-1.0f, 0.0f, 1.0f,	0.0f, 0.0f, 1.0f, 0.0f,		1.0f, 0.0f,
-	 1.0f, 1.0f, 0.0f, 1.0f,	0.0f, 0.0f, 1.0f, 0.0f,		1.0f, 1.0f,
-	-1.0f,-1.0f, 0.0f, 1.0f,	0.0f, 0.0f, 1.0f, 0.0f,		0.0f, 0.0f
-};
+	-1.0f, 1.0f, 0.0f,	0.0f, 0.0f, 1.0f,		0.0f, 1.0f,
+	 1.0f, 1.0f, 0.0f,	0.0f, 0.0f, 1.0f,		1.0f, 1.0f,
+	 1.0f,-1.0f, 0.0f,	0.0f, 0.0f, 1.0f,		1.0f, 0.0f,
 
-static float vertexCube[] =
-{
-	-1.0f, 1.0f, 1.0f, 1.0f,	0.0f, 0.0f, 1.0f, 0.0f,			0.0f, 1.0f, // top
-	 1.0f,-1.0f, 1.0f, 1.0f,	0.0f, 0.0f, 1.0f, 0.0f,			1.0f, 0.0f,
-	 1.0f, 1.0f, 1.0f, 1.0f,	0.0f, 0.0f, 1.0f, 0.0f,			1.0f, 1.0f,
-	-1.0f,-1.0f, 1.0f, 1.0f,	0.0f, 0.0f, 1.0f, 0.0f,			0.0f, 0.0f,
-
-	-1.0f, 1.0f, -1.0f, 1.0f,	0.0f, 0.0f, -1.0f, 0.0f,		0.0f, 1.0f, // bottom
-	 1.0f,-1.0f, -1.0f, 1.0f,	0.0f, 0.0f, -1.0f, 0.0f,		1.0f, 0.0f,
-	 1.0f, 1.0f, -1.0f, 1.0f,	0.0f, 0.0f, -1.0f, 0.0f,		1.0f, 1.0f,
-	-1.0f,-1.0f, -1.0f, 1.0f,	0.0f, 0.0f, -1.0f, 0.0f,		0.0f, 0.0f,
-
-	 -1.0f, -1.0f, 1.0f,1.0f,	-1.0f, 0.0f, 0.0f, 0.0f,		0.0f, 1.0f, // left
-	 -1.0f,  1.0f,-1.0f,1.0f,	-1.0f, 0.0f, 0.0f, 0.0f,		1.0f, 0.0f,
-	 -1.0f,  1.0f, 1.0f,1.0f,	-1.0f, 0.0f, 0.0f, 0.0f,		1.0f, 1.0f,
-	 -1.0f, -1.0f,-1.0f,1.0f,	-1.0f, 0.0f, 0.0f, 0.0f,		0.0f, 0.0f,
-
-	 1.0f, -1.0f, 1.0f,1.0f,	1.0f, 0.0f, 0.0f, 0.0f,			0.0f, 1.0f, // right
-	 1.0f,  1.0f,-1.0f,1.0f,	1.0f, 0.0f, 0.0f, 0.0f,			1.0f, 0.0f,
-	 1.0f,  1.0f, 1.0f,1.0f,	1.0f, 0.0f, 0.0f, 0.0f,			1.0f, 1.0f,
-	 1.0f, -1.0f,-1.0f,1.0f,	1.0f, 0.0f, 0.0f, 0.0f,			0.0f, 0.0f,
-
-	-1.0f, 1.0f,  1.0f,1.0f,	0.0f, 1.0f, 0.0f, 0.0f,			0.0f, 1.0f, // front
-	 1.0f, 1.0f, -1.0f,1.0f,	0.0f, 1.0f, 0.0f, 0.0f,			1.0f, 0.0f,
-	 1.0f, 1.0f,  1.0f,1.0f,	0.0f, 1.0f, 0.0f, 0.0f,			1.0f, 1.0f,
-	-1.0f, 1.0f, -1.0f,1.0f,	0.0f, 1.0f, 0.0f, 0.0f,			0.0f, 0.0f,
-
-	-1.0f, -1.0f,  1.0f,1.0f,	0.0f, -1.0f, 0.0f, 0.0f,		0.0f, 1.0f, // back
-	 1.0f, -1.0f, -1.0f,1.0f,	0.0f, -1.0f, 0.0f, 0.0f,		1.0f, 0.0f,
-	 1.0f, -1.0f,  1.0f,1.0f,	0.0f, -1.0f, 0.0f, 0.0f,		1.0f, 1.0f,
-	-1.0f, -1.0f, -1.0f,1.0f,	0.0f, -1.0f, 0.0f, 0.0f,		0.0f, 0.0f,
+	-1.0f, 1.0f, 0.0f,	0.0f, 0.0f, 1.0f,		0.0f, 1.0f,
+	 1.0f,-1.0f, 0.0f,	0.0f, 0.0f, 1.0f,		1.0f, 0.0f,
+	-1.0f,-1.0f, 0.0f,	0.0f, 0.0f, 1.0f,		0.0f, 0.0f
 };
 
 static unsigned short indexPlane[6]
 {
 	0 + 0, 0 + 2, 0 + 1,
 	0 + 0, 0 + 1, 0 + 3
+};
+
+static float vertexCube[] =
+{
+	-1.0f, 1.0f, 1.0f,	0.0f, 0.0f, 1.0f, 		0.0f, 1.0f, // top
+	 1.0f,-1.0f, 1.0f,	0.0f, 0.0f, 1.0f, 		1.0f, 0.0f,
+	 1.0f, 1.0f, 1.0f,	0.0f, 0.0f, 1.0f, 		1.0f, 1.0f,
+	-1.0f,-1.0f, 1.0f,	0.0f, 0.0f, 1.0f, 		0.0f, 0.0f,
+
+	-1.0f, 1.0f, -1.0f,	0.0f, 0.0f, -1.0f,		0.0f, 1.0f, // bottom
+	 1.0f,-1.0f, -1.0f,	0.0f, 0.0f, -1.0f,		1.0f, 0.0f,
+	 1.0f, 1.0f, -1.0f,	0.0f, 0.0f, -1.0f,		1.0f, 1.0f,
+	-1.0f,-1.0f, -1.0f,	0.0f, 0.0f, -1.0f,		0.0f, 0.0f,
+
+	 -1.0f, -1.0f, 1.0f,	-1.0f, 0.0f, 0.0f,		0.0f, 1.0f, // left
+	 -1.0f,  1.0f,-1.0f,	-1.0f, 0.0f, 0.0f,		1.0f, 0.0f,
+	 -1.0f,  1.0f, 1.0f,	-1.0f, 0.0f, 0.0f,		1.0f, 1.0f,
+	 -1.0f, -1.0f,-1.0f,	-1.0f, 0.0f, 0.0f,		0.0f, 0.0f,
+
+	 1.0f, -1.0f, 1.0f,	1.0f, 0.0f, 0.0f, 		0.0f, 1.0f, // right
+	 1.0f,  1.0f,-1.0f,	1.0f, 0.0f, 0.0f, 		1.0f, 0.0f,
+	 1.0f,  1.0f, 1.0f,	1.0f, 0.0f, 0.0f, 		1.0f, 1.0f,
+	 1.0f, -1.0f,-1.0f,	1.0f, 0.0f, 0.0f, 		0.0f, 0.0f,
+
+	-1.0f, 1.0f,  1.0f,		0.0f, 1.0f, 0.0f, 		0.0f, 1.0f, // front
+	 1.0f, 1.0f, -1.0f,		0.0f, 1.0f, 0.0f, 		1.0f, 0.0f,
+	 1.0f, 1.0f,  1.0f,		0.0f, 1.0f, 0.0f, 		1.0f, 1.0f,
+	-1.0f, 1.0f, -1.0f,		0.0f, 1.0f, 0.0f, 		0.0f, 0.0f,
+
+	-1.0f, -1.0f,  1.0f,	0.0f, -1.0f, 0.0f,		0.0f, 1.0f, // back
+	 1.0f, -1.0f, -1.0f,	0.0f, -1.0f, 0.0f,		1.0f, 0.0f,
+	 1.0f, -1.0f,  1.0f,	0.0f, -1.0f, 0.0f,		1.0f, 1.0f,
+	-1.0f, -1.0f, -1.0f,	0.0f, -1.0f, 0.0f,		0.0f, 0.0f,
 };
 
 static const char* stdMeshses[] =
@@ -62,7 +65,7 @@ static const char* stdMeshses[] =
 
 bool engine::Mesh::isSphere()
 {
-	return strcmp(path_.c_str(), "standard\meshes\sphere.mesh") == 0;
+	return strcmp(path_.c_str(), "standard\\meshes\\sphere.mesh") == 0;
 }
 
 bool engine::Mesh::isPlane()
@@ -87,36 +90,51 @@ engine::Mesh::~Mesh()
 	//Log("Mesh unloaded: '%s'", path_.c_str());
 }
 
-/*ICoreMesh* createStdMesh(const char* path)
+void engine::Mesh::checksStride()
 {
-	ICoreMesh* ret = nullptr;
+	assert(desc.positionStride == sizeof(Vertex));
+	assert(desc.normalStride == sizeof(Vertex));
+	assert(desc.texCoordStride == sizeof(Vertex));
+}
+
+bool engine::Mesh::createStdMesh(const char* path)
+{
+	using namespace math;
+
+	desc = {};
+	indexDesc = {};
 
 	if (!strcmp(path, "std#plane"))
 	{
-		MeshDataDesc desc;
-		desc.pData = reinterpret_cast<uint8*>(vertexPlane);
-		desc.numberOfVertex = 4;
-		desc.positionStride = 40;
+		desc.pData = reinterpret_cast<uint8_t*>(vertexPlane);
+		desc.numberOfVertex = 6;
+		desc.positionStride = 32;
+
 		desc.normalsPresented = true;
-		desc.normalOffset = 16;
-		desc.normalStride = 40;
+		desc.normalOffset = 12;
+		desc.normalStride = 32;
+
 		desc.texCoordPresented = true;
-		desc.texCoordOffset = 32;
-		desc.texCoordStride = 40;
+		desc.texCoordOffset = 24;
+		desc.texCoordStride = 32;
 
-		MeshIndexDesc indexDesc;
-		indexDesc.pData = reinterpret_cast<uint8*>(indexPlane);
-		indexDesc.number = 6;
-		indexDesc.format = MESH_INDEX_FORMAT::INT16;
+		checksStride();
 
-		ret = CORE_RENDER->CreateMesh(&desc, &indexDesc, VERTEX_TOPOLOGY::TRIANGLES);
+		//index.pData = reinterpret_cast<uint8_t*>(indexPlane);
+		//index.number = 6;
+		//index.format = MESH_INDEX_FORMAT::INT16;
+
+		GetCoreRenderer()->CreateStructuredBuffer(vertexBuffer.getAdressOf(), L"std#plane",
+			sizeof(Vertex), desc.numberOfVertex, desc.pData, x12::BUFFER_FLAGS::SHADER_RESOURCE);
+
+		return true;
 	}
 	else if (!strcmp(path, "std#grid"))
 	{
 		const float linesInterval = 10.0f;
 		const int linesNumber = 21;
 		const float startOffset = linesInterval * (linesNumber / 2);
-		vec4 vertexGrid[4 * linesNumber];
+		math::vec4 vertexGrid[4 * linesNumber];
 
 		for (int i = 0; i < linesNumber; i++)
 		{
@@ -126,24 +144,29 @@ engine::Mesh::~Mesh()
 			vertexGrid[i * 4 + 3] = vec4(-startOffset, -startOffset + i * linesInterval, 0.0f, 1.0f);
 		}
 
-		MeshIndexDesc indexEmpty;
-		MeshDataDesc descGrid;
-		descGrid.pData = reinterpret_cast<uint8*>(vertexGrid);
-		descGrid.numberOfVertex = 4 * linesNumber;
-		descGrid.positionStride = 16;
+		desc.pData = reinterpret_cast<uint8_t*>(vertexGrid);
+		desc.numberOfVertex = 4 * linesNumber;
+		desc.positionStride = 16;
 
-		ret = CORE_RENDER->CreateMesh(&descGrid, &indexEmpty, VERTEX_TOPOLOGY::LINES);
+		checksStride();
+
+		GetCoreRenderer()->CreateStructuredBuffer(vertexBuffer.getAdressOf(), L"std#grid",
+			sizeof(Vertex), desc.numberOfVertex, desc.pData, x12::BUFFER_FLAGS::SHADER_RESOURCE);
+		return true;
 	}
 	else if (!strcmp(path, "std#line"))
 	{
 		float vertexAxes[] = {0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 1.0f};
-		MeshIndexDesc indexEmpty;
-		MeshDataDesc descAxes;
-		descAxes.pData = reinterpret_cast<uint8*>(vertexAxes);
-		descAxes.numberOfVertex = 2;
-		descAxes.positionStride = 16;
+		
+		desc.pData = reinterpret_cast<uint8_t*>(vertexAxes);
+		desc.numberOfVertex = 2;
+		desc.positionStride = 16;
 
-		ret = CORE_RENDER->CreateMesh(&descAxes, &indexEmpty, VERTEX_TOPOLOGY::LINES);
+		checksStride();
+
+		GetCoreRenderer()->CreateStructuredBuffer(vertexBuffer.getAdressOf(), L"std#line",
+			sizeof(Vertex), desc.numberOfVertex, desc.pData, x12::BUFFER_FLAGS::SHADER_RESOURCE);
+		return true;
 	}
 	else if (!strcmp(path, "std#axes_arrows"))
 	{
@@ -182,18 +205,19 @@ engine::Mesh::~Mesh()
 				memcpy(vertexAxesArrows + j * 12 + 8L, &v3.x, 16);
 			}
 		}
-		MeshIndexDesc indexEmpty;
-		MeshDataDesc descArrows;
-		descArrows.pData = reinterpret_cast<uint8*>(vertexAxesArrows);
-		descArrows.numberOfVertex = numberOfVeretex;
-		descArrows.positionStride = 16;
+		desc.pData = reinterpret_cast<uint8_t*>(vertexAxesArrows);
+		desc.numberOfVertex = numberOfVeretex;
+		desc.positionStride = 16;
 
-		ret = CORE_RENDER->CreateMesh(&descArrows, &indexEmpty, VERTEX_TOPOLOGY::TRIANGLES);
+		checksStride();
+
+		GetCoreRenderer()->CreateStructuredBuffer(vertexBuffer.getAdressOf(), L"std#axes",
+			sizeof(Vertex), desc.numberOfVertex, desc.pData, x12::BUFFER_FLAGS::SHADER_RESOURCE);
+		return true;
 	}
 	else if (!strcmp(path, "std#cube"))
 	{
-		MeshDataDesc desc;
-		desc.pData = reinterpret_cast<uint8*>(vertexCube);
+		desc.pData = reinterpret_cast<uint8_t*>(vertexCube);
 		desc.numberOfVertex = sizeof(vertexCube) / (sizeof(float) * 10);
 		desc.positionStride = 40;
 		desc.normalsPresented = true;
@@ -212,25 +236,25 @@ engine::Mesh::~Mesh()
 			}
 		}
 
-		MeshIndexDesc indexDesc;
-		indexDesc.pData = reinterpret_cast<uint8*>(indexCube_);
+		indexDesc.pData = reinterpret_cast<uint8_t*>(indexCube_);
 		indexDesc.number = sizeof(indexCube_) / sizeof(indexCube_[0]);
 		indexDesc.format = MESH_INDEX_FORMAT::INT16;
 
-		ret = CORE_RENDER->CreateMesh(&desc, &indexDesc, VERTEX_TOPOLOGY::TRIANGLES);
-	}
+		checksStride();
 
-	return ret;
+		GetCoreRenderer()->CreateStructuredBuffer(vertexBuffer.getAdressOf(), L"std#cube",
+			sizeof(Vertex), desc.numberOfVertex, desc.pData, x12::BUFFER_FLAGS::SHADER_RESOURCE);
+		return true;
+	}
+	return false;
 }
-*/
 
 bool engine::Mesh::Load()
 {
-	//if (isStd())
-	//{
-	//	coreMeshPtr.reset(createStdMesh(path_.c_str()));
-	//	return true;
-	//}
+	if (isStd())
+	{
+		return createStdMesh(path_.c_str());
+	}
 
 	Log("Mesh loading: '%s'", path_.c_str());
 
@@ -282,33 +306,16 @@ bool engine::Mesh::Load()
 	bytes = std::max(bytes, header.binormalOffset + bBinormal * header.numberOfVertex * sizeof(vec4));
 	bytes = std::max(bytes, header.colorOffset + bColor * header.numberOfVertex * sizeof(vec4));
 
-#pragma pack(push, 1)
-	struct Vertex
-	{
-		vec3 p;
-		vec3 n;
-	};
-#pragma pack(pop)
-
 	std::vector<Vertex> vs(header.numberOfVertex);
 
 	for (int i = 0; i < header.numberOfVertex; ++i)
 	{
 		memcpy(&vs[i].p, &desc.pData[i * header.positionStride + header.positionOffset], sizeof(vec3));
 		memcpy(&vs[i].n, &desc.pData[i * header.normalStride + header.normalOffset], sizeof(vec3));
+		// TODO: tex coord
 	}
 
-	engine::MeshIndexDesc indexDesc;
-
 	GetCoreRenderer()->CreateStructuredBuffer(vertexBuffer.getAdressOf(), ConvertFromUtf8ToUtf16(path_).c_str(), sizeof(Vertex), header.numberOfVertex, vs.data(), x12::BUFFER_FLAGS::SHADER_RESOURCE);
-
-	//if (auto coreMesh = CORE_RENDER->CreateMesh(&desc, &indexDesc, VERTEX_TOPOLOGY::TRIANGLES))
-	//	coreMeshPtr.reset(coreMesh);
-	//else
-	//{
-		//LogCritical("Mesh::Load(): error occured");
-		//return false;
-	//}
 
 	center_.x = header.minX * 0.5f + header.maxX * 0.5f;
 	center_.y = header.minY * 0.5f + header.maxY * 0.5f;

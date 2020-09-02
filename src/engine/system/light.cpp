@@ -1,6 +1,9 @@
 
 #include "light.h"
 
+#include "yaml-cpp/include/yaml-cpp/yaml.h"
+using namespace YAML;
+
 void engine::Light::Copy(GameObject * original)
 {
 	GameObject::Copy(original);
@@ -12,24 +15,24 @@ void engine::Light::Copy(GameObject * original)
 
 void engine::Light::SaveYAML(void * yaml)
 {
-	//GameObject::SaveYAML(yaml);
+	GameObject::SaveYAML(yaml);
 
-	//YAML::Emitter *_n = static_cast<YAML::Emitter*>(yaml);
-	//YAML::Emitter& n = *_n;
+	YAML::Emitter *_n = static_cast<YAML::Emitter*>(yaml);
+	YAML::Emitter& n = *_n;
 
-	//n << YAML::Key << "intensity" << YAML::Value << intensity_;
-	//n << YAML::Key << "light_type" << YAML::Value << (int)lightType_;
+	n << YAML::Key << "intensity" << YAML::Value << intensity_;
+	n << YAML::Key << "light_type" << YAML::Value << (int)lightType_;
 }
 
 void engine::Light::LoadYAML(void * yaml)
 {
 	GameObject::LoadYAML(yaml);
 
-	//YAML::Node *_n = static_cast<YAML::Node*>(yaml);
-	//YAML::Node& n = *_n;
+	YAML::Node *_n = static_cast<YAML::Node*>(yaml);
+	YAML::Node& n = *_n;
 
-	//if (n["intensity"]) intensity_ = n["intensity"].as<float>();
-	//if (n["light_type"]) lightType_ = (LIGHT_TYPE)n["light_type"].as<int>();
+	if (n["intensity"]) intensity_ = n["intensity"].as<float>();
+	if (n["light_type"]) lightType_ = (LIGHT_TYPE)n["light_type"].as<int>();
 }
 
 engine::Light::Light()

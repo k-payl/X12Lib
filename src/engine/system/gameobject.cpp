@@ -3,29 +3,13 @@
 #include "console.h"
 #include "gameobject.h"
 
+#include "yaml-cpp/include/yaml-cpp/yaml.h"
+#include "yaml.inl"
+using namespace YAML;
+
 using engine::OBJECT_TYPE;
 
 IdGenerator<int32_t> engine::GameObject::idGen;
-
-static const char *names[] = {"GameObject", "Model", "Light", "Camera"};
-static std::map<std::string, OBJECT_TYPE> types =
-{
-	{"GameObject", OBJECT_TYPE::GAMEOBJECT},
-	{"Model", OBJECT_TYPE::MODEL},
-	{"Light", OBJECT_TYPE::LIGHT},
-	{"Camera", OBJECT_TYPE::CAMERA}
-};
-
-const char *getNameByType(OBJECT_TYPE type)
-{
-	int i = static_cast<int>(type);
-	return names[i];
-}
-
-OBJECT_TYPE getTypeByName(const std::string& name)
-{
-	return types[name];
-}
 
 engine::GameObject::GameObject()
 {
@@ -71,16 +55,16 @@ void engine::GameObject::SaveYAML(void *yaml)
 
 void engine::GameObject::LoadYAML(void * yaml)
 {
-	//YAML::Node *_n = static_cast<YAML::Node*>(yaml);
-	//YAML::Node& n = *_n;
+	YAML::Node *_n = static_cast<YAML::Node*>(yaml);
+	YAML::Node& n = *_n;
 
-	//id_ = n["id"].as<int>();
-	//enabled_ = n["enabled"].as<bool>();
+	id_ = n["id"].as<int>();
+	enabled_ = n["enabled"].as<bool>();
 
-	//YAML::Node wt = n["worldTransform"];
-	//mat4 transform;
-	//loadMat4(wt, transform);
-	//SetWorldTransform(transform);
+	YAML::Node wt = n["worldTransform"];
+	mat4 transform;
+	loadMat4(wt, transform);
+	SetWorldTransform(transform);
 }
 
 engine::GameObject::~GameObject()

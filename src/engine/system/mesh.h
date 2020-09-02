@@ -13,7 +13,20 @@ namespace engine
 		engine::MeshDataDesc desc{};
 		engine::MeshIndexDesc indexDesc{};
 
+		inline void checksStride();
+		bool createStdMesh(const char* path);
+
 	public:
+
+#pragma pack(push, 1)
+		struct Vertex
+		{
+			math::vec3 p;
+			math::vec3 n;
+			math::vec2 t;
+		};
+#pragma pack(pop)
+
 		X12_API Mesh(const std::string& path);
 		X12_API ~Mesh();
 
@@ -24,7 +37,7 @@ namespace engine
 		X12_API auto GetPath() -> const char* const { return path_.c_str(); }
 		X12_API auto GetCenter()->math::vec3;
 		X12_API unsigned GetPositionStride() { return desc.positionStride; }
-		X12_API unsigned GetvertexCount() { return desc.numberOfVertex; }
+		X12_API unsigned GetVertexCount() { return desc.numberOfVertex; }
 		X12_API x12::ICoreBuffer* VertexBuffer() { return vertexBuffer.get(); }
 	};
 }

@@ -1,16 +1,6 @@
 #include "Common.hlsl"
 #include "Global.hlsl"
 
-struct CameraData
-{
-    float4 forward;
-    float4 right;
-    float4 up;
-    float4 origin;
-};
-
-ConstantBuffer<CameraData> gCamera : register(b0);
-
 [shader("raygeneration")] 
 void RayGen() 
 {
@@ -55,7 +45,7 @@ void RayGen()
         // indicates which offset (on 4 bits) to apply to the hit groups for this
         // ray. In this sample we only have one hit group per object, hence an
         // offset of 0.
-        0,
+        0, // camera ray
     
         // Parameter name: MultiplierForGeometryContributionToHitGroupIndex
         // The offsets in the SBT can be computed from the object ID, its instance

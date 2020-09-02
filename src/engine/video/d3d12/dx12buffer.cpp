@@ -69,7 +69,7 @@ void x12::Dx12CoreBuffer::GetData(void* data)
 	_GetStagingData(data);
 }
 
-void x12::Dx12CoreBuffer::SetData(const void* data, size_t size)
+void x12::Dx12CoreBuffer::SetData(const void* data, size_t dataSize)
 {
 	if (!data)
 		return;
@@ -85,14 +85,14 @@ void x12::Dx12CoreBuffer::SetData(const void* data, size_t size)
 		stagingState = D3D12_RESOURCE_STATE_GENERIC_READ;
 
 		ComPtr<ID3D12Resource> uploadResource;
-		x12::memory::CreateCommittedBuffer(uploadResource.GetAddressOf(), size,
+		x12::memory::CreateCommittedBuffer(uploadResource.GetAddressOf(), this->size,
 										   stagingState, D3D12_HEAP_TYPE_UPLOAD);
 
-		x12::d3d12::set_name(uploadResource.Get(), L"Upload buffer for cpu->gpu copying %u bytes for '%s'", size, name);
+		x12::d3d12::set_name(uploadResource.Get(), L"Upload buffer for cpu->gpu copying %u bytes for '%s'", this->size, name);
 
 		D3D12_SUBRESOURCE_DATA initData = {};
 		initData.pData = data;
-		initData.RowPitch = size;
+		initData.RowPitch = dataSize;
 		initData.SlicePitch = initData.RowPitch;
 
 		auto* cmdList = GetCoreRender()->GetGraphicCommandList();

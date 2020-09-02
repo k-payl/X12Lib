@@ -1,6 +1,10 @@
 
 #include "model.h"
 #include "core.h"
+#include "resourcemanager.h"
+
+#include "yaml-cpp/include/yaml-cpp/yaml.h"
+using namespace YAML;
 
 void engine::Model::Copy(GameObject * original)
 {
@@ -11,10 +15,11 @@ void engine::Model::Copy(GameObject * original)
 	//mat_ = original_model->mat_;
 }
 
-engine::Model::Model()
+engine::Model::Model(const char* name)
 {
 	type_ = OBJECT_TYPE::MODEL;
-	//mat_ = MAT_MAN->GetDiffuseMaterial();
+	meshPtr = engine::GetResourceManager()->CreateStreamMesh(name);
+	meshPtr.get();// force load
 }
 
 //engine::Model::Model(StreamPtr<Mesh> mesh) : Model()
@@ -82,7 +87,7 @@ auto engine::Model::GetTrinaglesWorldSpace(std::unique_ptr<vec3[]>& out, uint* t
 */
 auto engine::Model::Clone() -> GameObject *
 {
-	Model *m = new Model;
+	Model *m = new Model(meshPtr);
 	m->Copy(this);
 	return m;
 }
@@ -91,11 +96,11 @@ void engine::Model::SaveYAML(void * yaml)
 {
 	GameObject::SaveYAML(yaml);
 
-	//YAML::Emitter *_n = static_cast<YAML::Emitter*>(yaml);
-	//YAML::Emitter& n = *_n;
+	YAML::Emitter *_n = static_cast<YAML::Emitter*>(yaml);
+	YAML::Emitter& n = *_n;
 
-	//if (!meshPtr.path().empty())
-	//	n << YAML::Key << "mesh" << YAML::Value << meshPtr.path();
+	if (!meshPtr.path().empty())
+		n << YAML::Key << "mesh" << YAML::Value << meshPtr.path();
 
 	//if (mat_)
 	//	n << YAML::Key << "material" << YAML::Value << mat_->GetId();
@@ -105,13 +110,18 @@ void engine::Model::LoadYAML(void * yaml)
 {
 	GameObject::LoadYAML(yaml);
 
-	//YAML::Node *_n = static_cast<YAML::Node*>(yaml);
-	//YAML::Node& n = *_n;
+	YAML::Node *_n = static_cast<YAML::Node*>(yaml);
+	YAML::Node& n = *_n;
 
 	//if (n["material"])
 	//{
 	//	string mat = n["material"].as<string>();
 	//	mat_ = MAT_MAN->GetMaterial(mat.c_str());
 	//}
+}
+
+engine::Model::Model(StreamPtr<Mesh> mesh)
+{
+	meshPtr = mesh;
 }
 

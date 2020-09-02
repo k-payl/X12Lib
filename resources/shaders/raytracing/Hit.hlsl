@@ -5,40 +5,18 @@
 struct InstanceData
 {
     float4 color;
+	float4x4 transform;
 };
 ConstantBuffer<InstanceData> instanceData : register(b1);
 
-// Load three 16 bit indices from a byte addressed buffer.
-uint3 Load3x16BitIndices(uint offsetBytes)
+struct Vertex
 {
-    uint3 indices;
+    float3 position;
+    float3 normal;
+    float2 tex;
+};
+StructuredBuffer<Vertex> Vertices : register(t2, space0);
 
-    // ByteAdressBuffer loads must be aligned at a 4 byte boundary.
-    // Since we need to read three 16 bit indices: { 0, 1, 2 } 
-    // aligned at a 4 byte boundary as: { 0 1 } { 2 0 } { 1 2 } { 0 1 } ...
-    // we will load 8 bytes (~ 4 indices { a b | c d }) to handle two possible index triplet layouts,
-    // based on first index's offsetBytes being aligned at the 4 byte boundary or not:
-    //  Aligned:     { 0 1 | 2 - }
-    //  Not aligned: { - 0 | 1 2 }
-    const uint dwordAlignedOffset = offsetBytes & ~3;
-    const uint2 four16BitIndices = Indices.Load2(dwordAlignedOffset);
-
-    // Aligned: { 0 1 | 2 - } => retrieve first three 16bit indices
-    if (dwordAlignedOffset == offsetBytes)
-    {
-        indices.x = four16BitIndices.x & 0xffff;
-        indices.y = (four16BitIndices.x >> 16) & 0xffff;
-        indices.z = four16BitIndices.y & 0xffff;
-    }
-    else // Not aligned: { - 0 | 1 2 } => retrieve last three 16bit indices
-    {
-        indices.x = (four16BitIndices.x >> 16) & 0xffff;
-        indices.y = four16BitIndices.y & 0xffff;
-        indices.z = (four16BitIndices.y >> 16) & 0xffff;
-    }
-
-    return indices;
-}
 
 [shader("closesthit")] 
 void ClosestHit(inout HitInfo payload, Attributes attrib)
@@ -55,26 +33,96 @@ void ClosestHit(inout HitInfo payload, Attributes attrib)
 
 	const uint3 indices = Load3x16BitIndices(baseIndex);
     
+
+#else
+	
+	const uint3 indices = uint3(PrimitiveIndex() * 3, PrimitiveIndex() * 3 + 1, PrimitiveIndex() * 3 + 2);
+
+#endif
+
+	float3 vertextPositions[3] = {
+        Vertices[indices[0]].position,
+        Vertices[indices[1]].position,
+        Vertices[indices[2]].position
+    };
+	
     float3 vertexNormals[3] = {
         Vertices[indices[0]].normal,
         Vertices[indices[1]].normal,
         Vertices[indices[2]].normal
         };
-#else
-
-    float3 vertexNormals[3] = {
-        Vertices[PrimitiveIndex() * 3].normal,
-        Vertices[PrimitiveIndex() * 3 + 1].normal,
-        Vertices[PrimitiveIndex() * 3 + 2].normal
-    };
-
-#endif
-
+	
     float3 N = vertexNormals[0] * barycentrics.x +
         vertexNormals[1] * barycentrics.y +
         vertexNormals[2] * barycentrics.z;
 
-    const float3 L = normalize(float3(0, -0.4, 1));
+    float3 pos = vertextPositions[0] * barycentrics.x +
+        vertextPositions[1] * barycentrics.y +
+        vertextPositions[2] * barycentrics.z;
+		
+	pos += N * 0.001f;
+	float4 worldPos = mul(float4(pos, 1), instanceData.transform);
+	
+	const float3 light = float3(5, -4, 10);
+	const float3 Ln = normalize(light - worldPos.xyz);
+	float s = 0;
+	
+	RayDesc ray;
+	ray.Origin = worldPos.xyz;
+	ray.Direction = Ln;
+	ray.TMin = 0;
+	ray.TMax = 100000;
 
-	payload.colorAndDistance = float4(instanceData.color.rgb * max(0, dot(N, L)), RayTCurrent());
+	#if 0 // inline ray trace
+		RayQuery<RAY_FLAG_CULL_NON_OPAQUE |
+             RAY_FLAG_SKIP_PROCEDURAL_PRIMITIVES |
+             RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH> q;
+
+		// Set up a trace. No work is done yet.
+		q.TraceRayInline(
+			SceneBVH,
+			0,
+			0xFF,
+			ray);
+
+		// trace ray
+		q.Proceed();
+
+		// Examine and act on the result of the traversal.
+		// Was a hit committed?
+		if(q.CommittedStatus() == COMMITTED_TRIANGLE_HIT)
+		{
+			s = 1;
+		}
+	#else
+		HitInfo shadowPayload;
+				
+		TraceRay(
+			SceneBVH,
+			RAY_FLAG_NONE,
+			0xFF,
+		
+			// Parameter name: RayContributionToHitGroupIndex
+			gScene.numInstances,
+		
+			// Parameter name: MultiplierForGeometryContributionToHitGroupIndex
+			0,
+		
+			// Parameter name: MissShaderIndex
+			1,
+			ray,
+			shadowPayload);
+			
+		s = shadowPayload.colorAndDistance.a;
+		
+	#endif
+
+	payload.colorAndDistance = float4(instanceData.color.rgb * max(0, dot(N, Ln)) * (1 - s), RayTCurrent());
+	//payload.colorAndDistance = float4(worldPos.xyz, RayTCurrent());
+}
+
+[shader("closesthit")] 
+void ShadowClosestHit(inout HitInfo payload, Attributes attrib)
+{
+	payload.colorAndDistance = float4(0, 0, 0, 1);
 }

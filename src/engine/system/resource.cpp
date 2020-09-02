@@ -1,5 +1,6 @@
 #include "resource.h"
 #include "mesh.h"
+#include "texture.h"
 #include "core.h"
 
 template <class T>
@@ -46,4 +47,6 @@ T* engine::Resource<T>::get()
 }
 
 template class engine::Resource<engine::Mesh>;
+template class engine::Resource<engine::Texture>;
 template class X12_API engine::StreamPtr<engine::Mesh>;
+template class X12_API engine::StreamPtr<engine::Texture>;

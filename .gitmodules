@@ -1,3 +1,6 @@
 [submodule "src/benchmarks/benchmark"]
 	path = src/benchmarks/benchmark
 	url = https://github.com/google/benchmark
+[submodule "src/engine/3rdparty/yaml-cpp"]
+	path = src/engine/3rdparty/yaml-cpp
+	url = https://github.com/jbeder/yaml-cpp

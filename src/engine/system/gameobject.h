@@ -7,17 +7,6 @@ namespace engine
 	using math::quat;
 	using math::mat4;
 
-	enum class OBJECT_TYPE
-	{
-		GAMEOBJECT,
-		MODEL,
-		LIGHT,
-		CAMERA
-	};
-
-	const char *getNameByType(OBJECT_TYPE type);
-	OBJECT_TYPE getTypeByName(const std::string& name);
-
 	class GameObject
 	{
 		friend SceneManager;

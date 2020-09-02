@@ -1,5 +1,7 @@
 #pragma once
 #include "gameobject.h"
+#include "resource.h"
+#include "mesh.h"
 
 namespace engine
 {
@@ -7,7 +9,7 @@ namespace engine
 	{
 		friend SceneManager;
 
-		//StreamPtr<Mesh> meshPtr;
+		StreamPtr<Mesh> meshPtr;
 		//vec3 meshCeneter;
 		//Material *mat_{nullptr};
 		//std::shared_ptr<RaytracingData> trianglesDataPtrWorldSpace;
@@ -15,18 +17,18 @@ namespace engine
 		//mat4 trianglesDataTransform;
 		
 	protected:
-		Model();
+		Model(const char *name);
 		virtual void Copy(GameObject *original) override;
 		virtual void SaveYAML(void *yaml) override;
 		virtual void LoadYAML(void *yaml) override;
 
 	public:
 		
-		//Model(StreamPtr<Mesh> mesh);
+		Model(StreamPtr<Mesh> mesh);
 
 		//std::shared_ptr<RaytracingData> GetRaytracingData(uint mat);
 
-		//auto GetMesh() -> Mesh*;
+		auto GetMesh() -> Mesh* { return meshPtr.get(); };
 		//auto GetMeshPath() -> const char*;
 		//auto SetMaterial(Material *mat) -> void { mat_ = mat; }
 		//auto GetMaterial() -> Material* { return mat_; }

@@ -2,7 +2,6 @@
 #include "common.h"
 #include <fstream>
 #include <filesystem>
-#include "console.h"
 
 using std::string;
 namespace fs = std::filesystem;
@@ -32,4 +31,37 @@ std::wstring engine::ConvertFromUtf8ToUtf16(const string& str)
 	}
 	return res;
 }
+
+static const char* names[] = { "GameObject", "Model", "Light", "Camera" };
+static std::map<std::string, engine::OBJECT_TYPE> types =
+{
+	{"GameObject", engine::OBJECT_TYPE::GAMEOBJECT},
+	{"Model", engine::OBJECT_TYPE::MODEL},
+	{"Light", engine::OBJECT_TYPE::LIGHT},
+	{"Camera", engine::OBJECT_TYPE::CAMERA}
+};
+
+const char* engine::getNameByType(OBJECT_TYPE type)
+{
+	int i = static_cast<int>(type);
+	return names[i];
+}
+
+engine::OBJECT_TYPE engine::getTypeByName(const std::string& name)
+{
+	return types[name];
+}
+
+template<typename Char>
+std::basic_string<Char> ToLowerCase(std::basic_string<Char> str)
+{
+	std::transform(str.begin(), str.end(), str.begin(), ::tolower);
+	return str;
+}
+
+X12_API std::string engine::fileExtension(const std::string& path)
+{
+	return ToLowerCase(fs::path(path).extension().string().erase(0, 1));
+}
+
 

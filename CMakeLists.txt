@@ -5,6 +5,8 @@ cmake_minimum_required (VERSION 3.16)
 
 project (x12lib)
 
+add_subdirectory(src/engine/3rdparty/yaml-cpp)
+
 option(VK_ENABLE "Enable vulkan renderer" OFF)
 
 if (VK_ENABLE)
@@ -40,6 +42,8 @@ file(GLOB HEADERS_3RDPARTY
     src/engine/3rdparty/pugixml/*.h
     src/engine/3rdparty/DirectXTK/Inc/*.h
     src/engine/3rdparty/DirectXTex/*.h)
+	
+include_directories(src/engine/3rdparty/yaml-cpp/include)
 
 # Vulkan
 if (VK_ENABLE)
@@ -93,6 +97,7 @@ endif()
 add_library(engine SHARED ${SOURCES})
 target_precompile_headers(engine PRIVATE src/engine/system/pch.h)
 target_link_libraries(engine ${ENGINE_LIBS})
+target_link_libraries(engine yaml-cpp)
 target_compile_definitions(engine PUBLIC _DLL_EXPORTS)
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /SUBSYSTEM:WINDOWS")
 

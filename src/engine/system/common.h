@@ -207,6 +207,19 @@ namespace engine
 	inline math::vec3 getForwardDirection(const math::mat4& ModelMat) { return math::vec3(ModelMat.Column(1)); }
 	inline math::vec3 getBackDirection(const math::mat4& ModelMat) { return -math::vec3(ModelMat.Column(2)); }
 
+		enum class OBJECT_TYPE
+	{
+		GAMEOBJECT,
+		MODEL,
+		LIGHT,
+		CAMERA
+	};
+
+	const char *getNameByType(OBJECT_TYPE type);
+	OBJECT_TYPE getTypeByName(const std::string& name);
+
+	X12_API std::string fileExtension(const std::string& path);
+
 	template<typename... Signature>
 	class Signal
 	{
