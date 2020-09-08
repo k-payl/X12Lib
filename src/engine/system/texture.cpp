@@ -61,7 +61,7 @@ bool Texture::Load()
 	std::unique_ptr<uint8_t[]> data(new uint8_t[fileSize]);
 	file.Read(data.get(), fileSize);
 
-	coreTexture_ = createFromDDS(std::move(data), fileSize, flags_);
+	coreTexture_.attach(createFromDDS(std::move(data), fileSize, flags_));
 
 	if (!coreTexture_)
 	{
