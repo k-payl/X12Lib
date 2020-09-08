@@ -172,7 +172,12 @@ bool x12::VkCoreRenderer::CreateRawBuffer(ICoreBuffer** out, LPCWSTR name, size_
 	return false;
 }
 
-bool x12::VkCoreRenderer::CreateTextureFrom(ICoreTexture** out, LPCWSTR name, std::unique_ptr<uint8_t[]> ddsData, std::vector<D3D12_SUBRESOURCE_DATA> subresources, ID3D12Resource* d3dexistingtexture)
+bool x12::VkCoreRenderer::CreateTexture(ICoreTexture** out, LPCWSTR name, const uint8_t* data, size_t size, int32_t width, int32_t height, uint32_t mipCount, TEXTURE_TYPE type, TEXTURE_FORMAT format, TEXTURE_CREATE_FLAGS flags)
+{
+	return false;
+}
+
+bool x12::VkCoreRenderer::CreateTextureFrom(ICoreTexture** out, LPCWSTR name, std::vector<D3D12_SUBRESOURCE_DATA> subresources, ID3D12Resource* d3dexistingtexture)
 {
 	return false;
 }

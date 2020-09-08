@@ -94,6 +94,7 @@ void x12::Dx12CoreVertexBuffer::Init(LPCWSTR name_, const void* vbData, const Ve
 
 	inputLayout.resize(vbDesc->attributesCount);
 
+	UINT offset = 0;
 	for (int i = 0; i < vbDesc->attributesCount; ++i)
 	{
 		D3D12_INPUT_ELEMENT_DESC& v = inputLayout[i];
@@ -102,14 +103,17 @@ void x12::Dx12CoreVertexBuffer::Init(LPCWSTR name_, const void* vbData, const Ve
 		v.SemanticIndex = 0;
 		v.Format = x12::d3d12::engineToDXGIFormat(vbDesc->attributes[i].format);
 		v.InputSlot = i;
-		v.AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
+		v.AlignedByteOffset = offset;
 		v.InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
 		v.InstanceDataStepRate = 0;
+
+		offset += UINT(BitsPerPixel(v.Format)) / 8;
 	}
 
-	vertexBufferView.BufferLocation = vertexBuffer->GetGPUVirtualAddress();
-	vertexBufferView.SizeInBytes = (UINT)bufferSize;
-	vertexBufferView.StrideInBytes = getBufferStride(vbDesc);
+	for (int i = 0; i < vbDesc->attributesCount; ++i)
+	{
+		vertexBufferView.push_back({ vertexBuffer->GetGPUVirtualAddress(), (UINT)bufferSize, (UINT)getBufferStride(vbDesc) });
+	}
 
 	vertexCount = vbDesc->vertexCount;
 	indexCount = hasIndexBuffer ? idxDesc->vertexCount : 0;

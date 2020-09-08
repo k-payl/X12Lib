@@ -8,6 +8,8 @@ namespace engine
 	{
 		intrusive_ptr<x12::ICoreBuffer> vertexBuffer;
 		intrusive_ptr<x12::ICoreBuffer> indexBuffer;
+		intrusive_ptr<x12::ICoreVertexBuffer> renderVetexBuffer;
+
 		std::string path_;
 		math::vec3 center_;
 		engine::MeshDataDesc desc{};
@@ -39,5 +41,6 @@ namespace engine
 		X12_API unsigned GetPositionStride() { return desc.positionStride; }
 		X12_API unsigned GetVertexCount() { return desc.numberOfVertex; }
 		X12_API x12::ICoreBuffer* VertexBuffer() { return vertexBuffer.get(); }
+		X12_API x12::ICoreVertexBuffer* RenderVertexBuffer() { return renderVetexBuffer.get(); }
 	};
 }

@@ -1,6 +1,7 @@
 #include "d3dx12.h"
 
 #include "raytracing_utils.h"
+#include "raytracing_d3dx12.h"
 
 #include "core.h"
 #include "camera.h"
@@ -262,6 +263,8 @@ void SerializeAndCreateRaytracingRootSignature(D3D12_ROOT_SIGNATURE_DESC& desc, 
 	throwIfFailed(device->CreateRootSignature(1, blob->GetBufferPointer(), blob->GetBufferSize(), IID_PPV_ARGS(&(*rootSig))));
 }
 
+
+
 void CreateRaygenLocalSignatureSubobject(CD3DX12_STATE_OBJECT_DESC* raytracingPipeline, const wchar_t* raygenName)
 {
 	// Hit group and miss shaders in this sample are not using a local root signature and thus one is not associated with them.
@@ -274,6 +277,8 @@ void CreateRaygenLocalSignatureSubobject(CD3DX12_STATE_OBJECT_DESC* raytracingPi
 	rootSignatureAssociation->SetSubobjectToAssociate(*localRootSignature);
 	rootSignatureAssociation->AddExport(raygenName);
 }
+
+
 
 void Init()
 {

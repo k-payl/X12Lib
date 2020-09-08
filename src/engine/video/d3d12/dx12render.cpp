@@ -473,8 +473,19 @@ bool x12::Dx12CoreRenderer::CreateRawBuffer(ICoreBuffer** out, LPCWSTR name, siz
 	return ptr != nullptr;
 }
 
-bool x12::Dx12CoreRenderer::CreateTextureFrom(ICoreTexture** out, LPCWSTR name, std::unique_ptr<uint8_t[]> ddsData,
-									 std::vector<D3D12_SUBRESOURCE_DATA> subresources,
+bool x12::Dx12CoreRenderer::CreateTexture(ICoreTexture** out, LPCWSTR name, const uint8_t* data, size_t size,
+	int32_t width, int32_t height, uint32_t mipCount, TEXTURE_TYPE type, TEXTURE_FORMAT format, TEXTURE_CREATE_FLAGS flags)
+{
+	auto ptr = new Dx12CoreTexture();
+	ptr->Init(name, data, size, width, height, mipCount, type, format, flags);
+
+	ptr->AddRef();
+	*out = ptr;
+
+	return ptr != nullptr;
+}
+
+bool x12::Dx12CoreRenderer::CreateTextureFrom(ICoreTexture** out, LPCWSTR name, std::vector<D3D12_SUBRESOURCE_DATA> subresources,
 									 ID3D12Resource* d3dexistingtexture)
 {
 	assert(subresources.size() == 1); // Not impl
@@ -597,6 +608,7 @@ ComPtr<ID3D12PipelineState> x12::Dx12CoreRenderer::GetGraphicPSO(const GraphicPi
 	desc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
 	desc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
 	desc.SampleDesc.Count = 1;
+	desc.RasterizerState.FrontCounterClockwise = 1;
 
 	ComPtr<ID3D12PipelineState> d3dPipelineState;
 	throwIfFailed(device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(d3dPipelineState.GetAddressOf())));

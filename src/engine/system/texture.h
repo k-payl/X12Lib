@@ -17,8 +17,10 @@ namespace engine
 
 		bool Load();
 
-		/*
+		
 		auto X12_API GetCoreTexture()->x12::ICoreTexture*;
+
+		/*
 		auto X12_API GetVideoMemoryUsage()->size_t;
 		auto X12_API GetWidth() -> int;
 		auto X12_API GetHeight() -> int;

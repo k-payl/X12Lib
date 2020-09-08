@@ -1,10 +1,17 @@
-cmake_minimum_required (VERSION 3.16)
+cmake_minimum_required (VERSION 3.4.3)
 
 # cd build
 # "C:\Program Files\CMake\bin\cmake.exe" -G "Visual Studio 16 2019" ../
 
+# Options:
+# RAYTRACING_SAMPLE
+# VK_ENABLE
+
 project (x12lib)
 
+# YAML
+option(YAML_CPP_BUILD_TOOLS "" OFF)
+option(YAML_CPP_BUILD_TESTS "" OFF)
 add_subdirectory(src/engine/3rdparty/yaml-cpp)
 
 option(VK_ENABLE "Enable vulkan renderer" OFF)
@@ -121,11 +128,12 @@ set_target_properties(uavbarriers PROPERTIES LINK_FLAGS "${CMAKE_EXE_LINKER_FLAG
 set_property(TARGET uavbarriers PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/build")
 
 # raytracing
-add_executable(raytracing src/examples/raytracing.cpp src/examples/raytracing_utils.cpp)
-target_include_directories(raytracing PRIVATE src/examples)
-target_link_libraries(raytracing engine)
-target_link_libraries(raytracing dxcompiler)
-set_property(TARGET raytracing PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/build")
+if (RAYTRACING_SAMPLE)
+	add_executable(raytracing src/examples/raytracing.cpp src/examples/raytracing_utils.cpp)
+	target_include_directories(raytracing PRIVATE src/examples)
+	target_link_libraries(raytracing engine)
+	target_link_libraries(raytracing dxcompiler)
+	set_property(TARGET raytracing PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/build")
 
 	# copy dxcompiler.dll for raytracing
 	add_custom_command(TARGET raytracing POST_BUILD
@@ -138,3 +146,4 @@ set_property(TARGET raytracing PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_S
 		COMMAND ${CMAKE_COMMAND} -E copy_if_different
 		"${DXIL_PATH}"
 		$<TARGET_FILE_DIR:raytracing>)
+endif()

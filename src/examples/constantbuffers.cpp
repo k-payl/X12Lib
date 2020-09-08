@@ -7,11 +7,10 @@
 #include "scenemanager.h"
 
 #include "resourcemanager.h"
-#include "mesh.h"
+#include "texture.h"
 
 using namespace x12;
 
-//#define TEST_PUSH_POP // define to test push/pop states
 #define CAMERA_SEPARATE_BUFFER
 #define VIDEO_API engine::INIT_FLAGS::DIRECTX12_RENDERER
 
@@ -21,16 +20,13 @@ void Render();
 static struct Resources
 {
 	intrusive_ptr<ICoreShader> shader;
-	intrusive_ptr<ICoreVertexBuffer> vertexBuffer;
+	//intrusive_ptr<ICoreVertexBuffer> vertexBuffer;
 	intrusive_ptr<IResourceSet> cubeResources;
 	intrusive_ptr<ICoreBuffer> cameraBuffer;
-
-#ifdef TEST_PUSH_POP
-	intrusive_ptr<ICoreShader> comp;
-	intrusive_ptr<IResourceSet> compSB;
-	intrusive_ptr<ICoreBuffer> compBuffer;
-#endif
+	engine::StreamPtr<engine::Texture> tex;
+	engine::StreamPtr<engine::Mesh> teapot;
 } *res;
+
 constexpr inline UINT float4chunks = 10;
 static HWND hwnd;
 static size_t mvpIdx;
@@ -82,12 +78,12 @@ void Render()
 	cmdList->SetScissor(0, 0, w, h);
 	GraphicPipelineState pso{};
 	pso.shader = res->shader.get();
-	pso.vb = res->vertexBuffer.get();
+	pso.vb = res->teapot.get()->RenderVertexBuffer();
 	pso.primitiveTopology = PRIMITIVE_TOPOLOGY::TRIANGLE;
 
 	cmdList->SetGraphicPipelineState(pso);
 
-	cmdList->SetVertexBuffer(res->vertexBuffer.get());
+	cmdList->SetVertexBuffer(res->teapot.get()->RenderVertexBuffer());
 
 	mat4 MVP;
 	cam->GetModelViewProjectionMatrix(MVP, aspect);
@@ -98,6 +94,7 @@ void Render()
 	{
 		renderer->CreateResourceSet(res->cubeResources.getAdressOf(), res->shader.get());
 		res->cubeResources->BindConstantBuffer("CameraCB", res->cameraBuffer.get());
+		res->cubeResources->BindTextueSRV("texture_", res->tex.get()->GetCoreTexture());
 		cmdList->CompileSet(res->cubeResources.get());
 		transformIdx = res->cubeResources->FindInlineBufferIndex("TransformCB");
 	}
@@ -118,49 +115,14 @@ void Render()
 				dynCB.transform.z += x;
 
 				cmdList->UpdateInlineConstantBuffer(transformIdx, &dynCB, sizeof(dynCB));
-				cmdList->Draw(res->vertexBuffer.get());
+				cmdList->Draw(res->teapot.get()->RenderVertexBuffer());
 			}
 		}
 	};
 
-	drawCubes(-4.f);
+	drawCubes(-3);
 
-#ifdef TEST_PUSH_POP
-	context->PushState();
-	{
-		ComputePipelineState cpso{};
-		cpso.shader = res->comp.get();
-
-		if (!res->compSB)
-		{
-			renderer->CreateResourceSet(res->compSB.getAdressOf(), res->comp.get());
-			res->compSB->BindStructuredBufferUAV("tex_out", res->compBuffer.get());
-			context->CompileSet(res->compSB.get());
-			chunkIdx = res->compSB->FindInlineBufferIndex("ChunkNumber");
-		}
-
-		context->SetComputePipelineState(cpso);
-
-		context->BindResourceSet(res->compSB.get());
-
-		for (UINT i = 0; i < float4chunks; ++i)
-		{
-			context->UpdateInlineConstantBuffer(chunkIdx, &i, 4);
-			context->Dispatch(1, 1);
-			context->EmitUAVBarrier(res->compBuffer.get());
-		}
-
-		float ss[4 * float4chunks];
-		memset(ss, 0, sizeof(ss));
-	
-		res->compBuffer->GetData(ss);
-		int y = 0;
-	}
-	context->PopState();
-	
-#endif
-
-	drawCubes(4.f);
+	drawCubes(3);
 
 	cmdList->CommandsEnd();
 	renderer->ExecuteCommandList(cmdList);
@@ -169,25 +131,6 @@ void Render()
 void Init()
 {
 	ICoreRenderer* renderer = engine::GetCoreRenderer();
-
-	VertexAttributeDesc attr[2];
-	attr[0].format = VERTEX_BUFFER_FORMAT::FLOAT4;
-	attr[0].offset = 0;
-	attr[0].semanticName = "POSITION";
-	attr[1].format = VERTEX_BUFFER_FORMAT::FLOAT4;
-	attr[1].offset = 16;
-	attr[1].semanticName = "TEXCOORD";
-
-	VeretxBufferDesc desc;
-	desc.attributesCount = 2;
-	desc.attributes = attr;
-	desc.vertexCount = veretxCount;
-
-	IndexBufferDesc idxDesc;
-	idxDesc.format = INDEX_BUFFER_FORMAT::UNSIGNED_16;
-	idxDesc.vertexCount = idxCount;
-
-	renderer->CreateVertexBuffer(res->vertexBuffer.getAdressOf(), L"cube", vertexData, &desc, indexData, &idxDesc, MEMORY_TYPE::GPU_READ);
 
 	{
 		auto text = engine::GetFS()->LoadFile(SHADER_DIR "mesh.shader");
@@ -202,22 +145,11 @@ void Init()
 	}
 	renderer->CreateConstantBuffer(res->cameraBuffer.getAdressOf(), L"Camera constant buffer", sizeof(mat4));
 
-#ifdef TEST_PUSH_POP
-	{
-		auto text = engine::engine::GetFS()->LoadFile(SHADER_DIR "uav.shader");
+	res->tex = engine::GetResourceManager()->CreateStreamTexture(TEXTURES_DIR"chipped-paint-metal-albedo_3_512x512.dds", TEXTURE_CREATE_FLAGS::NONE);
+	res->tex.get(); // force load
 
-		const ConstantBuffersDesc buffersdesc[] =
-		{
-			"ChunkNumber",	CONSTANT_BUFFER_UPDATE_FRIQUENCY::PER_DRAW
-		};
-		renderer->CreateComputeShader(res->comp.getAdressOf(), L"uav.shader", text.get(), buffersdesc,
-									  _countof(buffersdesc));
-	}
-	renderer->CreateStructuredBuffer(res->compBuffer.getAdressOf(), L"Unordered buffer for test barriers", 16, float4chunks, nullptr, BUFFER_FLAGS::UNORDERED_ACCESS);
-#endif
-
-	auto ptr = engine::GetResourceManager()->CreateStreamMesh("meshes\\Teapot_Node.mesh");
-	ptr.get();
+	res->teapot = engine::GetResourceManager()->CreateStreamMesh(MESH_DIR "cube.mesh");
+	res->teapot.get();
 }
 
 

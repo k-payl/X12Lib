@@ -35,12 +35,14 @@ namespace x12
 										   std::vector<D3D12_ROOT_PARAMETER>& d3dRootParameters,
 										   std::vector<ShaderReflectionResource>& perDrawResources,
 										   std::vector<D3D12_DESCRIPTOR_RANGE>& d3dRangesOut,
+										   std::vector< D3D12_STATIC_SAMPLER_DESC>& staticSamplers,
 										   ComPtr<ID3DBlob> shaderIn,
 										   D3D12_SHADER_VISIBILITY visibilityIn,
 										   SHADER_TYPE shaderTypeIn);
 
 		void addInlineDescriptors(std::vector<D3D12_ROOT_PARAMETER>& d3dRootParameters, const std::vector<ShaderReflectionResource>& perDrawResources);
-		void initRootSignature(const std::vector<D3D12_ROOT_PARAMETER>& d3dRootParameters, D3D12_ROOT_SIGNATURE_FLAGS flags);
+		void initRootSignature(const std::vector<D3D12_ROOT_PARAMETER>& d3dRootParameters, D3D12_ROOT_SIGNATURE_FLAGS flags,
+			const std::vector< D3D12_STATIC_SAMPLER_DESC>& staticSamplers);
 		void initResourcesMap();
 
 		bool hasResources{false};

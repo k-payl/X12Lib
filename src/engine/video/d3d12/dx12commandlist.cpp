@@ -127,7 +127,7 @@ void Dx12GraphicCommandList::SetVertexBuffer(ICoreVertexBuffer* vb)// TODO add v
 	if (dxBuffer->GetReadBarrier(&numBarriers, barriers))
 		d3dCmdList->ResourceBarrier(numBarriers, barriers);
 
-	d3dCmdList->IASetVertexBuffers(0, 1, &dxBuffer->vertexBufferView);
+	d3dCmdList->IASetVertexBuffers(0, dxBuffer->vertexBufferView.size(), &dxBuffer->vertexBufferView[0]);
 	d3dCmdList->IASetIndexBuffer(dxBuffer->pIndexBufferVew());
 }
 

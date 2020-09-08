@@ -2,12 +2,13 @@
 #include <cmath> // sqrt
 #pragma warning(disable : 4201) // ignore non standard unnamed struct in union
 
-#ifdef _DLL_EXPORTS
-#define MATH_API __declspec(dllexport)
-#else
-#define MATH_API __declspec(dllimport)
+#ifdef _WIN32
+	#ifdef _DLL_EXPORTS
+	#define MATH_API __declspec(dllexport)
+	#else
+	#define MATH_API __declspec(dllimport)
+	#endif
 #endif
-
 
 namespace math
 {

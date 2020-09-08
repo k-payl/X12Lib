@@ -185,7 +185,7 @@ void Dx12GpuProfiler::Init()
 	ID3D12Resource* d3dtexture;
 	DirectX::LoadDDSTextureFromFile(d3d12::CR_GetD3DDevice(), fontTexturePath, &d3dtexture, ddsData, subresources);
 
-	GetCoreRender()->CreateTextureFrom(fontTexture.getAdressOf(), fontTexturePath, std::move(ddsData), subresources, d3dtexture);
+	GetCoreRender()->CreateTextureFrom(fontTexture.getAdressOf(), fontTexturePath, subresources, d3dtexture);
 
 	// Font
 	loadFont();

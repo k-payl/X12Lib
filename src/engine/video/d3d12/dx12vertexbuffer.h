@@ -14,7 +14,7 @@ namespace x12
 
 		uint32_t vertexCount;
 		ComPtr<ID3D12Resource> vertexBuffer;
-		D3D12_VERTEX_BUFFER_VIEW vertexBufferView;
+		std::vector<D3D12_VERTEX_BUFFER_VIEW> vertexBufferView;
 		D3D12_RESOURCE_STATES vbState;
 
 		uint32_t indexCount;

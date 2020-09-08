@@ -68,6 +68,8 @@ using namespace Microsoft::WRL;
 #define DATA_DIR "..//resources//"
 #define WDATA_DIR L"..//resources//"
 #define SHADER_DIR "shaders//"
+#define TEXTURES_DIR "textures//"
+#define MESH_DIR "meshes//"
 
 namespace engine {
 	inline constexpr int DeferredBuffers = 3;

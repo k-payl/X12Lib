@@ -18,6 +18,7 @@ static D3D12_DESCRIPTOR_RANGE_TYPE ResourceToView(D3D_SHADER_INPUT_TYPE resource
 		case D3D_SIT_STRUCTURED: return D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
 		case D3D_SIT_UAV_RWSTRUCTURED: return D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
 		case D3D_SIT_UAV_RWTYPED: return D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
+		case D3D_SIT_SAMPLER: return D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER;
 		default:
 			notImplemented();
 			return D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
@@ -34,6 +35,7 @@ static RESOURCE_DEFINITION ResourceToBindFlag(D3D_SHADER_INPUT_TYPE resource)
 		case D3D_SIT_STRUCTURED: return RESOURCE_DEFINITION::RBF_BUFFER_SRV;
 		case D3D_SIT_UAV_RWSTRUCTURED: return RESOURCE_DEFINITION::RBF_BUFFER_UAV;
 		case D3D_SIT_UAV_RWTYPED: return RESOURCE_DEFINITION::RBF_TEXTURE_UAV;
+		case D3D_SIT_SAMPLER: return RBF_SAMPLER;
 		default:
 			notImplemented();
 			return RESOURCE_DEFINITION::RBF_NO_RESOURCE;
@@ -140,6 +142,7 @@ bool x12::Dx12CoreShader::processShader(const ConstantBuffersDesc* buffersDesc,
 								   std::vector<D3D12_ROOT_PARAMETER>& d3dRootParameters,
 								   std::vector<ShaderReflectionResource>& perDrawResources,
 								   std::vector<D3D12_DESCRIPTOR_RANGE>& d3dRangesOut,
+								   std::vector< D3D12_STATIC_SAMPLER_DESC>& staticSamplers,
 								   ComPtr<ID3DBlob> shaderIn,
 								   D3D12_SHADER_VISIBILITY visibilityIn,
 								   SHADER_TYPE shaderTypeIn)
@@ -163,23 +166,50 @@ bool x12::Dx12CoreShader::processShader(const ConstantBuffersDesc* buffersDesc,
 
 	if (!tableResources.empty())
 	{
-		d3dRangesOut.resize(tableResources.size());
-		std::vector<d3d12::ResourceDefinition> resourcesForTable;
-
-		for (auto i = 0; i < tableResources.size(); i++)
+		// SRV UAV CBV
 		{
-			const ShaderReflectionResource& shaderResource = tableResources[i];
+			std::vector<d3d12::ResourceDefinition> srv_uav_cbv_table;
 
-			d3dRangesOut[i].RangeType = ResourceToView(shaderResource.resourceType);
-			d3dRangesOut[i].NumDescriptors = 1; // TODO: group
-			d3dRangesOut[i].BaseShaderRegister = shaderResource.slot;
-			d3dRangesOut[i].RegisterSpace = 0;
-			d3dRangesOut[i].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+			for (auto i = 0; i < tableResources.size(); i++)
+			{
+				const ShaderReflectionResource& shaderResource = tableResources[i];
+				if (shaderResource.resourceType == D3D_SHADER_INPUT_TYPE::D3D10_SIT_SAMPLER)
+				{
+					D3D12_STATIC_SAMPLER_DESC sampler{};
+					sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+					sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+					sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+					sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+					FLOAT MipLODBias = 0;
+					//UINT MaxAnisotropy;
+					//D3D12_COMPARISON_FUNC ComparisonFunc;
+					//D3D12_STATIC_BORDER_COLOR BorderColor;
+					//FLOAT MinLOD;
+					//FLOAT MaxLOD;
+					sampler.ShaderRegister = shaderResource.slot;
+					sampler.RegisterSpace = 0;
+					sampler.ShaderVisibility= visibilityIn;
+					staticSamplers.push_back(sampler);
+				}
+				else
+				{
 
-			resourcesForTable.push_back({ shaderResource.slot, shaderResource.name, ResourceToBindFlag(shaderResource.resourceType) });
+					D3D12_DESCRIPTOR_RANGE Ranges{};
+					Ranges.RangeType = ResourceToView(shaderResource.resourceType);
+					Ranges.NumDescriptors = 1; // TODO: group
+					Ranges.BaseShaderRegister = shaderResource.slot;
+					Ranges.RegisterSpace = 0;
+					Ranges.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+					d3dRangesOut.push_back(Ranges);
+
+					srv_uav_cbv_table.push_back({ shaderResource.slot, shaderResource.name, ResourceToBindFlag(shaderResource.resourceType) });
+				}
+			}
+
+			// Add root parameter
+			rootSignatureParameters.push_back({ d3d12::ROOT_PARAMETER_TYPE::TABLE, shaderTypeIn, (int)srv_uav_cbv_table.size(), srv_uav_cbv_table, {-1} });
 		}
-
-		rootSignatureParameters.push_back({d3d12::ROOT_PARAMETER_TYPE::TABLE, shaderTypeIn, (int)resourcesForTable.size(), resourcesForTable, {-1} });
 
 		D3D12_ROOT_DESCRIPTOR_TABLE d3dTable;
 		d3dTable.NumDescriptorRanges = (UINT)d3dRangesOut.size();
@@ -246,7 +276,8 @@ void x12::Dx12CoreShader::addInlineDescriptors(std::vector<D3D12_ROOT_PARAMETER>
 
 }
 
-void x12::Dx12CoreShader::initRootSignature(const std::vector<D3D12_ROOT_PARAMETER>& d3dRootParameters, D3D12_ROOT_SIGNATURE_FLAGS flags)
+void x12::Dx12CoreShader::initRootSignature(const std::vector<D3D12_ROOT_PARAMETER>& d3dRootParameters, D3D12_ROOT_SIGNATURE_FLAGS flags,
+	const std::vector< D3D12_STATIC_SAMPLER_DESC>& staticSamplers)
 {
 	if (d3dRootParameters.empty())
 		hasResources = false;
@@ -257,8 +288,8 @@ void x12::Dx12CoreShader::initRootSignature(const std::vector<D3D12_ROOT_PARAMET
 		CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
 		rootSignatureDesc.Init((UINT)d3dRootParameters.size(),
 							   &d3dRootParameters[0],
-							   0,
-							   nullptr,
+							   (UINT)staticSamplers.size(),
+								staticSamplers.empty() ? nullptr : &staticSamplers[0],
 							   flags);
 
 		ID3DBlob* signature;
@@ -300,6 +331,7 @@ void x12::Dx12CoreShader::InitGraphic(LPCWSTR name_, const char* vertText, const
 
 	std::vector<ShaderReflectionResource> perDrawResources;
 	std::vector<D3D12_ROOT_PARAMETER> d3dRootParameters;
+	std::vector< D3D12_STATIC_SAMPLER_DESC> staticSamplers;
 
 	D3D12_ROOT_SIGNATURE_FLAGS flags =
 		D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
@@ -308,18 +340,18 @@ void x12::Dx12CoreShader::InitGraphic(LPCWSTR name_, const char* vertText, const
 		D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
 
 	std::vector<D3D12_DESCRIPTOR_RANGE> d3dRangesVS;
-	if (!processShader(buffersDesc, descNum, d3dRootParameters, perDrawResources, d3dRangesVS,
+	if (!processShader(buffersDesc, descNum, d3dRootParameters, perDrawResources, d3dRangesVS, staticSamplers,
 					   vs, D3D12_SHADER_VISIBILITY_VERTEX, SHADER_TYPE::SHADER_VERTEX))
 		flags |= D3D12_ROOT_SIGNATURE_FLAG_DENY_VERTEX_SHADER_ROOT_ACCESS;
 
 	std::vector<D3D12_DESCRIPTOR_RANGE> d3dRangesPS;
-	if (!processShader(buffersDesc, descNum, d3dRootParameters, perDrawResources, d3dRangesPS,
+	if (!processShader(buffersDesc, descNum, d3dRootParameters, perDrawResources, d3dRangesPS, staticSamplers,
 					   ps, D3D12_SHADER_VISIBILITY_PIXEL, SHADER_TYPE::SHADER_FRAGMENT))
 		flags |= D3D12_ROOT_SIGNATURE_FLAG_DENY_PIXEL_SHADER_ROOT_ACCESS;
 
 	addInlineDescriptors(d3dRootParameters, perDrawResources);
 
-	initRootSignature(d3dRootParameters, flags);
+	initRootSignature(d3dRootParameters, flags, staticSamplers);
 
 	initResourcesMap();
 }
@@ -332,6 +364,7 @@ void x12::Dx12CoreShader::InitCompute(LPCWSTR name_, const char* text, const Con
 
 	std::vector<ShaderReflectionResource> perDrawResources;
 	std::vector<D3D12_ROOT_PARAMETER> d3dRootParameters;
+	std::vector< D3D12_STATIC_SAMPLER_DESC> staticSamplers;
 
 	D3D12_ROOT_SIGNATURE_FLAGS flags =
 		D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
@@ -339,12 +372,12 @@ void x12::Dx12CoreShader::InitCompute(LPCWSTR name_, const char* text, const Con
 		D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
 
 	std::vector<D3D12_DESCRIPTOR_RANGE> d3dRangesCS;
-	processShader(variabledesc, varNum, d3dRootParameters, perDrawResources, d3dRangesCS,
+	processShader(variabledesc, varNum, d3dRootParameters, perDrawResources, d3dRangesCS, staticSamplers,
 				  cs, D3D12_SHADER_VISIBILITY_ALL, SHADER_TYPE::SHADER_COMPUTE); // compute uses D3D12_SHADER_VISIBILITY_ALL
 
 	addInlineDescriptors(d3dRootParameters, perDrawResources);
 
-	initRootSignature(d3dRootParameters, flags);
+	initRootSignature(d3dRootParameters, flags, staticSamplers);
 
 	initResourcesMap();
 }

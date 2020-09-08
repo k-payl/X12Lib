@@ -9,6 +9,10 @@ namespace DirectX {
 
 namespace x12
 {
+	x12::TEXTURE_FORMAT D3DToEng(DXGI_FORMAT format);
+	DXGI_FORMAT EngToD3D(x12::TEXTURE_FORMAT format);
+	size_t BitsPerPixel(DXGI_FORMAT format);
+
 	// Resources associated with window
 	struct Dx12WindowSurface : public IWidowSurface
 	{

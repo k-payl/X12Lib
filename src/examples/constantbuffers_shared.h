@@ -14,11 +14,11 @@ namespace fs = std::filesystem;
 const auto numCubesX = 1;
 const auto numCubesY = 10;
 
-static vec4 colors[] = { vec4(1,0,0,1),vec4(0,1,0,1),vec4(0,0,1,1),vec4(1,1,1,1) };
+static vec4 colors[] = { vec4(1,1,1,1),vec4(0,1,0,1),vec4(0,0,1,1),vec4(1,0,0,1) };
 
 inline vec4 cubePosition(int i, int j)
 {
-	return vec4(0.5f, 0.5f, 0.5f * (numCubesX % 2 == 0) + i - numCubesX / 2, (float)j);
+	return vec4(0.5f, 0.5f, 3.0f * (0.5f * (numCubesX % 2 == 0) + i - numCubesX / 2), 3.0f * (float)j);
 }
 
 inline vec4 cubeColor(int i, int j)

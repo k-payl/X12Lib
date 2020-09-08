@@ -170,11 +170,11 @@ namespace x12
 
 		virtual X12_API bool CreateRawBuffer(ICoreBuffer** out, LPCWSTR name, size_t size, BUFFER_FLAGS flags) = 0;
 
-		//virtual bool CreateTexture(ICoreTexture** out, LPCWSTR name, std::unique_ptr<uint8_t[]> data, int32_t width, int32_t height,
-		//				   TEXTURE_TYPE type, TEXTURE_FORMAT format, TEXTURE_CREATE_FLAGS flags) = 0;
+		virtual X12_API bool CreateTexture(ICoreTexture** out, LPCWSTR name, const uint8_t* data, size_t size, int32_t width, int32_t height, uint32_t mipCount,
+						   TEXTURE_TYPE type, TEXTURE_FORMAT format, TEXTURE_CREATE_FLAGS flags) = 0;
 
-		virtual X12_API bool CreateTextureFrom(ICoreTexture** out, LPCWSTR name, std::unique_ptr<uint8_t[]> ddsData,
-									   std::vector<D3D12_SUBRESOURCE_DATA> subresources, ID3D12Resource* d3dexistingtexture) = 0;
+		// TODO: remove d3d dependency
+		virtual X12_API bool CreateTextureFrom(ICoreTexture** out, LPCWSTR name, std::vector<D3D12_SUBRESOURCE_DATA> subresources, ID3D12Resource* d3dexistingtexture) = 0;
 
 		virtual X12_API bool CreateResourceSet(IResourceSet** out, const ICoreShader* shader) = 0;
 
@@ -257,6 +257,8 @@ namespace x12
 	enum class VERTEX_BUFFER_FORMAT
 	{
 		FLOAT4,
+		FLOAT3,
+		FLOAT2,
 	};
 
 	enum class INDEX_BUFFER_FORMAT
@@ -437,6 +439,8 @@ namespace x12
 		RBF_TEXTURE_UAV = 1 << 4,
 		RBF_BUFFER_UAV = 1 << 5,
 		RBF_UAV = RBF_TEXTURE_UAV | RBF_BUFFER_UAV,
+
+		RBF_SAMPLER = 1 << 6,
 	};
 	DEFINE_ENUM_OPERATORS(RESOURCE_DEFINITION)
 
@@ -445,6 +449,8 @@ namespace x12
 		switch (format)
 		{
 			case VERTEX_BUFFER_FORMAT::FLOAT4: return 16;
+			case VERTEX_BUFFER_FORMAT::FLOAT3: return 12;
+			case VERTEX_BUFFER_FORMAT::FLOAT2: return 8;
 			default: assert(0);
 		}
 		return 0;
