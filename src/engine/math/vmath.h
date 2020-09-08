@@ -8,6 +8,8 @@
 	#else
 	#define MATH_API __declspec(dllimport)
 	#endif
+#else
+	#define MATH_API 
 #endif
 
 namespace math
