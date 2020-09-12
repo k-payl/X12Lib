@@ -1,3 +1,4 @@
+#include "cpp_hlsl_shared.h"
 
 struct VertexShaderOutput
 {
@@ -18,14 +19,7 @@ struct VertexShaderOutput
 		float4 color_out;
 	};
 
-	struct Vertex // from mesh.h
-	{
-		float3 Position : POSITION;
-		float3 Normal   : TEXCOORD;
-		float2 UV		: COLOR;
-	};
-
-	VertexShaderOutput main(Vertex IN)
+	VertexShaderOutput main(engine::Vertex IN)
 	{
 		VertexShaderOutput OUT;
 		

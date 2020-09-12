@@ -3,6 +3,7 @@
 #include "console.h"
 #include "filesystem.h"
 #include "icorerender.h"
+#include "cpp_hlsl_shared.h"
 
 static float vertexPlane[] =
 {
@@ -310,9 +311,9 @@ bool engine::Mesh::Load()
 
 	for (int i = 0; i < header.numberOfVertex; ++i)
 	{
-		memcpy(&vs[i].p, &desc.pData[i * header.positionStride + header.positionOffset], sizeof(vec3));
-		memcpy(&vs[i].n, &desc.pData[i * header.normalStride + header.normalOffset], sizeof(vec3));
-		memcpy(&vs[i].t, &desc.pData[i * header.uvStride + header.uvOffset], sizeof(vec2));
+		memcpy(&vs[i].Position, &desc.pData[i * header.positionStride + header.positionOffset], sizeof(vec3));
+		memcpy(&vs[i].Normal, &desc.pData[i * header.normalStride + header.normalOffset], sizeof(vec3));
+		memcpy(&vs[i].UV, &desc.pData[i * header.uvStride + header.uvOffset], sizeof(vec2));
 	}
 
 	GetCoreRenderer()->CreateStructuredBuffer(vertexBuffer.getAdressOf(), ConvertFromUtf8ToUtf16(path_).c_str(), sizeof(Vertex), header.numberOfVertex, vs.data(), x12::BUFFER_FLAGS::SHADER_RESOURCE);
@@ -321,15 +322,15 @@ bool engine::Mesh::Load()
 		x12::VertexAttributeDesc attr[3];
 
 		attr[0].format = x12::VERTEX_BUFFER_FORMAT::FLOAT3;
-		attr[0].offset = offsetof(Vertex, p);
+		attr[0].offset = offsetof(Vertex, Position);
 		attr[0].semanticName = "POSITION";
 
 		attr[1].format = x12::VERTEX_BUFFER_FORMAT::FLOAT3;
-		attr[1].offset = offsetof(Vertex, n);
+		attr[1].offset = offsetof(Vertex, Normal);
 		attr[1].semanticName = "TEXCOORD";
 
 		attr[2].format = x12::VERTEX_BUFFER_FORMAT::FLOAT2;
-		attr[2].offset = offsetof(Vertex, t);
+		attr[2].offset = offsetof(Vertex, UV);
 		attr[2].semanticName = "COLOR";
 
 		x12::VeretxBufferDesc desc;

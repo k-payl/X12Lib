@@ -1,6 +1,8 @@
 
 #include "dx12shader.h"
 #include "dx12render.h"
+#include "core.h"
+#include "filesystem.h"
 #include <d3dcompiler.h>
 #include <algorithm>
 
@@ -120,7 +122,28 @@ static ComPtr<ID3DBlob> compileShader(const char* src, SHADER_TYPE type)
 		| D3DCOMPILE_OPTIMIZATION_LEVEL3;
 	#endif
 
-	if (FAILED(D3DCompile(src, strlen(src), "", getShaderMacro(type), NULL, "main", getShaderProfileName(type),
+	static struct IncludeHandler : public ID3DInclude
+	{
+		std::shared_ptr<char[]> text;
+
+		STDMETHOD(Open)(THIS_ D3D_INCLUDE_TYPE IncludeType, LPCSTR pFileName, LPCVOID pParentData, LPCVOID* ppData, UINT* pBytes) override
+		{
+			std::string s = SHADER_DIR;
+			s += pFileName;
+
+			text = engine::GetFS()->LoadFile(s.c_str());
+			*pBytes = strlen(text.get());
+			*ppData = text.get();
+			return 0;
+		};
+		STDMETHOD(Close)(THIS_ LPCVOID pData) override
+		{
+			text = nullptr;
+			return 0;
+		};
+	}includeH;
+
+	if (FAILED(D3DCompile(src, strlen(src), "", getShaderMacro(type), &includeH, "main", getShaderProfileName(type),
 						  flags, 0, shader.GetAddressOf(), errorBlob.GetAddressOf())))
 	{
 		if (errorBlob)

@@ -19,16 +19,6 @@ namespace engine
 		bool createStdMesh(const char* path);
 
 	public:
-
-#pragma pack(push, 1)
-		struct Vertex
-		{
-			math::vec3 p;
-			math::vec3 n;
-			math::vec2 t;
-		};
-#pragma pack(pop)
-
 		X12_API Mesh(const std::string& path);
 		X12_API ~Mesh();
 

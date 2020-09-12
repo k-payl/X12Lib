@@ -13,6 +13,7 @@
 #include "resourcemanager.h"
 #include "mesh.h"
 #include "d3d12/dx12buffer.h"
+#include "cpp_hlsl_shared.h"
 
 
 using namespace x12;
@@ -562,7 +563,7 @@ void BuildAccelerationStructures()
 		geometryDesc.Triangles.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
 		geometryDesc.Triangles.VertexCount = m->GetVertexCount();
 		geometryDesc.Triangles.VertexBuffer.StartAddress = gpuAddress;
-		geometryDesc.Triangles.VertexBuffer.StrideInBytes = sizeof(engine::Mesh::Vertex);
+		geometryDesc.Triangles.VertexBuffer.StrideInBytes = sizeof(engine::Vertex);
 
 		// Mark the geometry as opaque. 
 		// PERFORMANCE TIP: mark geometry as opaque whenever applicable as it can enable important ray processing optimizations.
