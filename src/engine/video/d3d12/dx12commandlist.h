@@ -91,7 +91,7 @@ namespace x12
 			x12::d3d12::set_name(obj, wstr, args...);
 		}
 
-		void NotifyFrameCompleted(uint64_t nextFenceID) override;
+		void NotifyFrameCompleted(uint64_t completed) override;
 
 	public:
 		// API

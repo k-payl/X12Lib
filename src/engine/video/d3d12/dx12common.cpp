@@ -322,12 +322,6 @@ void x12::Dx12WindowSurface::Init(HWND hwnd, ICoreRenderer* render)
 
 	throwIfFailed(swapChain1.As(&swapChain));
 
-	descriptorHeapRTV = d3d12::CreateDescriptorHeap(d3d12::CR_GetD3DDevice(), DeferredBuffers, D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-	x12::d3d12::set_name(descriptorHeapRTV.Get(), L"Descriptor heap for backbuffers buffer %u RTV descriptors", DeferredBuffers);
-
-	descriptorHeapDSV = d3d12::CreateDescriptorHeap(d3d12::CR_GetD3DDevice(), 1, D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
-	x12::d3d12::set_name(descriptorHeapDSV.Get(), L"Descriptor heap for backbuffers buffer %u DSV descriptors", 1);
-
 	ResizeBuffers(width, height);
 }
 
@@ -344,22 +338,20 @@ void x12::Dx12WindowSurface::ResizeBuffers(unsigned width_, unsigned height_)
 	DXGI_SWAP_CHAIN_DESC swapChainDesc = {};
 	throwIfFailed(swapChain->GetDesc(&swapChainDesc));
 	throwIfFailed(swapChain->ResizeBuffers(DeferredBuffers, width, height, swapChainDesc.BufferDesc.Format, swapChainDesc.Flags));
-
-	// Create handles for color render target
-	CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(descriptorHeapRTV->GetCPUDescriptorHandleForHeapStart());
-
+	
 	for (int i = 0; i < DeferredBuffers; ++i)
 	{
+		if (!rtvHandles[i].ptr)
+			rtvHandles[i] = d3d12::D3D12GetCoreRender()->AllocateRTVDescriptor();
+
 		ComPtr<ID3D12Resource> color;
 		throwIfFailed(swapChain->GetBuffer(i, IID_PPV_ARGS(&color)));
 
-		d3d12::CR_GetD3DDevice()->CreateRenderTargetView(color.Get(), nullptr, rtvHandle);
+		d3d12::CR_GetD3DDevice()->CreateRenderTargetView(color.Get(), nullptr, rtvHandles[i]);
 
 		x12::d3d12::set_name(color.Get(), L"Swapchain back buffer #%d", i);
 
 		colorBuffers[i] = color;
-
-		rtvHandle.Offset(d3d12::CR_RTV_DescriptorsSize());
 	}
 
 	// Create a depth buffer
@@ -379,7 +371,10 @@ void x12::Dx12WindowSurface::ResizeBuffers(unsigned width_, unsigned height_)
 	dsv.Texture2D.MipSlice = 0;
 	dsv.Flags = D3D12_DSV_FLAG_NONE;
 
-	d3d12::CR_GetD3DDevice()->CreateDepthStencilView(depthBuffer.Get(), &dsv, descriptorHeapDSV->GetCPUDescriptorHandleForHeapStart());
+	if (!dsvHandle.ptr)
+		dsvHandle = d3d12::D3D12GetCoreRender()->AllocateDSVDescriptor();
+
+	d3d12::CR_GetD3DDevice()->CreateDepthStencilView(depthBuffer.Get(), &dsv, dsvHandle);
 }
 
 void x12::Dx12WindowSurface::Present()

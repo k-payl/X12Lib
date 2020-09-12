@@ -157,10 +157,19 @@ void x12::Dx12CoreRenderer::Init()
 
 	frameMemory = std::make_unique<DirectX::GraphicsMemory>(device);
 
-	gpuDescriptorHeap = d3d12::CreateDescriptorHeap(device, NumStaticGpuHadles, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
-	x12::d3d12::set_name(gpuDescriptorHeap.Get(), L"descriptor heap for %lu descriptors", NumStaticGpuHadles);
-	gpuDescriptorHeapStart = gpuDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
-	gpuDescriptorHeapStartGPU = gpuDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
+	srv.Init(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
+	rtv.Init(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, false);
+	dsv.Init(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, false);
+}
+
+void x12::Dx12CoreRenderer::DescriptorHeap::Init(D3D12_DESCRIPTOR_HEAP_TYPE type, bool gpuVisible)
+{
+	heap = d3d12::CreateDescriptorHeap(d3d12::CR_GetD3DDevice(), x12::NumRenderDescriptors, type, gpuVisible);
+	x12::d3d12::set_name(heap.Get(), L"descriptor heap for %lu descriptors", x12::NumRenderDescriptors);
+	cpuStart = heap->GetCPUDescriptorHandleForHeapStart();
+
+	if (gpuVisible)
+		gpuStart = heap->GetGPUDescriptorHandleForHeapStart();
 }
 
 void x12::Dx12CoreRenderer::Free()
@@ -191,6 +200,10 @@ void x12::Dx12CoreRenderer::Free()
 	}
 
 	psoMap.clear();
+
+	srv.Free();
+	rtv.Free();
+	dsv.Free();
 
 	delete descriptorAllocator;
 	descriptorAllocator = nullptr;
@@ -654,20 +667,40 @@ auto x12::Dx12CoreRenderer::GetComputePSO(const ComputePipelineState& pso, psoma
 		return it->second;
 }
 
-std::pair<D3D12_CPU_DESCRIPTOR_HANDLE, D3D12_GPU_DESCRIPTOR_HANDLE> Dx12CoreRenderer::allocateStaticGPUHandles(UINT num)
+std::pair<D3D12_CPU_DESCRIPTOR_HANDLE, D3D12_GPU_DESCRIPTOR_HANDLE> Dx12CoreRenderer::AllocateSRVDescriptor(UINT num)
 {
-	assert(gpuDescriptorsOffset < NumStaticGpuHadles);
+	assert(srv.offset_ < NumRenderDescriptors);
 
 	std::pair<D3D12_CPU_DESCRIPTOR_HANDLE, D3D12_GPU_DESCRIPTOR_HANDLE> ret;
-	ret.first.ptr = gpuDescriptorHeapStart.ptr + size_t(gpuDescriptorsOffset) * descriptorSizeCBSRV;
-	ret.second.ptr = gpuDescriptorHeapStartGPU.ptr + size_t(gpuDescriptorsOffset) * descriptorSizeCBSRV;
-
-	gpuDescriptorsOffset += num;
-
+	ret.first.ptr = srv.cpuStart.ptr + size_t(srv.offset_) * descriptorSizeCBSRV;
+	ret.second.ptr = srv.gpuStart.ptr + size_t(srv.offset_) * descriptorSizeCBSRV;
+	srv.offset_ += num;
 	return ret;
 }
 
-x12::descriptorheap::Alloc x12::Dx12CoreRenderer::AllocateDescriptor(UINT num)
+D3D12_CPU_DESCRIPTOR_HANDLE x12::Dx12CoreRenderer::AllocateRTVDescriptor(UINT num)
+{
+	assert(rtv.offset_ < NumRenderDescriptors);
+
+	D3D12_CPU_DESCRIPTOR_HANDLE ret;
+	ret.ptr = rtv.cpuStart.ptr + SIZE_T(rtv.offset_) * descriptorSizeRTV;
+	rtv.offset_ += num;
+	return ret;
+
+}
+
+D3D12_CPU_DESCRIPTOR_HANDLE x12::Dx12CoreRenderer::AllocateDSVDescriptor(UINT num)
+{
+	assert(dsv.offset_ < NumRenderDescriptors);
+
+	D3D12_CPU_DESCRIPTOR_HANDLE ret;
+	ret.ptr = dsv.cpuStart.ptr + SIZE_T(dsv.offset_) * descriptorSizeDSV;
+	dsv.offset_ += num;
+	return ret;
+}
+
+x12::descriptorheap::Alloc x12::Dx12CoreRenderer::AllocateStaticDescriptor(UINT num)
 {
 	return descriptorAllocator->Allocate(num);
 }
+

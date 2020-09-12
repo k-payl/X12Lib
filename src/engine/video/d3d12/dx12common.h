@@ -9,6 +9,8 @@ namespace DirectX {
 
 namespace x12
 {
+	inline constexpr size_t NumRenderDescriptors = 1'024;
+
 	x12::TEXTURE_FORMAT D3DToEng(DXGI_FORMAT format);
 	DXGI_FORMAT EngToD3D(x12::TEXTURE_FORMAT format);
 	size_t BitsPerPixel(DXGI_FORMAT format);
@@ -18,11 +20,11 @@ namespace x12
 	{
 		ComPtr<swapchain_t> swapChain;
 
-		ComPtr<ID3D12Resource> colorBuffers[engine::DeferredBuffers];
-		ComPtr<ID3D12Resource> depthBuffer;
+		ComPtr<ID3D12Resource> colorBuffers[engine::DeferredBuffers]; // TODO: avoid ID3D12Resource, use x12::ICoreTexture
+		D3D12_CPU_DESCRIPTOR_HANDLE rtvHandles[engine::DeferredBuffers]{};
 
-		ComPtr<ID3D12DescriptorHeap> descriptorHeapRTV;
-		ComPtr<ID3D12DescriptorHeap> descriptorHeapDSV;
+		ComPtr<ID3D12Resource> depthBuffer; // TODO: avoid ID3D12Resource, use x12::ICoreTexture
+		D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle{};
 
 		D3D12_RESOURCE_STATES state{};
 

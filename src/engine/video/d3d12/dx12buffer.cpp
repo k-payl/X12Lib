@@ -178,7 +178,7 @@ void x12::Dx12CoreBuffer::initSRV(UINT num, UINT structireSize, bool raw)
 	srvDesc.Buffer.StructureByteStride = structireSize;
 	srvDesc.Buffer.Flags = raw ? D3D12_BUFFER_SRV_FLAG_RAW : D3D12_BUFFER_SRV_FLAG_NONE;
 
-	SRVdescriptor = d3d12::D3D12GetCoreRender()->AllocateDescriptor();
+	SRVdescriptor = d3d12::D3D12GetCoreRender()->AllocateStaticDescriptor();
 
 	d3d12::CR_GetD3DDevice()->CreateShaderResourceView(resource.Get(), &srvDesc, SRVdescriptor.descriptor);
 }
@@ -192,14 +192,14 @@ void x12::Dx12CoreBuffer::initUAV(UINT num, UINT structireSize, bool raw)
 	srvDesc.Buffer.StructureByteStride = structireSize;
 	srvDesc.Buffer.Flags = raw? D3D12_BUFFER_UAV_FLAG_RAW : D3D12_BUFFER_UAV_FLAG_NONE;
 
-	UAVdescriptor = d3d12::D3D12GetCoreRender()->AllocateDescriptor();
+	UAVdescriptor = d3d12::D3D12GetCoreRender()->AllocateStaticDescriptor();
 
 	d3d12::CR_GetD3DDevice()->CreateUnorderedAccessView(resource.Get(), nullptr, &srvDesc, UAVdescriptor.descriptor);
 }
 
 void x12::Dx12CoreBuffer::initCBV(UINT size)
 {
-	CBVdescriptor = d3d12::D3D12GetCoreRender()->AllocateDescriptor();
+	CBVdescriptor = d3d12::D3D12GetCoreRender()->AllocateStaticDescriptor();
 
 	D3D12_CONSTANT_BUFFER_VIEW_DESC desc;
 	desc.SizeInBytes = alignConstantBufferSize(size);

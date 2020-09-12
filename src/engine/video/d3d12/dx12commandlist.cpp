@@ -73,7 +73,7 @@ void Dx12GraphicCommandList::SetGraphicPipelineState(const GraphicPipelineState&
 
 	if (!heapBinded)
 	{
-		d3dCmdList->SetDescriptorHeaps(1, renderer->DescriptorHeap());
+		d3dCmdList->SetDescriptorHeaps(1, renderer->DescriptorHeapPtr());
 		heapBinded = true;
 	}
 }
@@ -108,7 +108,7 @@ void Dx12GraphicCommandList::SetComputePipelineState(const ComputePipelineState&
 
 	if (!heapBinded)
 	{
-		d3dCmdList->SetDescriptorHeaps(1, renderer->DescriptorHeap());
+		d3dCmdList->SetDescriptorHeaps(1, renderer->DescriptorHeapPtr());
 		heapBinded = true;
 	}
 }
@@ -217,14 +217,11 @@ void Dx12GraphicCommandList::Clear()
 {
 	Dx12WindowSurface* dx12surface = static_cast<Dx12WindowSurface*>(state.surface.get());
 
-	CD3DX12_CPU_DESCRIPTOR_HANDLE rtv(dx12surface->descriptorHeapRTV->GetCPUDescriptorHandleForHeapStart(), (INT)renderer->FrameIndex(), CR_RTV_DescriptorsSize());
-	D3D12_CPU_DESCRIPTOR_HANDLE dsv = dx12surface->descriptorHeapDSV->GetCPUDescriptorHandleForHeapStart();
-
 	FLOAT depth = 1.0f;
-	d3dCmdList->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH, depth, 0, 0, nullptr);
+	d3dCmdList->ClearDepthStencilView(dx12surface->dsvHandle, D3D12_CLEAR_FLAG_DEPTH, depth, 0, 0, nullptr);
 
 	const float color[4] = {0.0f, 0.0f, 0.0f, 0.0f};
-	d3dCmdList->ClearRenderTargetView(rtv, color, 0, nullptr);
+	d3dCmdList->ClearRenderTargetView(dx12surface->rtvHandles[renderer->FrameIndex()], color, 0, nullptr);
 }
 
 void Dx12GraphicCommandList::CompileSet(IResourceSet* set_)
@@ -246,7 +243,7 @@ void Dx12GraphicCommandList::CompileSet(IResourceSet* set_)
 			if (!dx12set->resourcesDirty[i])
 				continue;
 
-			auto [destCPU, destGPU] = renderer->allocateStaticGPUHandles(param.tableResourcesNum);
+			auto [destCPU, destGPU] = renderer->AllocateSRVDescriptor(param.tableResourcesNum);
 
 			for (int j = 0; j < param.tableResourcesNum; ++j)
 			{
@@ -366,14 +363,14 @@ void Dx12GraphicCommandList::ReleaseTrakedResources()
 	trakedResources.clear();
 }
 
-void Dx12GraphicCommandList::NotifyFrameCompleted(uint64_t nextFenceID)
+void Dx12GraphicCommandList::NotifyFrameCompleted(uint64_t completed)
 {
-	if (submitedValue < nextFenceID)
+	if (submitedValue <= completed)
 	{
 		ReleaseTrakedResources();
 	}
 
-	ICoreCopyCommandList::NotifyFrameCompleted(nextFenceID);
+	ICoreCopyCommandList::NotifyFrameCompleted(completed);
 }
 
 Dx12GraphicCommandList::Dx12GraphicCommandList(Dx12CoreRenderer *renderer_, int32_t id_) : ICoreGraphicCommandList(id_),
@@ -480,10 +477,7 @@ void Dx12GraphicCommandList::BindSurface(surface_ptr& surface_)
 
 	transiteSurfaceToState(D3D12_RESOURCE_STATE_RENDER_TARGET);
 
-	CD3DX12_CPU_DESCRIPTOR_HANDLE rtv(dx12surface->descriptorHeapRTV->GetCPUDescriptorHandleForHeapStart(), (INT)renderer->FrameIndex(), CR_RTV_DescriptorsSize());
-	D3D12_CPU_DESCRIPTOR_HANDLE dsv = dx12surface->descriptorHeapDSV->GetCPUDescriptorHandleForHeapStart();
-
-	d3dCmdList->OMSetRenderTargets(1, &rtv, FALSE, &dsv);
+	d3dCmdList->OMSetRenderTargets(1, &dx12surface->rtvHandles[renderer->FrameIndex()], FALSE, &dx12surface->dsvHandle);
 }
 
 void Dx12GraphicCommandList::resetOnlyPSOState()

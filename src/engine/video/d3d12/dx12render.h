@@ -67,12 +67,24 @@ namespace x12
 		uint64_t psoNum{};
 
 		x12::descriptorheap::Allocator* descriptorAllocator; // Pre created descriptors for long-lived resources. Keeps a lot of ID3D12DescriptorHeap's
-		
-		ComPtr<ID3D12DescriptorHeap> gpuDescriptorHeap; // Descriptor heap using at rendering. TODO: make deallocation
-		const size_t NumStaticGpuHadles = 1'024;
-		UINT gpuDescriptorsOffset{};
-		D3D12_CPU_DESCRIPTOR_HANDLE gpuDescriptorHeapStart{0};
-		D3D12_GPU_DESCRIPTOR_HANDLE gpuDescriptorHeapStartGPU{0};
+
+		struct DescriptorHeap
+		{
+			ComPtr<ID3D12DescriptorHeap> heap; // Descriptor heap using at rendering. TODO: make deallocation
+			UINT offset_{};
+			D3D12_CPU_DESCRIPTOR_HANDLE cpuStart{};
+			D3D12_GPU_DESCRIPTOR_HANDLE gpuStart{};
+
+			void Init(D3D12_DESCRIPTOR_HEAP_TYPE type, bool gpuVisible);
+			void Free()
+			{
+				heap = nullptr;
+			}
+		};
+
+		DescriptorHeap srv;
+		DescriptorHeap rtv;
+		DescriptorHeap dsv;
 
 		ComPtr<ID3D12RootSignature> defaultRootSignature; // Root signature for shaders without input resources
 
@@ -140,26 +152,29 @@ namespace x12
 
 		void* GetNativeDevice() override { return device; }
 
-		// dx12 specific
+		// d3d12 specific
 		auto GetDevice() -> device_t* { return device; }
 		auto GetGraphicPSO(const GraphicPipelineState& pso, psomap_checksum_t checksum)->ComPtr<ID3D12PipelineState>;
 		auto GetComputePSO(const ComputePipelineState& pso, psomap_checksum_t checksum)->ComPtr<ID3D12PipelineState>;
-		auto AllocateDescriptor(UINT num = 1)->x12::descriptorheap::Alloc;
-		auto CBSRV_DescriptorsSize() -> UINT { return descriptorSizeCBSRV; }
-		auto RTV_DescriptorsSize() -> UINT { return descriptorSizeRTV; }
-		auto DSV_DescriptorsSize() -> UINT { return descriptorSizeDSV; }
 		auto IsTearingSupport() -> bool { return tearingSupported; }
 		auto GetDefaultRootSignature()->ComPtr<ID3D12RootSignature>;
-		ID3D12CommandQueue* CommandQueue() const { return queues[QUEUE_GRAPHIC].d3dCommandQueue; }
-		float GpuTickDelta() const { return gpuTickDelta; }
-		DirectX::GraphicsMemory* FrameMemory() { return frameMemory.get(); }
-		ID3D12DescriptorHeap** DescriptorHeap() { return gpuDescriptorHeap.GetAddressOf(); }
-		std::pair<D3D12_CPU_DESCRIPTOR_HANDLE, D3D12_GPU_DESCRIPTOR_HANDLE> allocateStaticGPUHandles(UINT num);
+		auto CommandQueue() -> ID3D12CommandQueue* const { return queues[QUEUE_GRAPHIC].d3dCommandQueue; }
+		auto GpuTickDelta() -> float const { return gpuTickDelta; }
+		auto FrameMemory() -> DirectX::GraphicsMemory* { return frameMemory.get(); }
+
+		auto AllocateStaticDescriptor(UINT num = 1) -> x12::descriptorheap::Alloc;
+		auto AllocateSRVDescriptor(UINT num = 1) -> std::pair<D3D12_CPU_DESCRIPTOR_HANDLE, D3D12_GPU_DESCRIPTOR_HANDLE>;
+		auto AllocateRTVDescriptor(UINT num = 1) -> D3D12_CPU_DESCRIPTOR_HANDLE;
+		auto AllocateDSVDescriptor(UINT num = 1) -> D3D12_CPU_DESCRIPTOR_HANDLE;
+		auto DescriptorHeapPtr() -> ID3D12DescriptorHeap** { return srv.heap.GetAddressOf(); }
+
+		auto SRV_DescriptorsSize() -> UINT { return descriptorSizeCBSRV; }
+		auto RTV_DescriptorsSize() -> UINT { return descriptorSizeRTV; }
+		auto DSV_DescriptorsSize() -> UINT { return descriptorSizeDSV; }
 	};
 
 
 	// Helpers
-
 	namespace d3d12
 	{
 		inline Dx12CoreRenderer* D3D12GetCoreRender() { return static_cast<Dx12CoreRenderer*>(_coreRender); }
@@ -167,7 +182,7 @@ namespace x12
 		inline device_t* CR_GetD3DDevice() { return d3d12::D3D12GetCoreRender()->GetDevice(); }
 		inline bool							CR_IsTearingSupport() { return d3d12::D3D12GetCoreRender()->IsTearingSupport(); }
 		inline bool							CR_IsVSync() { return GetCoreRender()->IsVSync(); }
-		inline UINT							CR_CBSRV_DescriptorsSize() { return d3d12::D3D12GetCoreRender()->CBSRV_DescriptorsSize(); }
+		inline UINT							CR_CBSRV_DescriptorsSize() { return d3d12::D3D12GetCoreRender()->SRV_DescriptorsSize(); }
 		inline UINT							CR_RTV_DescriptorsSize() { return d3d12::D3D12GetCoreRender()->RTV_DescriptorsSize(); }
 		inline UINT							CR_DSV_DescriptorsSize() { return d3d12::D3D12GetCoreRender()->DSV_DescriptorsSize(); }
 	}
