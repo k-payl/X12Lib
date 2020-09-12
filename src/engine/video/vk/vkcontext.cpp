@@ -2,7 +2,7 @@
 #include "vkcontext.h"
 #include "vkrender.h"
 
-x12::VkGraphicCommandList::VkGraphicCommandList()
+x12::VkGraphicCommandList::VkGraphicCommandList() : ICoreGraphicCommandList(-1)
 {
 	commandBuffers.resize(engine::DeferredBuffers);
 

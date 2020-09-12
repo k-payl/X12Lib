@@ -76,10 +76,6 @@ auto x12::VkCoreRenderer::GetGraphicCommandList(int32_t id) -> ICoreGraphicComma
 	return nullptr;
 }
 
-auto x12::VkCoreRenderer::ReleaseGraphicCommandList(int32_t id) -> void
-{
-}
-
 auto x12::VkCoreRenderer::GetCopyCommandContext() -> ICoreCopyCommandList*
 {
 	return nullptr;

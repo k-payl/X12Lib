@@ -53,11 +53,11 @@ void GpuProfiler::ProcessRecords()
 				FontChar& char_ = fontData[ascii];
 
 				graphData[j + 0] = vec4(0.0f, 0.0f, (float)ascii, offsetInPixels);
-				graphData[j + 1] = vec4(1.0f, 1.0f, (float)ascii, offsetInPixels);
-				graphData[j + 2] = vec4(0.0f, 1.0f, (float)ascii, offsetInPixels);
+				graphData[j + 1] = vec4(0.0f, 1.0f, (float)ascii, offsetInPixels);
+				graphData[j + 2] = vec4(1.0f, 1.0f, (float)ascii, offsetInPixels);
 				graphData[j + 3] = vec4(0.0f, 0.0f, (float)ascii, offsetInPixels);
-				graphData[j + 4] = vec4(1.0f, 0.0f, (float)ascii, offsetInPixels);
-				graphData[j + 5] = vec4(1.0f, 1.0f, (float)ascii, offsetInPixels);
+				graphData[j + 4] = vec4(1.0f, 1.0f, (float)ascii, offsetInPixels);
+				graphData[j + 5] = vec4(1.0f, 0.0f, (float)ascii, offsetInPixels);
 				offsetInPixels += char_.xadvance + rectPadding;
 			}
 

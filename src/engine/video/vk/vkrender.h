@@ -56,7 +56,6 @@ namespace x12
 
 		auto GetGraphicCommandList()->ICoreGraphicCommandList* override;
 		auto GetGraphicCommandList(int32_t id)->ICoreGraphicCommandList* override;
-		auto ReleaseGraphicCommandList(int32_t id)->void override;
 		auto GetCopyCommandContext()->ICoreCopyCommandList* override;
 
 		// Surfaces
