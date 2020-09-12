@@ -47,20 +47,17 @@ namespace x12
 				Signal(d3dCommandQueue, d3dFence, nextFenceValue);
 			}
 
+			bool IsCompleted(uint64_t value)
+			{
+				return value <= completedValue;
+			}
+
 		} queues[QUEUE_NUM];
 
 		std::map<HWND, surface_ptr> surfaces;
 		std::set<surface_ptr> surfacesForPresenting;
 
-		std::vector<std::unique_ptr<Dx12GraphicCommandList>> commandLists;
-
-		struct CmdListState
-		{
-			int32_t id{-1};
-			uint64_t submitedValue{};
-			bool isBusy{};
-		};
-		std::vector<CmdListState> commandListsStates;
+		std::vector<Dx12GraphicCommandList*> commandLists;
 
 		Dx12CopyCommandList* copyCommandContext;
 		std::unique_ptr<DirectX::GraphicsMemory> frameMemory;
@@ -99,14 +96,13 @@ namespace x12
 
 		auto GetGraphicCommandList()->ICoreGraphicCommandList* override;
 		auto GetGraphicCommandList(int32_t id)->ICoreGraphicCommandList* override;
-		auto ReleaseGraphicCommandList(int32_t id)->void override;
 		auto GetCopyCommandContext() -> ICoreCopyCommandList* override { return (ICoreCopyCommandList*)copyCommandContext; }
 
 		auto _FetchSurface(HWND hwnd) -> surface_ptr override;
 		auto RecreateBuffers(HWND hwnd, UINT newWidth, UINT newHeight) -> void override;
 		auto GetWindowSurface(HWND hwnd) -> surface_ptr override;
 		auto PresentSurfaces() -> void override;
-		auto _ReleaseGraphicQueueResources() -> void;
+		auto RefreshFencesStatus() -> void;
 		auto FrameEnd() -> void override;
 
 		auto ExecuteCommandList(ICoreCopyCommandList* cmdList) -> void override;

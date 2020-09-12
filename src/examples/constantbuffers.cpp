@@ -20,7 +20,6 @@ void Render();
 static struct Resources
 {
 	intrusive_ptr<ICoreShader> shader;
-	//intrusive_ptr<ICoreVertexBuffer> vertexBuffer;
 	intrusive_ptr<IResourceSet> cubeResources;
 	intrusive_ptr<ICoreBuffer> cameraBuffer;
 	engine::StreamPtr<engine::Texture> tex;

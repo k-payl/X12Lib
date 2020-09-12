@@ -171,7 +171,6 @@ void x12::Dx12CoreRenderer::Free()
 	surfaces.clear();
 
 	commandLists.clear();
-	commandListsStates.clear();
 
 	copyCommandContext->Free();
 
@@ -179,6 +178,11 @@ void x12::Dx12CoreRenderer::Free()
 
 	delete copyCommandContext;
 	copyCommandContext = nullptr;
+
+	for (int i = 0; i < commandLists.size(); i++)
+		delete commandLists[i];
+
+	commandLists.clear();
 
 	for (int i = 0; i < QUEUE_NUM; i++)
 	{
@@ -206,27 +210,23 @@ void x12::Dx12CoreRenderer::Free()
 
 ICoreGraphicCommandList* x12::Dx12CoreRenderer::CreateCommandList(int32_t id = -1)
 {
-	auto cmdListPtr = std::make_unique<Dx12GraphicCommandList>(this);
-	ICoreGraphicCommandList* ret = cmdListPtr.get();
+	auto cmdListPtr = new Dx12GraphicCommandList(this, id);
+	commandLists.insert(commandLists.begin(), cmdListPtr);
 
-	auto it = std::find_if(commandListsStates.begin(), commandListsStates.end(), [](const CmdListState& state) -> bool { return state.id != -1; });
-
-	size_t idx = it - commandListsStates.begin();
-	commandLists.insert(commandLists.begin() + idx, std::move(cmdListPtr));
-	commandListsStates.insert(it, {id, 0, id == -1});
-
-	return ret;
+	return cmdListPtr;
 }
 
 auto x12::Dx12CoreRenderer::GetGraphicCommandList() -> ICoreGraphicCommandList*
 {
-	uint64_t queueCompletedValue1 = queues[QUEUE_GRAPHIC].completedValue;
+	uint64_t queueCompletedValue = queues[QUEUE_GRAPHIC].completedValue;
 
-	for (int i = 0; i < commandListsStates.size(); i++)
+	for (int i = 0; i < commandLists.size(); i++)
 	{
-		if (commandLists[i]->IsClosed() && commandListsStates[i].submitedValue <= queueCompletedValue1 && commandListsStates[i].id == -1)
+		if (commandLists[i]->ReadyForOpening() &&
+			commandLists[i]->Unnamed() &&
+			queues[QUEUE_GRAPHIC].IsCompleted(commandLists[i]->SubmitedValue()))
 		{
-			return commandLists[i].get();
+			return commandLists[i];
 		}
 	}
 
@@ -237,39 +237,29 @@ auto x12::Dx12CoreRenderer::GetGraphicCommandList(int32_t id) -> ICoreGraphicCom
 {
 	uint64_t queueCompletedValue1 = queues[QUEUE_GRAPHIC].completedValue;
 
-	for (int i = 0; i < commandListsStates.size(); i++)
+	for (int i = 0; i < commandLists.size(); i++)
 	{
-		if (commandLists[i]->IsClosed() && commandListsStates[i].submitedValue <= queueCompletedValue1 && commandListsStates[i].id == id)
+		if (commandLists[i]->ReadyForOpening() &&
+			commandLists[i]->ID() == id &&
+			queues[QUEUE_GRAPHIC].IsCompleted(commandLists[i]->SubmitedValue()))
 		{
-			return commandLists[i].get();
+			return commandLists[i];
 		}
 	}
 
 	return CreateCommandList(id);
 }
 
-auto x12::Dx12CoreRenderer::ReleaseGraphicCommandList(int32_t id) -> void
-{
-	for (int i = 0; i < commandListsStates.size(); i++)
-	{
-		if (commandListsStates[i].id == id)
-		{
-			commandListsStates[i].isBusy = false;
-			break;
-		}
-	}
-}
-
-auto x12::Dx12CoreRenderer::_ReleaseGraphicQueueResources() -> void
+auto x12::Dx12CoreRenderer::RefreshFencesStatus() -> void
 {
 	uint64_t valueCompleted = queues[QUEUE_GRAPHIC].completedValue;
 
 	descriptorAllocator->ReclaimMemory(valueCompleted);
 
-	for (int i = 0; i < commandListsStates.size(); i++)
+	for (int i = 0; i < commandLists.size(); i++)
 	{
-		if (commandListsStates[i].submitedValue <= valueCompleted)
-			commandLists[i]->CompleteGPUFrame(valueCompleted);
+		if (commandLists[i]->IsSubmited() && commandLists[i]->SubmitedValue() <= valueCompleted)
+			commandLists[i]->NotifyFrameCompleted(valueCompleted);
 	}
 }
 
@@ -311,7 +301,7 @@ auto x12::Dx12CoreRenderer::WaitGPU() -> void
 		}
 	}
 
-	_ReleaseGraphicQueueResources();
+	RefreshFencesStatus();
 }
 
 auto x12::Dx12CoreRenderer::WaitGPUAll() -> void
@@ -331,7 +321,7 @@ auto x12::Dx12CoreRenderer::WaitGPUAll() -> void
 		}
 	}
 
-	_ReleaseGraphicQueueResources();
+	RefreshFencesStatus();
 }
 
 auto x12::Dx12CoreRenderer::_FetchSurface(HWND hwnd) -> surface_ptr
@@ -380,10 +370,13 @@ auto x12::Dx12CoreRenderer::ExecuteCommandList(ICoreCopyCommandList* cmdList) ->
 {
 	if (dynamic_cast<Dx12GraphicCommandList*>(cmdList))
 	{
-		for (int i = 0; i < commandListsStates.size(); i++)
+		for (int i = 0; i < commandLists.size(); i++)
 		{
-			if (commandLists[i].get() == cmdList)
-				commandListsStates[i].submitedValue = queues[QUEUE_GRAPHIC].nextFenceValue;
+			if (commandLists[i] == cmdList)
+			{
+				commandLists[i]->NotifySubmited(queues[QUEUE_GRAPHIC].nextFenceValue);
+				break;
+			}
 		}
 
 		ID3D12CommandList* const commandLists_[] = {static_cast<Dx12GraphicCommandList*>(cmdList)->GetD3D12CmdList()};

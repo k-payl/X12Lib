@@ -34,6 +34,40 @@ namespace x12
 
 	class ICoreCopyCommandList
 	{
+	protected:
+		enum class State
+		{
+			Free,
+			Opened,
+			Recordered,
+			Submited,
+		} state_{ State::Free };
+
+		uint64_t submitedValue{};
+		int32_t id{ -1 };
+
+	public:
+		ICoreCopyCommandList(int32_t id_) { id = id_; }
+
+		uint64_t SubmitedValue() const { return submitedValue; }
+		bool	 ReadyForOpening() { return state_ == State::Free || state_ == State::Recordered; }
+		bool	 IsSubmited() { return state_ == State::Submited; }
+		bool	 Unnamed() { return id == -1; }
+		int32_t	 ID() { return id; }
+
+		virtual void NotifySubmited(uint64_t submited)
+		{
+			assert(state_ == State::Recordered);
+			state_ = State::Submited;
+			submitedValue = submited;
+		}
+		virtual void NotifyFrameCompleted(uint64_t completed)
+		{
+			assert(state_ == State::Submited);
+			state_ = State::Recordered;
+			submitedValue = 0;
+		}
+
 	public:
 		virtual ~ICoreCopyCommandList() = default;
 		virtual X12_API void FrameEnd() = 0;
@@ -44,12 +78,8 @@ namespace x12
 
 	class ICoreGraphicCommandList : public ICoreCopyCommandList
 	{
-	protected:
-		enum class State
-		{
-			Closed,
-			Opened,
-		} use;
+	public:
+		ICoreGraphicCommandList(int32_t id_) : ICoreCopyCommandList(id_) {}
 
 	public:
 		virtual ~ICoreGraphicCommandList() = default;
@@ -136,7 +166,6 @@ namespace x12
 		virtual X12_API auto Free() -> void = 0;
 		virtual X12_API auto GetGraphicCommandList()->ICoreGraphicCommandList* = 0;
 		virtual X12_API auto GetGraphicCommandList(int32_t id)->ICoreGraphicCommandList* = 0;
-		virtual X12_API auto ReleaseGraphicCommandList(int32_t id)->void = 0;
 		virtual X12_API auto GetCopyCommandContext()->ICoreCopyCommandList* = 0;
 
 		// Surfaces

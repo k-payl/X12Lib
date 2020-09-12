@@ -244,10 +244,6 @@ void Core::Init(INIT_FLAGS flags, GpuProfiler* gpuprofiler_, InitRendererProcedu
 
 void Core::Free()
 {
-	for (int i = 0; i < CMD_LIST_NUM; ++i)
-	{
-		renderer->ReleaseGraphicCommandList(i);
-	}
 	queries.clear();
 
 	onFree.Invoke();

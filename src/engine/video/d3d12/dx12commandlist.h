@@ -5,7 +5,6 @@
 
 namespace x12
 {
-
 	// Graphic comands interface.
 	//	Can be created multiplie instance of it in Dx12CoreRenderer.
 	//	Can be recorded only in one thread.
@@ -52,7 +51,6 @@ namespace x12
 		ID3D12CommandAllocator* d3dCommandAllocator{};
 		ID3D12GraphicsCommandList* d3dCmdList{};
 
-		uint64_t fenceCompleted{0};
 		bool heapBinded{false};
 
 		std::vector<IResourceUnknown*> trakedResources;
@@ -69,16 +67,16 @@ namespace x12
 		void ReleaseTrakedResources();
 
 	public:
-		Dx12GraphicCommandList(Dx12CoreRenderer *renderer);
+		// Internal
+
+		Dx12GraphicCommandList(Dx12CoreRenderer *renderer, int32_t id_);
 		~Dx12GraphicCommandList();
 
 		Dx12CoreRenderer* renderer;
 
 		void							Free();
-		void							CompleteGPUFrame(uint64_t nextFenceID);
-		uint64_t						CompletedValue() const { return fenceCompleted; }
+		
 		ID3D12GraphicsCommandList*		GetD3D12CmdList() { return d3dCmdList; }
-		bool							IsClosed() { return use == State::Closed; }
 
 		uint64_t						drawCalls() const { return frameStatistic.drawCalls; }
 		uint64_t						triangles() const { return frameStatistic.triangles; }
@@ -92,6 +90,8 @@ namespace x12
 			wsprintf(wstr, L"Graphic context #%d %s", contextNum, format);
 			x12::d3d12::set_name(obj, wstr, args...);
 		}
+
+		void NotifyFrameCompleted(uint64_t nextFenceID) override;
 
 	public:
 		// API

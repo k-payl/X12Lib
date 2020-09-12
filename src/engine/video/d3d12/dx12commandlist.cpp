@@ -366,16 +366,17 @@ void Dx12GraphicCommandList::ReleaseTrakedResources()
 	trakedResources.clear();
 }
 
-void Dx12GraphicCommandList::CompleteGPUFrame(uint64_t nextFenceID)
+void Dx12GraphicCommandList::NotifyFrameCompleted(uint64_t nextFenceID)
 {
-	if (fenceCompleted < nextFenceID)
+	if (submitedValue < nextFenceID)
 	{
 		ReleaseTrakedResources();
-		fenceCompleted = nextFenceID;
 	}
+
+	ICoreCopyCommandList::NotifyFrameCompleted(nextFenceID);
 }
 
-Dx12GraphicCommandList::Dx12GraphicCommandList(Dx12CoreRenderer *renderer_) :
+Dx12GraphicCommandList::Dx12GraphicCommandList(Dx12CoreRenderer *renderer_, int32_t id_) : ICoreGraphicCommandList(id_),
 	renderer(renderer_)
 {
 	device = CR_GetD3DDevice();
@@ -445,15 +446,19 @@ void Dx12GraphicCommandList::PopState()
 
 void Dx12GraphicCommandList::CommandsBegin()
 {
-	use = State::Opened;
 	d3dCommandAllocator->Reset();
 	d3dCmdList->Reset(d3dCommandAllocator, nullptr);
+
+	assert(state_ == State::Free || state_ == State::Recordered);
+	state_ = State::Opened;
 }
 
 void Dx12GraphicCommandList::CommandsEnd()
 {
 	heapBinded = false;
-	use = State::Closed;
+
+	assert(state_ == State::Opened);
+	state_ = State::Recordered;
 
 	transiteSurfaceToState(D3D12_RESOURCE_STATE_PRESENT);
 
@@ -519,7 +524,7 @@ void Dx12GraphicCommandList::resetStatistic()
 
 // Dx12CopyCommandList
 //
-Dx12CopyCommandList::Dx12CopyCommandList()
+Dx12CopyCommandList::Dx12CopyCommandList() : ICoreCopyCommandList(-1)
 {
 	device = CR_GetD3DDevice();
 
