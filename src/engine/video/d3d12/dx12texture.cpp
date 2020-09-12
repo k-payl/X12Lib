@@ -33,27 +33,84 @@ static HRESULT FillInitData(_In_ size_t width,
 void x12::Dx12CoreTexture::InitFromExisting(ID3D12Resource* resource_)
 {
 	resource.Attach(resource_);
+
 	desc = resource->GetDesc();
+
+	format_ = D3DToEng(desc.Format);
+
+	if ((desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET) || (desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL))
+		flags_ = flags_ | TEXTURE_CREATE_FLAGS::USAGE_RENDER_TARGET;
+
+	if (desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS)
+		flags_ = flags_ | TEXTURE_CREATE_FLAGS::USAGE_UNORDRED_ACCESS;
+
+	if (!(desc.Flags & D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE))
+		flags_ = flags_ | TEXTURE_CREATE_FLAGS::USAGE_SHADER_RESOURCE;
+
 	InitSRV();
+	InitRTV();
+	InitDSV();
+}
+
+void x12::Dx12CoreTexture::TransiteToState(D3D12_RESOURCE_STATES newState, ID3D12GraphicsCommandList* cmdList)
+{
+	if (state == newState)
+		return;
+	
+	CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(resource.Get(), state, newState);
+	
+	cmdList->ResourceBarrier(1, &barrier);
+	
+	state = newState;
 }
 
 void x12::Dx12CoreTexture::InitSRV()
 {
+	if (!(flags_ & TEXTURE_CREATE_FLAGS::USAGE_SHADER_RESOURCE))
+		return;
+
+	SRVdescriptor = d3d12::D3D12GetCoreRender()->AllocateStaticDescriptor();
+
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
 	srvDesc.Format = desc.Format;
-	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D; // TODO
 	srvDesc.Texture2D.MipLevels = desc.MipLevels;
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 
-	SRVdescriptor = d3d12::D3D12GetCoreRender()->AllocateStaticDescriptor();
-	D3D12_CPU_DESCRIPTOR_HANDLE handle = SRVdescriptor.descriptor;
+	d3d12::CR_GetD3DDevice()->CreateShaderResourceView(resource.Get(), &srvDesc, SRVdescriptor.descriptor);
+}
 
-	d3d12::CR_GetD3DDevice()->CreateShaderResourceView(resource.Get(), &srvDesc, handle);
+void x12::Dx12CoreTexture::InitRTV()
+{
+	if (flags_ & TEXTURE_CREATE_FLAGS::USAGE_RENDER_TARGET && !IsDepthStencil(format_))
+	{
+		RTVdescriptor = d3d12::D3D12GetCoreRender()->AllocateStaticRTVDescriptor();
+		d3d12::CR_GetD3DDevice()->CreateRenderTargetView(resource.Get(), nullptr, RTVdescriptor.descriptor);
+	}
+}
+
+void x12::Dx12CoreTexture::InitDSV()
+{
+	if (flags_ & TEXTURE_CREATE_FLAGS::USAGE_RENDER_TARGET && IsDepthStencil(format_))
+	{
+		DSVdescriptor = d3d12::D3D12GetCoreRender()->AllocateStaticDSVDescriptor();
+
+		D3D12_DEPTH_STENCIL_VIEW_DESC dsv = {};
+		dsv.Format = EngToD3D(format_);
+		dsv.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D; // TODO
+		dsv.Texture2D.MipSlice = 0; // TODO
+		dsv.Flags = D3D12_DSV_FLAG_NONE;
+
+		d3d12::CR_GetD3DDevice()->CreateDepthStencilView(resource.Get(), &dsv, DSVdescriptor.descriptor);
+	}
 }
 
 void x12::Dx12CoreTexture::Init(LPCWSTR name, const uint8_t* data, size_t size,
 	int32_t width, int32_t height, uint32_t mipCount, TEXTURE_TYPE type, TEXTURE_FORMAT format, TEXTURE_CREATE_FLAGS flags)
 {
+	flags_ = flags;
+	format_ = format;
+
 	const UINT arraySize = (type == TEXTURE_TYPE::TYPE_CUBE) ? 6 : 1;
 	const UINT depth = 1;
 
@@ -62,7 +119,22 @@ void x12::Dx12CoreTexture::Init(LPCWSTR name, const uint8_t* data, size_t size,
 	desc.MipLevels = static_cast<UINT16>(mipCount);
 	desc.DepthOrArraySize = arraySize;
 	desc.Format = EngToD3D(format);
-	desc.Flags = D3D12_RESOURCE_FLAG_NONE; // TODO: UAV, render target
+
+	desc.Flags = D3D12_RESOURCE_FLAG_NONE;
+	if (flags & TEXTURE_CREATE_FLAGS::USAGE_RENDER_TARGET)
+	{
+		if (IsDepthStencil(format))
+			desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+		else
+			desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+	}
+
+	if (flags & TEXTURE_CREATE_FLAGS::USAGE_UNORDRED_ACCESS)
+		desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+
+	if (!(flags & TEXTURE_CREATE_FLAGS::USAGE_SHADER_RESOURCE))
+		desc.Flags |= D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE;
+
 	desc.SampleDesc.Count = 1;
 	desc.SampleDesc.Quality = 0;
 	desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D; // TODO: 1d, 3d 
@@ -71,51 +143,62 @@ void x12::Dx12CoreTexture::Init(LPCWSTR name, const uint8_t* data, size_t size,
 
 	//x12::memory::CreateCommitted2DTexture()
 
+	state = IsDepthStencil(format) ? D3D12_RESOURCE_STATE_DEPTH_WRITE : D3D12_RESOURCE_STATE_COPY_DEST;
+
+	D3D12_CLEAR_VALUE optimizedClearValue = {};
+	optimizedClearValue.Format = EngToD3D(format_);
+	optimizedClearValue.DepthStencil = { 1.0f, 0 };
+
 	throwIfFailed(d3d12::CR_GetD3DDevice()->CreateCommittedResource(
 		&defaultHeapProperties,
 		D3D12_HEAP_FLAG_NONE,
 		&desc,
-		D3D12_RESOURCE_STATE_COPY_DEST,
-		nullptr,
+		state,
+		IsDepthStencil(format) ? &optimizedClearValue : nullptr,
 		IID_ID3D12Resource, reinterpret_cast<void**>(resource.GetAddressOf())));
 	x12::d3d12::set_name(resource.Get(), name);
 	
-	// staging
-	ComPtr<ID3D12Resource> uploadResource;
-	x12::memory::CreateCommittedBuffer(uploadResource.GetAddressOf(), size,
-		D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_HEAP_TYPE_UPLOAD);
+	if (flags_ & TEXTURE_CREATE_FLAGS::USAGE_SHADER_RESOURCE && data)
+	{
+		// staging
+		ComPtr<ID3D12Resource> uploadResource;
+		x12::memory::CreateCommittedBuffer(uploadResource.GetAddressOf(), size,
+			D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_HEAP_TYPE_UPLOAD);
 
-	x12::d3d12::set_name(uploadResource.Get(), L"Upload buffer for cpu->gpu copying %u bytes for '%s'", size, name);
+		x12::d3d12::set_name(uploadResource.Get(), L"Upload buffer for cpu->gpu copying %u bytes for '%s'", size, name);
 
-	size_t maxsize = size;
-	size_t bitSize = size;
+		size_t maxsize = size;
+		size_t bitSize = size;
 
-	// subresource
-	std::vector<D3D12_SUBRESOURCE_DATA> subresources;
-	size_t skipMip = 0;
-	size_t twidth = 0;
-	size_t theight = 0;
-	size_t tdepth = 0;
-	const auto numberOfPlanes = 1;
-	throwIfFailed(FillInitData(width, height, depth, mipCount, arraySize,
-		numberOfPlanes, desc.Format,
-		maxsize, bitSize, data,
-		twidth, theight, tdepth, skipMip, subresources));
+		// subresource
+		std::vector<D3D12_SUBRESOURCE_DATA> subresources;
+		size_t skipMip = 0;
+		size_t twidth = 0;
+		size_t theight = 0;
+		size_t tdepth = 0;
+		const auto numberOfPlanes = 1;
+		throwIfFailed(FillInitData(width, height, depth, mipCount, arraySize,
+			numberOfPlanes, desc.Format,
+			maxsize, bitSize, data,
+			twidth, theight, tdepth, skipMip, subresources));
 
-	auto* cmdList = GetCoreRender()->GetGraphicCommandList();
-	Dx12GraphicCommandList* dx12ctx = static_cast<Dx12GraphicCommandList*>(cmdList);
-	cmdList->CommandsBegin();
+		auto* cmdList = GetCoreRender()->GetGraphicCommandList();
+		Dx12GraphicCommandList* dx12ctx = static_cast<Dx12GraphicCommandList*>(cmdList);
+		cmdList->CommandsBegin();
 
-	UpdateSubresources(dx12ctx->GetD3D12CmdList(), resource.Get(), uploadResource.Get(), 0, 0, 1, &subresources[0]);
+		UpdateSubresources(dx12ctx->GetD3D12CmdList(), resource.Get(), uploadResource.Get(), 0, 0, 1, &subresources[0]);
 
-	cmdList->CommandsEnd();
+		cmdList->CommandsEnd();
 
-	ICoreRenderer* renderer = engine::GetCoreRenderer();
-	renderer->ExecuteCommandList(cmdList);
+		ICoreRenderer* renderer = engine::GetCoreRenderer();
+		renderer->ExecuteCommandList(cmdList);
 
-	renderer->WaitGPUAll(); // wait GPU copying upload -> default heap
+		renderer->WaitGPUAll(); // wait GPU copying upload -> default heap
+	}
 
 	InitSRV();
+	InitRTV();
+	InitDSV();
 }
 
 // From DDSTextureLoader12.cpp

@@ -57,7 +57,7 @@ namespace x12
 
 		static int contextNum;
 
-		void transiteSurfaceToState(D3D12_RESOURCE_STATES newState);
+		//void transiteSurfaceToState(D3D12_RESOURCE_STATES newState);
 		void resetStatistic();
 		void resetOnlyPSOState(); // reset PSO and shader bindings
 		void resetFullState();

@@ -66,7 +66,9 @@ namespace x12
 		psomap_t psoMap; // All Pipeline State Objects. checksum -> PSO
 		uint64_t psoNum{};
 
-		x12::descriptorheap::Allocator* descriptorAllocator; // Pre created descriptors for long-lived resources. Keeps a lot of ID3D12DescriptorHeap's
+		x12::descriptorheap::Allocator* SRVdescriptorAllocator; // Pre created descriptors for long-lived resources. Keeps a lot of ID3D12DescriptorHeap's
+		x12::descriptorheap::Allocator* RTVdescriptorAllocator; // Pre created descriptors for long-lived resources. Keeps a lot of ID3D12DescriptorHeap's
+		x12::descriptorheap::Allocator* DSVdescriptorAllocator; // Pre created descriptors for long-lived resources. Keeps a lot of ID3D12DescriptorHeap's
 
 		struct DescriptorHeap
 		{
@@ -83,8 +85,8 @@ namespace x12
 		};
 
 		DescriptorHeap srv;
-		DescriptorHeap rtv;
-		DescriptorHeap dsv;
+		//DescriptorHeap rtv;
+		//DescriptorHeap dsv;
 
 		ComPtr<ID3D12RootSignature> defaultRootSignature; // Root signature for shaders without input resources
 
@@ -146,6 +148,8 @@ namespace x12
 
 		bool CreateTextureFrom(ICoreTexture** out, LPCWSTR name, std::vector<D3D12_SUBRESOURCE_DATA> subresources, ID3D12Resource* d3dexistingtexture) override;
 
+		bool CreateTextureFrom(ICoreTexture** out, LPCWSTR name, ID3D12Resource* existingTexture) override;
+
 		bool CreateResourceSet(IResourceSet** out, const ICoreShader* shader) override;
 
 		bool CreateQuery(ICoreQuery** out) override;
@@ -163,9 +167,9 @@ namespace x12
 		auto FrameMemory() -> DirectX::GraphicsMemory* { return frameMemory.get(); }
 
 		auto AllocateStaticDescriptor(UINT num = 1) -> x12::descriptorheap::Alloc;
+		auto AllocateStaticRTVDescriptor(UINT num = 1)->x12::descriptorheap::Alloc;
+		auto AllocateStaticDSVDescriptor(UINT num = 1)->x12::descriptorheap::Alloc;
 		auto AllocateSRVDescriptor(UINT num = 1) -> std::pair<D3D12_CPU_DESCRIPTOR_HANDLE, D3D12_GPU_DESCRIPTOR_HANDLE>;
-		auto AllocateRTVDescriptor(UINT num = 1) -> D3D12_CPU_DESCRIPTOR_HANDLE;
-		auto AllocateDSVDescriptor(UINT num = 1) -> D3D12_CPU_DESCRIPTOR_HANDLE;
 		auto DescriptorHeapPtr() -> ID3D12DescriptorHeap** { return srv.heap.GetAddressOf(); }
 
 		auto SRV_DescriptorsSize() -> UINT { return descriptorSizeCBSRV; }

@@ -218,10 +218,10 @@ void Dx12GraphicCommandList::Clear()
 	Dx12WindowSurface* dx12surface = static_cast<Dx12WindowSurface*>(state.surface.get());
 
 	FLOAT depth = 1.0f;
-	d3dCmdList->ClearDepthStencilView(dx12surface->dsvHandle, D3D12_CLEAR_FLAG_DEPTH, depth, 0, 0, nullptr);
+	d3dCmdList->ClearDepthStencilView(resource_cast(dx12surface->depthBuffer.get())->GetDSV(), D3D12_CLEAR_FLAG_DEPTH, depth, 0, 0, nullptr);
 
 	const float color[4] = {0.0f, 0.0f, 0.0f, 0.0f};
-	d3dCmdList->ClearRenderTargetView(dx12surface->rtvHandles[renderer->FrameIndex()], color, 0, nullptr);
+	d3dCmdList->ClearRenderTargetView(resource_cast(dx12surface->colorBuffers[renderer->FrameIndex()].get())->GetRTV(), color, 0, nullptr);
 }
 
 void Dx12GraphicCommandList::CompileSet(IResourceSet* set_)
@@ -457,7 +457,11 @@ void Dx12GraphicCommandList::CommandsEnd()
 	assert(state_ == State::Opened);
 	state_ = State::Recordered;
 
-	transiteSurfaceToState(D3D12_RESOURCE_STATE_PRESENT);
+	if (state.surface)
+	{
+		Dx12WindowSurface* dx12surface = static_cast<Dx12WindowSurface*>(state.surface.get());
+		resource_cast(dx12surface->colorBuffers[renderer->FrameIndex()].get())->TransiteToState(D3D12_RESOURCE_STATE_PRESENT, d3dCmdList);
+	}
 
 	throwIfFailed(d3dCmdList->Close());
 
@@ -473,11 +477,11 @@ void Dx12GraphicCommandList::BindSurface(surface_ptr& surface_)
 
 	Dx12WindowSurface* dx12surface = static_cast<Dx12WindowSurface*>(state.surface.get());
 
-	ID3D12Resource* backBuffer = dx12surface->colorBuffers[renderer->FrameIndex()].Get();
+	ID3D12Resource* backBuffer = 0;// dx12surface->colorBuffers[renderer->FrameIndex()]->;
 
-	transiteSurfaceToState(D3D12_RESOURCE_STATE_RENDER_TARGET);
+	resource_cast(dx12surface->colorBuffers[renderer->FrameIndex()].get())->TransiteToState(D3D12_RESOURCE_STATE_RENDER_TARGET, d3dCmdList);
 
-	d3dCmdList->OMSetRenderTargets(1, &dx12surface->rtvHandles[renderer->FrameIndex()], FALSE, &dx12surface->dsvHandle);
+	d3dCmdList->OMSetRenderTargets(1, &resource_cast(dx12surface->colorBuffers[renderer->FrameIndex()].get())->GetRTV(), FALSE, &resource_cast(dx12surface->depthBuffer.get())->GetDSV());
 }
 
 void Dx12GraphicCommandList::resetOnlyPSOState()
@@ -491,25 +495,25 @@ void Dx12GraphicCommandList::resetFullState()
 	state = {};
 }
 
-void Dx12GraphicCommandList::transiteSurfaceToState(D3D12_RESOURCE_STATES newState)
-{
-	if (!state.surface)
-		return;
-
-	Dx12WindowSurface* dx12surface = static_cast<Dx12WindowSurface*>(state.surface.get());
-
-	if (dx12surface->state == newState)
-		return;
-
-	ID3D12Resource* backBuffer = dx12surface->colorBuffers[renderer->FrameIndex()].Get();
-
-	CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(backBuffer,
-																			dx12surface->state, newState);
-
-	d3dCmdList->ResourceBarrier(1, &barrier);
-
-	dx12surface->state = newState;
-}
+//void Dx12GraphicCommandList::transiteSurfaceToState(D3D12_RESOURCE_STATES newState)
+//{
+//	if (!state.surface)
+//		return;
+//
+//	Dx12WindowSurface* dx12surface = static_cast<Dx12WindowSurface*>(state.surface.get());
+//
+//	if (dx12surface->state == newState)
+//		return;
+//
+//	ID3D12Resource* backBuffer = resource_cast(dx12surface->colorBuffers[renderer->FrameIndex()].get())->re;
+//
+//	CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(backBuffer,
+//																			dx12surface->state, newState);
+//
+//	d3dCmdList->ResourceBarrier(1, &barrier);
+//
+//	dx12surface->state = newState;
+//}
 
 void Dx12GraphicCommandList::resetStatistic()
 {

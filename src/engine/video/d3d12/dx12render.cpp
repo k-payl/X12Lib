@@ -153,14 +153,13 @@ void x12::Dx12CoreRenderer::Init()
 	tearingSupported = x12::d3d12::CheckTearingSupport();
 
 	auto frameFn = std::bind(&ICoreRenderer::Frame, this);
-	descriptorAllocator = new x12::descriptorheap::Allocator(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, frameFn);
+	SRVdescriptorAllocator = new x12::descriptorheap::Allocator(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, frameFn);
+	RTVdescriptorAllocator = new x12::descriptorheap::Allocator(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, frameFn);
+	DSVdescriptorAllocator = new x12::descriptorheap::Allocator(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, frameFn);
 
 	frameMemory = std::make_unique<DirectX::GraphicsMemory>(device);
 
-	srv.Init(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
-	rtv.Init(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, false);
-	dsv.Init(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, false);
-}
+	srv.Init(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);}
 
 void x12::Dx12CoreRenderer::DescriptorHeap::Init(D3D12_DESCRIPTOR_HEAP_TYPE type, bool gpuVisible)
 {
@@ -202,11 +201,15 @@ void x12::Dx12CoreRenderer::Free()
 	psoMap.clear();
 
 	srv.Free();
-	rtv.Free();
-	dsv.Free();
+	//rtv.Free();
+	//dsv.Free();
 
-	delete descriptorAllocator;
-	descriptorAllocator = nullptr;
+	delete SRVdescriptorAllocator;
+	SRVdescriptorAllocator = nullptr;
+	delete RTVdescriptorAllocator;
+	RTVdescriptorAllocator = nullptr;
+	delete DSVdescriptorAllocator;
+	DSVdescriptorAllocator = nullptr;
 
 	Release(adapter);
 
@@ -267,7 +270,9 @@ auto x12::Dx12CoreRenderer::RefreshFencesStatus() -> void
 {
 	uint64_t valueCompleted = queues[QUEUE_GRAPHIC].completedValue;
 
-	descriptorAllocator->ReclaimMemory(valueCompleted);
+	SRVdescriptorAllocator->ReclaimMemory(valueCompleted);
+	RTVdescriptorAllocator->ReclaimMemory(valueCompleted);
+	DSVdescriptorAllocator->ReclaimMemory(valueCompleted);
 
 	for (int i = 0; i < commandLists.size(); i++)
 	{
@@ -527,6 +532,17 @@ bool x12::Dx12CoreRenderer::CreateTextureFrom(ICoreTexture** out, LPCWSTR name, 
 	return ptr != nullptr;
 }
 
+bool x12::Dx12CoreRenderer::CreateTextureFrom(ICoreTexture** out, LPCWSTR name, ID3D12Resource* existingTexture)
+{
+	auto* ptr = new Dx12CoreTexture();
+	ptr->InitFromExisting(existingTexture);
+	ptr->AddRef();
+
+	*out = ptr;
+
+	return ptr != nullptr;
+}
+
 bool x12::Dx12CoreRenderer::CreateResourceSet(IResourceSet** out, const ICoreShader* shader)
 {
 	auto* dxShader = static_cast<const Dx12CoreShader*>(shader);
@@ -678,29 +694,39 @@ std::pair<D3D12_CPU_DESCRIPTOR_HANDLE, D3D12_GPU_DESCRIPTOR_HANDLE> Dx12CoreRend
 	return ret;
 }
 
-D3D12_CPU_DESCRIPTOR_HANDLE x12::Dx12CoreRenderer::AllocateRTVDescriptor(UINT num)
-{
-	assert(rtv.offset_ < NumRenderDescriptors);
-
-	D3D12_CPU_DESCRIPTOR_HANDLE ret;
-	ret.ptr = rtv.cpuStart.ptr + SIZE_T(rtv.offset_) * descriptorSizeRTV;
-	rtv.offset_ += num;
-	return ret;
-
-}
-
-D3D12_CPU_DESCRIPTOR_HANDLE x12::Dx12CoreRenderer::AllocateDSVDescriptor(UINT num)
-{
-	assert(dsv.offset_ < NumRenderDescriptors);
-
-	D3D12_CPU_DESCRIPTOR_HANDLE ret;
-	ret.ptr = dsv.cpuStart.ptr + SIZE_T(dsv.offset_) * descriptorSizeDSV;
-	dsv.offset_ += num;
-	return ret;
-}
+//D3D12_CPU_DESCRIPTOR_HANDLE x12::Dx12CoreRenderer::AllocateRTVDescriptor(UINT num)
+//{
+//	assert(rtv.offset_ < NumRenderDescriptors);
+//
+//	D3D12_CPU_DESCRIPTOR_HANDLE ret;
+//	ret.ptr = rtv.cpuStart.ptr + SIZE_T(rtv.offset_) * descriptorSizeRTV;
+//	rtv.offset_ += num;
+//	return ret;
+//
+//}
+//
+//D3D12_CPU_DESCRIPTOR_HANDLE x12::Dx12CoreRenderer::AllocateDSVDescriptor(UINT num)
+//{
+//	assert(dsv.offset_ < NumRenderDescriptors);
+//
+//	D3D12_CPU_DESCRIPTOR_HANDLE ret;
+//	ret.ptr = dsv.cpuStart.ptr + SIZE_T(dsv.offset_) * descriptorSizeDSV;
+//	dsv.offset_ += num;
+//	return ret;
+//}
 
 x12::descriptorheap::Alloc x12::Dx12CoreRenderer::AllocateStaticDescriptor(UINT num)
 {
-	return descriptorAllocator->Allocate(num);
+	return SRVdescriptorAllocator->Allocate(num);
+}
+
+auto x12::Dx12CoreRenderer::AllocateStaticRTVDescriptor(UINT num) -> x12::descriptorheap::Alloc
+{
+	return RTVdescriptorAllocator->Allocate(num);
+}
+
+auto x12::Dx12CoreRenderer::AllocateStaticDSVDescriptor(UINT num) -> x12::descriptorheap::Alloc
+{
+	return DSVdescriptorAllocator->Allocate(num);
 }
 

@@ -53,9 +53,10 @@ x12::TEXTURE_FORMAT x12::D3DToEng(DXGI_FORMAT format)
 	case DXGI_FORMAT_BC2_UNORM:				return x12::TEXTURE_FORMAT::DXT3;
 	case DXGI_FORMAT_BC3_UNORM:				return x12::TEXTURE_FORMAT::DXT5;
 	case DXGI_FORMAT_R24G8_TYPELESS:		return x12::TEXTURE_FORMAT::D24S8;
+	case DXGI_FORMAT_D32_FLOAT:				return x12::TEXTURE_FORMAT::D32;
 	}
 
-	engine::LogCritical("DXGIFormatToEng(): unknown format\n");
+	abort();
 	return x12::TEXTURE_FORMAT::UNKNOWN;
 }
 
@@ -65,22 +66,23 @@ DXGI_FORMAT x12::EngToD3D(x12::TEXTURE_FORMAT format)
 	{
 	case x12::TEXTURE_FORMAT::R8:		return DXGI_FORMAT_R8_UNORM;
 	case x12::TEXTURE_FORMAT::RG8:		return DXGI_FORMAT_R8G8_UNORM;
-	case x12::TEXTURE_FORMAT::RGBA8:		return DXGI_FORMAT_R8G8B8A8_UNORM;
-	case x12::TEXTURE_FORMAT::BGRA8:		return DXGI_FORMAT_B8G8R8A8_UNORM;
+	case x12::TEXTURE_FORMAT::RGBA8:	return DXGI_FORMAT_R8G8B8A8_UNORM;
+	case x12::TEXTURE_FORMAT::BGRA8:	return DXGI_FORMAT_B8G8R8A8_UNORM;
 	case x12::TEXTURE_FORMAT::R16F:		return DXGI_FORMAT_R16_FLOAT;
-	case x12::TEXTURE_FORMAT::RG16F:		return DXGI_FORMAT_R16G16_FLOAT;
+	case x12::TEXTURE_FORMAT::RG16F:	return DXGI_FORMAT_R16G16_FLOAT;
 	case x12::TEXTURE_FORMAT::RGBA16F:	return DXGI_FORMAT_R16G16B16A16_FLOAT;
 	case x12::TEXTURE_FORMAT::R32F:		return DXGI_FORMAT_R32_FLOAT;
-	case x12::TEXTURE_FORMAT::RG32F:		return DXGI_FORMAT_R32G32_FLOAT;
+	case x12::TEXTURE_FORMAT::RG32F:	return DXGI_FORMAT_R32G32_FLOAT;
 	case x12::TEXTURE_FORMAT::RGBA32F:	return DXGI_FORMAT_R32G32B32A32_FLOAT;
-	case x12::TEXTURE_FORMAT::R32UI:		return DXGI_FORMAT_R32_UINT;
+	case x12::TEXTURE_FORMAT::R32UI:	return DXGI_FORMAT_R32_UINT;
 	case x12::TEXTURE_FORMAT::DXT1:		return DXGI_FORMAT_BC1_UNORM;
 	case x12::TEXTURE_FORMAT::DXT3:		return DXGI_FORMAT_BC2_UNORM;
 	case x12::TEXTURE_FORMAT::DXT5:		return DXGI_FORMAT_BC3_UNORM;
-	case x12::TEXTURE_FORMAT::D24S8:		return DXGI_FORMAT_R24G8_TYPELESS;
+	case x12::TEXTURE_FORMAT::D24S8:	return DXGI_FORMAT_R24G8_TYPELESS;
+	case x12::TEXTURE_FORMAT::D32:	return DXGI_FORMAT_D32_FLOAT;
 	}
 
-	engine::LogCritical("EngToDX11Format(): unknown format\n");
+	abort();
 	return DXGI_FORMAT_UNKNOWN;
 }
 
@@ -337,44 +339,18 @@ void x12::Dx12WindowSurface::ResizeBuffers(unsigned width_, unsigned height_)
 
 	DXGI_SWAP_CHAIN_DESC swapChainDesc = {};
 	throwIfFailed(swapChain->GetDesc(&swapChainDesc));
+
 	throwIfFailed(swapChain->ResizeBuffers(DeferredBuffers, width, height, swapChainDesc.BufferDesc.Format, swapChainDesc.Flags));
-	
+
 	for (int i = 0; i < DeferredBuffers; ++i)
 	{
-		if (!rtvHandles[i].ptr)
-			rtvHandles[i] = d3d12::D3D12GetCoreRender()->AllocateRTVDescriptor();
-
-		ComPtr<ID3D12Resource> color;
+		ID3D12Resource *color;
 		throwIfFailed(swapChain->GetBuffer(i, IID_PPV_ARGS(&color)));
 
-		d3d12::CR_GetD3DDevice()->CreateRenderTargetView(color.Get(), nullptr, rtvHandles[i]);
-
-		x12::d3d12::set_name(color.Get(), L"Swapchain back buffer #%d", i);
-
-		colorBuffers[i] = color;
+		x12::GetCoreRender()->CreateTextureFrom(colorBuffers[i].getAdressOf(), L"swapchain texture", color);
 	}
 
-	// Create a depth buffer
-	D3D12_CLEAR_VALUE optimizedClearValue = {};
-	optimizedClearValue.Format = DXGI_FORMAT_D32_FLOAT;
-	optimizedClearValue.DepthStencil = {1.0f, 0};
-
-	x12::memory::CreateCommitted2DTexture(&depthBuffer, width, height, 1, DXGI_FORMAT_D32_FLOAT,
-										  D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL, D3D12_RESOURCE_STATE_DEPTH_WRITE, &optimizedClearValue);
-
-	x12::d3d12::set_name(depthBuffer.Get(), L"Swapchain back depth buffer");
-
-	// Create handles for depth stencil
-	D3D12_DEPTH_STENCIL_VIEW_DESC dsv = {};
-	dsv.Format = DXGI_FORMAT_D32_FLOAT;
-	dsv.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
-	dsv.Texture2D.MipSlice = 0;
-	dsv.Flags = D3D12_DSV_FLAG_NONE;
-
-	if (!dsvHandle.ptr)
-		dsvHandle = d3d12::D3D12GetCoreRender()->AllocateDSVDescriptor();
-
-	d3d12::CR_GetD3DDevice()->CreateDepthStencilView(depthBuffer.Get(), &dsv, dsvHandle);
+	x12::GetCoreRender()->CreateTexture(depthBuffer.getAdressOf(), L"depth texture", nullptr, 0, width, height, 0, TEXTURE_TYPE::TYPE_2D, TEXTURE_FORMAT::D32, TEXTURE_CREATE_FLAGS::USAGE_RENDER_TARGET);
 }
 
 void x12::Dx12WindowSurface::Present()
@@ -387,5 +363,5 @@ void x12::Dx12WindowSurface::Present()
 
 void* x12::Dx12WindowSurface::GetNativeResource(int i)
 {
-	return colorBuffers[i].Get();
+	return colorBuffers[i].get();
 }

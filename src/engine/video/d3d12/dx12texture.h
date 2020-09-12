@@ -12,15 +12,26 @@ namespace x12
 		void InitFromExisting(ID3D12Resource* resource_);
 
 		D3D12_CPU_DESCRIPTOR_HANDLE GetSRV() const { return SRVdescriptor.descriptor; }
+		D3D12_CPU_DESCRIPTOR_HANDLE GetRTV() const { return RTVdescriptor.descriptor; }
+		D3D12_CPU_DESCRIPTOR_HANDLE GetDSV() const { return DSVdescriptor.descriptor; }
+
+		void TransiteToState(D3D12_RESOURCE_STATES newState, ID3D12GraphicsCommandList* cmdList);
 
 	private:
-		void InitSRV();
+		TEXTURE_CREATE_FLAGS flags_;
+		TEXTURE_FORMAT format_;
 
+		void InitSRV();
+		void InitRTV();
+		void InitDSV();
+
+		D3D12_RESOURCE_STATES state{};
 		D3D12_RESOURCE_DESC desc{};
 		ComPtr<ID3D12Resource> resource;
 
 		x12::descriptorheap::Alloc SRVdescriptor;
 		x12::descriptorheap::Alloc RTVdescriptor;
+		x12::descriptorheap::Alloc DSVdescriptor;
 	};
 }
 

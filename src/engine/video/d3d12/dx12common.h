@@ -1,6 +1,7 @@
 #pragma once
 #include "common.h"
 #include "icorerender.h"
+#include "dx12descriptorheap.h"
 
 namespace DirectX {
 	struct GraphicsMemoryStatistics;
@@ -20,13 +21,8 @@ namespace x12
 	{
 		ComPtr<swapchain_t> swapChain;
 
-		ComPtr<ID3D12Resource> colorBuffers[engine::DeferredBuffers]; // TODO: avoid ID3D12Resource, use x12::ICoreTexture
-		D3D12_CPU_DESCRIPTOR_HANDLE rtvHandles[engine::DeferredBuffers]{};
-
-		ComPtr<ID3D12Resource> depthBuffer; // TODO: avoid ID3D12Resource, use x12::ICoreTexture
-		D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle{};
-
-		D3D12_RESOURCE_STATES state{};
+		intrusive_ptr<x12::ICoreTexture> colorBuffers[engine::DeferredBuffers];
+		intrusive_ptr<x12::ICoreTexture> depthBuffer;
 
 		void Init(HWND hwnd, ICoreRenderer* render) override;
 		void ResizeBuffers(unsigned width_, unsigned height_) override;

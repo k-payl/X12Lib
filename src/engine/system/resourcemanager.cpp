@@ -53,7 +53,7 @@ X12_API auto ResourceManager::CreateStreamTexture(const char* path, x12::TEXTURE
 	if (it != streamTexturesMap.end())
 		return StreamPtr<Texture>(it->second);
 
-	TextureResource* resource = new TextureResource(path, flags);
+	TextureResource* resource = new TextureResource(path, flags | x12::TEXTURE_CREATE_FLAGS::USAGE_SHADER_RESOURCE);
 	streamTexturesMap[path] = resource;
 	return StreamPtr<Texture>(resource);
 }

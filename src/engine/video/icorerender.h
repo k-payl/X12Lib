@@ -28,7 +28,7 @@ namespace x12
 	struct ICoreQuery;
 
 	extern ICoreRenderer* _coreRender;
-	inline ICoreRenderer* GetCoreRender() { return _coreRender; }
+	FORCEINLINE ICoreRenderer* GetCoreRender() { return _coreRender; }
 
 	using surface_ptr = std::shared_ptr<IWidowSurface>;
 
@@ -205,6 +205,8 @@ namespace x12
 		// TODO: remove d3d dependency
 		virtual X12_API bool CreateTextureFrom(ICoreTexture** out, LPCWSTR name, std::vector<D3D12_SUBRESOURCE_DATA> subresources, ID3D12Resource* d3dexistingtexture) = 0;
 
+		virtual X12_API bool CreateTextureFrom(ICoreTexture** out, LPCWSTR name, ID3D12Resource* d3dexistingtexture) = 0;
+
 		virtual X12_API bool CreateResourceSet(IResourceSet** out, const ICoreShader* shader) = 0;
 
 		virtual X12_API bool CreateQuery(ICoreQuery** out) = 0;
@@ -237,10 +239,19 @@ namespace x12
 		DXT5,
 
 		// depth/stencil
+		D32,
 		D24S8,
 
 		UNKNOWN
 	};
+	inline bool IsDepthStencil(TEXTURE_FORMAT format)
+	{
+		return format == TEXTURE_FORMAT::D24S8 || format == TEXTURE_FORMAT::D32;
+	}
+	inline bool HasStencil(TEXTURE_FORMAT format)
+	{
+		return format == TEXTURE_FORMAT::D24S8;
+	}
 
 	enum class TEXTURE_CREATE_FLAGS : uint32_t
 	{
@@ -262,6 +273,7 @@ namespace x12
 		//COORDS_BORDER
 
 		USAGE = 0x0000F000,
+		USAGE_SHADER_RESOURCE = 1 << 11,
 		USAGE_RENDER_TARGET = 1 << 12,
 		USAGE_UNORDRED_ACCESS = 1 << 13,
 
@@ -274,6 +286,8 @@ namespace x12
 		GENERATE_MIPMAPS = 1 << 28,
 		MIPMPAPS_PRESENTED = (1 << 28) + 1,
 	};
+	DEFINE_ENUM_OPERATORS(TEXTURE_CREATE_FLAGS)
+
 	enum class TEXTURE_TYPE
 	{
 		TYPE_2D = 0x00000001,
