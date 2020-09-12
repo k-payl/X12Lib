@@ -29,7 +29,7 @@ struct VertexShaderOutput
 	{
 		VertexShaderOutput OUT;
 		
-		OUT.Position = float4(IN.Position.xy + transform.zw, IN.Position.z, 1);
+		OUT.Position = float4(IN.Position.xyz * 0.5 + float3(transform.zw, 0), 1);
 		OUT.Position = mul(MVP, OUT.Position);
 		OUT.Color = color_out;
 		OUT.UV = IN.UV;

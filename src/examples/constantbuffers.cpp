@@ -147,7 +147,7 @@ void Init()
 	res->tex = engine::GetResourceManager()->CreateStreamTexture(TEXTURES_DIR"chipped-paint-metal-albedo_3_512x512.dds", TEXTURE_CREATE_FLAGS::NONE);
 	res->tex.get(); // force load
 
-	res->teapot = engine::GetResourceManager()->CreateStreamMesh(MESH_DIR "cube.mesh");
+	res->teapot = engine::GetResourceManager()->CreateStreamMesh(MESH_DIR "Teapot.002.mesh");
 	res->teapot.get();
 }
 
