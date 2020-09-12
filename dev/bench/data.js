@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1599934979224,
+  "lastUpdate": 1599936092352,
   "repoUrl": "https://github.com/k-payl/X12Lib",
   "entries": {
     "C++ Benchmark": [
@@ -828,6 +828,42 @@ window.BENCHMARK_DATA = {
             "value": 130453914.80000035,
             "unit": "ns/iter",
             "extra": "iterations: 5\ncpu: 130443395 ns\nthreads: 1"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "k-payl@yandex.ru",
+            "name": "Konstantin Pail",
+            "username": "k-payl"
+          },
+          "committer": {
+            "email": "k-payl@yandex.ru",
+            "name": "Konstantin Pail",
+            "username": "k-payl"
+          },
+          "distinct": true,
+          "id": "56d1a628aee630d794c399264d380bec281211c0",
+          "message": "vk, graph records",
+          "timestamp": "2020-09-12T21:40:06+04:00",
+          "tree_id": "a5352b7790792b2e3aa477123e53e500534b00c6",
+          "url": "https://github.com/k-payl/X12Lib/commit/56d1a628aee630d794c399264d380bec281211c0"
+        },
+        "date": 1599936091766,
+        "tool": "googlecpp",
+        "benches": [
+          {
+            "name": "mat4_mult",
+            "value": 18026998.384615265,
+            "unit": "ns/iter",
+            "extra": "iterations: 39\ncpu: 18024400.897435896 ns\nthreads: 1"
+          },
+          {
+            "name": "mat4_inv",
+            "value": 114008898.33333375,
+            "unit": "ns/iter",
+            "extra": "iterations: 6\ncpu: 113614195.83333336 ns\nthreads: 1"
           }
         ]
       }
