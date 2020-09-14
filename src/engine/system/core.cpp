@@ -27,7 +27,7 @@ using namespace engine;
 static std::chrono::steady_clock::time_point start;
 Core* core__;
 
-static ConsoleBoolCommand commandGPUProfiler("gpu_profiler", true);
+static ConsoleBoolVariable commandGPUProfiler("gpu_profiler", true);
 
 void Core::mainLoop()
 {
@@ -283,6 +283,9 @@ void Core::Free()
 		window->Destroy();
 		window = nullptr;
 	}
+
+	resourceManager->Free();
+	resourceManager = nullptr;
 
 	input->Free();
 	input = nullptr;

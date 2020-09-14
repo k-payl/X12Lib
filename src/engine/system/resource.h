@@ -26,6 +26,7 @@ namespace engine
 		int refs_{0};
 		bool loadingFailed{false};
 		uint64_t frame_{};
+		//int64_t timestamp{}; // not used yet
 
 		virtual T* create() = 0;
 
@@ -40,6 +41,7 @@ namespace engine
 		X12_API T* get() override;
 		X12_API void free() override { pointer_ = nullptr; }
 		X12_API bool isLoaded() override { return static_cast<bool>(pointer_); }
+		X12_API void Reload();
 		X12_API uint64_t frame() { return frame_; }
 		X12_API size_t getVideoMemoryUsage()
 		{

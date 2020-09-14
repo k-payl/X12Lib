@@ -3,16 +3,23 @@
 
 namespace engine
 {
-	class ConsoleBoolCommand
+	class ConsoleBoolVariable
 	{
 	public:
-		ConsoleBoolCommand(std::string name_, bool value_);
+		ConsoleBoolVariable(std::string name_, bool value_);
 		std::string name;
 		std::wstring wname;
 		bool value{};
 	};
 
-	void RegisterCommand(const ConsoleBoolCommand* cmd);
+	struct _ConsoleCommand
+	{
+		std::string name;
+		ConsoleCallback callback;
+	};
+
+	void RegisterConsoleVariable(const ConsoleBoolVariable* v);
+	void RegisterConsoleCommand(const std::string& name, ConsoleCallback callback);
 
 	std::wstring ConvertFromUtf8ToUtf16(const std::string& str);
 
@@ -34,7 +41,8 @@ namespace engine
 		void CompletePrevHistory();
 		void CompleteCommand(std::string& tmp);
 		void SetEditText(const wchar_t* str);
-		void PrintAllRegisteredCommands(const std::string& commandName);
+		void PrintAllRegisteredVariables();
+		void PrintAllRegisteredCommands();
 
 	public:
 		struct Hint

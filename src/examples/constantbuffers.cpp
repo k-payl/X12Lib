@@ -8,6 +8,7 @@
 
 #include "resourcemanager.h"
 #include "texture.h"
+#include "shader.h"
 
 using namespace x12;
 
@@ -19,11 +20,11 @@ void Render();
 
 static struct Resources
 {
-	intrusive_ptr<ICoreShader> shader;
 	intrusive_ptr<IResourceSet> cubeResources;
 	intrusive_ptr<ICoreBuffer> cameraBuffer;
 	engine::StreamPtr<engine::Texture> tex;
 	engine::StreamPtr<engine::Mesh> teapot;
+	engine::StreamPtr<engine::Shader> shader;
 } *res;
 
 constexpr inline UINT float4chunks = 10;
@@ -76,7 +77,7 @@ void Render()
 	cmdList->SetViewport(w, h);
 	cmdList->SetScissor(0, 0, w, h);
 	GraphicPipelineState pso{};
-	pso.shader = res->shader.get();
+	pso.shader = res->shader.get()->GetCoreShader();
 	pso.vb = res->teapot.get()->RenderVertexBuffer();
 	pso.primitiveTopology = PRIMITIVE_TOPOLOGY::TRIANGLE;
 
@@ -91,7 +92,7 @@ void Render()
 
 	if (!res->cubeResources)
 	{
-		renderer->CreateResourceSet(res->cubeResources.getAdressOf(), res->shader.get());
+		renderer->CreateResourceSet(res->cubeResources.getAdressOf(), res->shader.get()->GetCoreShader());
 		res->cubeResources->BindConstantBuffer("CameraCB", res->cameraBuffer.get());
 		res->cubeResources->BindTextueSRV("texture_", res->tex.get()->GetCoreTexture());
 		cmdList->CompileSet(res->cubeResources.get());
@@ -132,15 +133,13 @@ void Init()
 	ICoreRenderer* renderer = engine::GetCoreRenderer();
 
 	{
-		auto text = engine::GetFS()->LoadFile(SHADER_DIR "mesh.shader");
-
 		const ConstantBuffersDesc buffersdesc[] =
 		{
 			"TransformCB",	CONSTANT_BUFFER_UPDATE_FRIQUENCY::PER_DRAW
 		};
 
-		renderer->CreateShader(res->shader.getAdressOf(), L"mesh.shader", text.get(), text.get(), buffersdesc,
-											 _countof(buffersdesc));
+		res->shader = engine::GetResourceManager()->CreateGraphicShader(SHADER_DIR "mesh.shader", buffersdesc, _countof(buffersdesc));
+
 	}
 	renderer->CreateConstantBuffer(res->cameraBuffer.getAdressOf(), L"Camera constant buffer", sizeof(mat4));
 

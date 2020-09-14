@@ -1,6 +1,7 @@
 #include "resource.h"
 #include "mesh.h"
 #include "texture.h"
+#include "shader.h"
 #include "core.h"
 
 template <class T>
@@ -11,7 +12,7 @@ void engine::StreamPtr<T>::release()
 		resource_->decRef();
 		if (resource_->getRefs() == 0)
 		{
-			resource_->free();
+			resource_->free(); // destroy resource here if refs==0
 		}
 		assert(resource_->getRefs() >= 0);
 		resource_ = nullptr;
@@ -46,7 +47,23 @@ T* engine::Resource<T>::get()
 	return pointer_.get();
 }
 
+template <class T>
+void engine::Resource<T>::Reload()
+{
+	if (!pointer_)
+		return;
+
+	frame_ = 0;
+	pointer_ = nullptr; // destroy
+
+	get(); // force load 
+}
+
+
+
 template class engine::Resource<engine::Mesh>;
 template class engine::Resource<engine::Texture>;
+template class engine::Resource<engine::Shader>;
 template class X12_API engine::StreamPtr<engine::Mesh>;
 template class X12_API engine::StreamPtr<engine::Texture>;
+template class X12_API engine::StreamPtr<engine::Shader>;

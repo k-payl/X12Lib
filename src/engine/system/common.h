@@ -138,6 +138,7 @@ typedef void (*InitProcedure)();
 typedef void (*InitRendererProcedure)(void*);
 typedef void (*UpdateProcedure)(float dt);
 typedef void (*FreeProcedure)();
+typedef void (*ConsoleCallback)();
 
 typedef HWND WindowHandle;
 

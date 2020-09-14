@@ -1,12 +1,27 @@
 #include "resourcemanager.h"
+#include "console.h"
 
 using namespace engine;
 
 class MeshResource;
 class TextureResource;
+class ShaderResource;
 
 static std::unordered_map<std::string, MeshResource*> streamMeshesMap;
 static std::unordered_map<std::string, TextureResource*> streamTexturesMap;
+static std::unordered_map<std::string, ShaderResource*> shaders;
+
+static void ShadersReloadCommand();
+
+namespace {
+	static struct CommandEmplacer
+	{
+		CommandEmplacer()
+		{
+			engine::RegisterConsoleCommand("shaders_reload", ShadersReloadCommand);
+		}
+	}c;
+}
 
 class MeshResource : public Resource<Mesh>
 {
@@ -36,6 +51,52 @@ public:
 	{}
 };
 
+class ShaderResource : public Resource<Shader>
+{
+	std::vector<Shader::SafeConstantBuffersDesc> descs;
+
+protected:
+	Shader* create() override
+	{
+		return new Shader(path_, descs);
+	}
+
+public:
+	ShaderResource(const std::string& path, const x12::ConstantBuffersDesc* buffersdesc, int numdesc) : Resource(path)
+	{
+		if (buffersdesc && numdesc)
+		{
+			descs.resize(numdesc);
+			for (int i = 0; i < numdesc; i++)
+			{
+				descs[i].mode = buffersdesc[i].mode;
+				descs[i].name = buffersdesc[i].name;
+			}
+		}
+	}
+};
+
+static void ShadersReloadCommand()
+{
+	for (auto& s : shaders)
+		s.second->Reload();
+}
+
+void engine::ResourceManager::Free()
+{
+	for (auto& m : streamMeshesMap)
+		delete m.second;
+	streamMeshesMap.clear();
+
+	for (auto& m : streamTexturesMap)
+		delete m.second;
+	streamTexturesMap.clear();
+
+	for (auto& m : shaders)
+		delete m.second;
+	shaders.clear();
+}
+
 X12_API auto ResourceManager::CreateStreamMesh(const char* path) -> StreamPtr<Mesh>
 {
 	auto it = streamMeshesMap.find(path);
@@ -56,5 +117,21 @@ X12_API auto ResourceManager::CreateStreamTexture(const char* path, x12::TEXTURE
 	TextureResource* resource = new TextureResource(path, flags | x12::TEXTURE_CREATE_FLAGS::USAGE_SHADER_RESOURCE);
 	streamTexturesMap[path] = resource;
 	return StreamPtr<Texture>(resource);
+}
+
+X12_API StreamPtr<Shader> engine::ResourceManager::CreateGraphicShader(const char* path, const x12::ConstantBuffersDesc* buffersdesc, int numdesc)
+{
+	auto it = shaders.find(path);
+	if (it != shaders.end())
+		return StreamPtr<Shader>(it->second);
+
+	ShaderResource* resource = new ShaderResource(path, buffersdesc, numdesc);
+	shaders[path] = resource;
+	return StreamPtr<Shader>(resource);
+}
+
+X12_API auto engine::ResourceManager::ReloadShaders() -> void
+{
+	ShadersReloadCommand();
 }
 

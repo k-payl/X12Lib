@@ -1,7 +1,6 @@
-
-
 #define _CRT_SECURE_NO_WARNINGS
 #include "console.h"
+
 #include <string>
 #include <sstream>
 
@@ -18,36 +17,76 @@ static HWND hwndEdit0;
 #define C_WND_EDIT_HEIGHT 16
 #define C_WND_LISTBOX_HEIGHT 100
 
+// All comands aand variables
 namespace
 {
-	std::vector<const ConsoleBoolCommand*>& Commands()
+	std::vector<const ConsoleBoolVariable*>& ConsoleVariables()
 	{
-		static std::vector<const ConsoleBoolCommand*> commands_;
-		return commands_;
+		static std::vector<const ConsoleBoolVariable*> variables_;
+		return variables_;
+	}
+
+	std::vector<_ConsoleCommand>& ConsoleCommands()
+	{
+		static std::vector<_ConsoleCommand> cmds_;
+		return cmds_;
+	}
+
+	const ConsoleBoolVariable* FindConsoleVariable(const std::string& name)
+	{
+		auto it = std::find_if(ConsoleVariables().begin(), ConsoleVariables().end(), [name](const ConsoleBoolVariable* r)->bool {return r->name == name; });
+		if (it == ConsoleVariables().end())
+			return nullptr;
+		return *it;
+	}
+
+	const _ConsoleCommand* FindCommand(const std::string& name)
+	{
+		auto it = std::find_if(ConsoleCommands().begin(), ConsoleCommands().end(), [name](const _ConsoleCommand& r)->bool {return r.name == name; });
+		if (it == ConsoleCommands().end())
+			return nullptr;
+		return &*it;
 	}
 }
 
-engine::ConsoleBoolCommand::ConsoleBoolCommand(std::string name_, bool value_) :
+engine::ConsoleBoolVariable::ConsoleBoolVariable(std::string name_, bool value_) :
 	name(name_), value(value_)
 {
 	wname = ConvertFromUtf8ToUtf16(name_);
-	RegisterCommand(this);
+	RegisterConsoleVariable(this);
 }
 
-const ConsoleBoolCommand* FindCommand(const std::string& name)
+void engine::RegisterConsoleVariable(const ConsoleBoolVariable* cmd)
 {
-	auto it = std::find_if(Commands().begin(), Commands().end(), [name](const ConsoleBoolCommand* r)->bool {return r->name == name; });
-	if (it == Commands().end())
-		return nullptr;
-	return *it;
-}
-
-void engine::RegisterCommand(const ConsoleBoolCommand* cmd)
-{
-	if (FindCommand(cmd->name) != nullptr)
+	if (FindConsoleVariable(cmd->name) != nullptr)
 		return;
 
-	Commands().push_back(cmd);
+	ConsoleVariables().push_back(cmd);
+}
+
+void engine::RegisterConsoleCommand(const std::string& name, ConsoleCallback callback)
+{
+	if (FindCommand(name) != nullptr)
+		return;
+
+	ConsoleCommands().push_back({ name, callback });
+}
+
+void engine::Console::PrintAllRegisteredVariables()
+{
+	OutputTxt("registered variables:");
+	for (auto* c : ConsoleVariables())
+	{
+		OutputTxt(c->name.c_str());
+	}
+}
+void engine::Console::PrintAllRegisteredCommands()
+{
+	OutputTxt("registered commands:");
+	for (auto& c : ConsoleCommands())
+	{
+		OutputTxt(c.name.c_str());
+	}
 }
 
 LRESULT CALLBACK Console::wndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
@@ -187,12 +226,12 @@ void engine::Console::CreateHintWindow(const std::string& word_)
 	size_t count = 0;
 	std::vector<bool> needToAdd;
 	std::vector<int> indexes;
-	indexes.reserve(Commands().size());
-	needToAdd.resize(Commands().size());
+	indexes.reserve(ConsoleVariables().size());
+	needToAdd.resize(ConsoleVariables().size());
 
-	for (int i = 0; i < Commands().size(); ++i)
+	for (int i = 0; i < ConsoleVariables().size(); ++i)
 	{
-		const ConsoleBoolCommand* cmd = Commands()[i];
+		const ConsoleBoolVariable* cmd = ConsoleVariables()[i];
 
 		if (cmd->name.find(word_)  != string::npos)
 		{
@@ -210,10 +249,10 @@ void engine::Console::CreateHintWindow(const std::string& word_)
 	hint->count = count;
 	hint->hListBox_ = CreateWindow(TEXT("LISTBOX"), TEXT(""), WS_CHILD | WS_VISIBLE, 0, 0, 400, 17 * count, hMemo_, 0, 0, NULL);
 
-	for (int i = 0; i < Commands().size(); ++i)
+	for (int i = 0; i < ConsoleVariables().size(); ++i)
 	{
 		if (needToAdd[i])
-			SendMessage(hint->hListBox_, LB_ADDSTRING, 0, (LPARAM)(LPSTR)Commands()[i]->wname.c_str());
+			SendMessage(hint->hListBox_, LB_ADDSTRING, 0, (LPARAM)(LPSTR)ConsoleVariables()[i]->wname.c_str());
 	}
 
 	SendMessage(hint->hListBox_, LB_SETCURSEL, (WPARAM)0, (LPARAM)-1);
@@ -235,21 +274,26 @@ void engine::Console::ExecuteCommand(const wchar_t* str)
 	string tmp = ConvertFromUtf16ToUtf8(str);
 	OutputTxt(tmp.c_str());
 
-	int value=-1;
-	string commandName;
+	int value = -1;
+	string name_;
 	std::stringstream ss(tmp);
 
-	ss >> commandName;
+	ss >> name_;
 	ss >> value;
 
-	ConsoleBoolCommand* cmd = const_cast<ConsoleBoolCommand*>(FindCommand(commandName));
-
-	if (cmd)
-		cmd->value = value > 0;
+	if (ConsoleBoolVariable* v = const_cast<ConsoleBoolVariable*>(FindConsoleVariable(name_)))
+	{
+		v->value = value > 0;
+	}
+	else if (_ConsoleCommand *cmd = const_cast<_ConsoleCommand*>(FindCommand(name_)))
+	{
+		cmd->callback();
+	}
 	else
 	{
-		OutputTxt(("Unknow command '" + commandName + "'").c_str());
-		PrintAllRegisteredCommands(commandName);
+		OutputTxt(("Unknow command '" + name_ + "'").c_str());
+		PrintAllRegisteredVariables();
+		PrintAllRegisteredCommands();
 	}
 
 	if (history.empty() || history.back() != str)
@@ -269,15 +313,6 @@ void engine::Console::SetEditText(const wchar_t* str)
 {
 	SetWindowText(hEdit_, str);
 	SetCursorToEnd();
-}
-
-void engine::Console::PrintAllRegisteredCommands(const std::string& commandName)
-{
-	OutputTxt("All registered commands:");
-	for (auto* c : Commands())
-	{
-		OutputTxt(c->name.c_str());
-	}
 }
 
 void engine::Console::CompleteNextHistory()
@@ -467,13 +502,13 @@ void engine::Console::CompleteCommand(std::string& tmp)
 {
 	if (hint)
 	{
-		const ConsoleBoolCommand* cmd = Commands()[hint->selected];
+		const ConsoleBoolVariable* cmd = ConsoleVariables()[hint->selected];
 		if (tmp != cmd->name)
 			SetEditText(cmd->wname.c_str());
 		else
 		{
 			hint->SelectPrev();
-			const ConsoleBoolCommand* cmd = Commands()[hint->selected];
+			const ConsoleBoolVariable* cmd = ConsoleVariables()[hint->selected];
 		SetEditText(cmd->wname.c_str());
 		}
 	}
