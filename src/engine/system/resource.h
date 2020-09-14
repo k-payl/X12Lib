@@ -8,13 +8,14 @@ namespace engine
 	{
 	public:
 		X12_API virtual ~IResource() = default;
-		X12_API virtual void addRef() = 0;
-		X12_API virtual void decRef() = 0;
-		X12_API virtual int getRefs() const = 0;
-		X12_API virtual T* get() = 0;
-		X12_API virtual std::string& getPath() = 0;
-		X12_API virtual void free() = 0;
-		X12_API virtual bool isLoaded() = 0;
+		X12_API virtual void AddRef() = 0;
+		X12_API virtual void DecRef() = 0;
+		X12_API virtual int GetRefs() const = 0;
+		X12_API virtual T* Get() = 0;
+		X12_API virtual std::string& GetPath() = 0;
+		X12_API virtual void Free() = 0;
+		X12_API virtual bool IsLoaded() = 0;
+		X12_API virtual void Reload() = 0;
 	};
 
 	template<typename T>
@@ -34,19 +35,17 @@ namespace engine
 		X12_API Resource(const std::string& path);
 		X12_API ~Resource() = default;
 
-		X12_API void addRef() override { refs_++; }
-		X12_API void decRef() override { refs_--; }
-		X12_API int getRefs() const override { return refs_; }
-		X12_API std::string& getPath() override { return path_; }
-		X12_API T* get() override;
-		X12_API void free() override { pointer_ = nullptr; }
-		X12_API bool isLoaded() override { return static_cast<bool>(pointer_); }
+		X12_API void AddRef() override { refs_++; }
+		X12_API void DecRef() override { refs_--; }
+		X12_API int GetRefs() const override { return refs_; }
+		X12_API std::string& GetPath() override { return path_; }
+		X12_API T* Get() override;
+		X12_API void Free() override { pointer_ = nullptr; }
+		X12_API bool IsLoaded() override { return static_cast<bool>(pointer_); }
 		X12_API void Reload();
-		X12_API uint64_t frame() { return frame_; }
-		X12_API size_t getVideoMemoryUsage()
+		X12_API uint64_t Frame() { return frame_; }
+		X12_API size_t GetVideoMemoryUsage()
 		{
-			//if (pointer_)
-			//	return pointer_->GetVideoMemoryUsage();
 			return 0;
 		}
 	};
@@ -59,7 +58,7 @@ namespace engine
 		inline void grab()
 		{
 			if (resource_)
-				resource_->addRef();
+				resource_->AddRef();
 		}
 
 		void release();
@@ -102,18 +101,18 @@ namespace engine
 		}
 		T* get()
 		{
-			return resource_ ? resource_->get() : nullptr;
+			return resource_ ? resource_->Get() : nullptr;
 		}
 		bool isLoaded()
 		{
-			return resource_ ? resource_->isLoaded() : false;
+			return resource_ ? resource_->IsLoaded() : false;
 		}
 		const std::string& path()
 		{
 			static std::string empty;
 			if (!resource_)
 				return empty;
-			return resource_->getPath();
+			return resource_->GetPath();
 		}
 	};
 }

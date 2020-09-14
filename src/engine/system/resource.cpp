@@ -9,12 +9,12 @@ void engine::StreamPtr<T>::release()
 {
 	if (resource_)
 	{
-		resource_->decRef();
-		if (resource_->getRefs() == 0)
+		resource_->DecRef();
+		if (resource_->GetRefs() == 0)
 		{
-			resource_->free(); // destroy resource here if refs==0
+			resource_->Free(); // destroy resource here if refs==0
 		}
-		assert(resource_->getRefs() >= 0);
+		assert(resource_->GetRefs() >= 0);
 		resource_ = nullptr;
 	}
 }
@@ -27,7 +27,7 @@ engine::Resource<T>::Resource(const std::string& path) :
 }
 
 template <class T>
-T* engine::Resource<T>::get()
+T* engine::Resource<T>::Get()
 {
 	if (pointer_)
 	{
@@ -53,10 +53,9 @@ void engine::Resource<T>::Reload()
 	if (!pointer_)
 		return;
 
-	frame_ = 0;
-	pointer_ = nullptr; // destroy
+	Free();
 
-	get(); // force load 
+	Get(); // force load 
 }
 
 
