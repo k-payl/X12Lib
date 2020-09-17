@@ -1,7 +1,7 @@
 
 #include "light.h"
 
-#include "yaml-cpp/include/yaml-cpp/yaml.h"
+#include "yaml-cpp/yaml.h"
 using namespace YAML;
 
 void engine::Light::Copy(GameObject * original)

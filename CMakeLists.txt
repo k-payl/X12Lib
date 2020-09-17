@@ -12,7 +12,7 @@ project (x12lib)
 # YAML
 option(YAML_CPP_BUILD_TOOLS "" OFF)
 option(YAML_CPP_BUILD_TESTS "" OFF)
-add_subdirectory(src/engine/3rdparty/yaml-cpp)
+add_subdirectory(3rdparty/yaml-cpp)
 
 option(VK_ENABLE "Enable vulkan renderer" OFF)
 
@@ -34,33 +34,29 @@ add_definitions ( -DUNICODE )
 remove_definitions ( -D_MBCS )
 remove_definitions ( -DMBCS )
 
-file(GLOB SOURCES_SYSTEM src/engine/system/*.cpp src/engine/math/*.cpp)
-file(GLOB SOURCES_VIDEO src/engine/video/*.cpp src/engine/video/d3d12/*.cpp)
+file(GLOB SOURCES_SYSTEM src/engine/system/*.cpp src/math/*.cpp)
+file(GLOB SOURCES_VIDEO src/engine/x12/*.cpp src/engine/x12/d3d12/*.cpp)
 file(GLOB SOURCES_3RDPARTY     
-	src/engine/3rdparty/*.cpp
-    src/engine/3rdparty/pugixml/*.cpp
-    src/engine/3rdparty/DirectXTK/Src/*.cpp
-    src/engine/3rdparty/DirectXTex/*.cpp)
+	3rdparty/*.cpp
+    3rdparty/pugixml/*.cpp
+    3rdparty/DirectXTK/Src/*.cpp
+    3rdparty/DirectXTex/*.cpp)
 
-file(GLOB HEADERS_VIDEO src/engine/video/*.h src/engine/video/d3d12/*.h)
-file(GLOB HEADERS_SYSTEM src/engine/system/*.h src/engine/math/*.h)
+file(GLOB HEADERS_VIDEO src/engine/x12/*.h src/engine/x12/d3d12/*.h)
+file(GLOB HEADERS_SYSTEM src/engine/system/*.h src/math/*.h)
 file(GLOB HEADERS_3RDPARTY
-	src/engine/3rdparty/*.h
-    src/engine/3rdparty/pugixml/*.h
-    src/engine/3rdparty/DirectXTK/Inc/*.h
-    src/engine/3rdparty/DirectXTex/*.h)
+	3rdparty/*.h
+    3rdparty/pugixml/*.h
+    3rdparty/DirectXTK/Inc/*.h
+    3rdparty/DirectXTex/*.h)
 	
-include_directories(src/engine/3rdparty/yaml-cpp/include)
-
 # Vulkan
 if (VK_ENABLE)
 	add_definitions(-DVK_ENABLE=1)
-	file(GLOB SOURCES_VK src/engine/video/vk/*.cpp)
-	file(GLOB HEADERS_VK src/engine/video/vk/*.h)
+	file(GLOB SOURCES_VK src/engine/x12/vk/*.cpp)
+	file(GLOB HEADERS_VK src/engine/x12/vk/*.h)
 	set(SOURCES_VIDEO ${SOURCES_VIDEO} ${SOURCES_VK})
 	set(HEADERS_VIDEO ${HEADERS_VIDEO} ${HEADERS_VK})
-	include_directories(src/engine/video/vk)
-	include_directories(src/engine/3rdparty/VulkanMemoryAllocator)
 	set(HEADERS ${HEADERS} ${Vulkan_INCLUDE_DIR}/vulkan/)
 endif()
 
@@ -70,16 +66,7 @@ set(HEADERS ${HEADERS} ${HEADERS_SYSTEM} ${HEADERS_VIDEO} ${HEADERS_3RDPARTY})
 set(VIDEO_FILES ${SOURCES_VIDEO} ${HEADERS_VIDEO})
 source_group("system" FILES ${SOURCES_SYSTEM} ${HEADERS_SYSTEM})
 source_group("3rdparty" FILES ${SOURCES_3RDPARTY} ${HEADERS_3RDPARTY})
-source_group("video" FILES ${VIDEO_FILES})
-
-include_directories(src/engine/video 
-	src/engine/video/d3d12
-	src/engine/system
-	src/engine/math
-    src/engine/3rdparty
-    src/engine/3rdparty/pugixml
-    src/engine/3rdparty/DirectXTK/Inc
-    src/engine/3rdparty/DirectXTex)
+source_group("x12" FILES ${VIDEO_FILES})
 
 # TODO: fix C: drive
 set(DXC_PATH "C:\\Program Files (x86)\\Windows Kits\\10\\bin\\${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION}\\x64\\dxcompiler.dll")
@@ -95,35 +82,79 @@ else()
 	add_compile_options("/std:c++17")
 endif()
 
-include_directories(${HEADERS})
-
 # engine
-set(ENGINE_LIBS dxguid dxgi d3d12 d3dcompiler)
+add_library(engine SHARED ${SOURCES})
+
+target_include_directories(engine PRIVATE
+	include/engine/system
+	include/engine/x12
+	include/engine/x12/d3d12
+	include/d3dx12
+	include/math
+	resources/shaders
+	src/engine/3rdparty/yaml-cpp/include
+	src/engine/x12 
+	src/engine/x12/d3d12
+	src/engine/system
+	src/engine/math
+	3rdparty/d3dx12
+    3rdparty/pugixml
+    3rdparty/DirectXTK/Inc
+    3rdparty/DirectXTex)
+
 if (VK_ENABLE)
+	target_include_directories(engine PRIVATE include/engine/x12/vk)
+	target_include_directories(engine PRIVATE 3rdparty/VulkanMemoryAllocator)
 	set(ENGINE_LIBS ${ENGINE_LIBS} ${Vulkan_LIBRARY})
 endif()
-add_library(engine SHARED ${SOURCES})
+
+set(ENGINE_LIBS dxguid dxgi d3d12 d3dcompiler)
 target_precompile_headers(engine PRIVATE src/engine/system/pch.h)
 target_link_libraries(engine ${ENGINE_LIBS})
 target_link_libraries(engine yaml-cpp)
 target_compile_definitions(engine PUBLIC _DLL_EXPORTS)
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /SUBSYSTEM:WINDOWS")
 
+# Examples
 
 # engine main
 add_executable(engine_main src/examples/engine_main.cpp)
+target_include_directories(engine_main PRIVATE
+	include/engine/system
+	include/engine/x12
+	include/engine/x12/d3d12
+	include/math
+	resources/shaders
+	3rdparty/d3dx12)
 target_link_libraries(engine_main engine)
 target_compile_features(engine_main PRIVATE cxx_std_17)
 set_property(TARGET engine_main PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/build")
 
-# const buffer example
+# constbuffer example
 add_executable(constantbuffers src/examples/constantbuffers.cpp)
+target_include_directories(constantbuffers PRIVATE
+	include/engine/system
+	include/engine/x12
+	include/engine/x12/d3d12
+	include/math
+	resources/shaders
+	3rdparty/d3dx12)
 target_include_directories(constantbuffers PRIVATE src/examples)
 target_link_libraries(constantbuffers engine)
 set_property(TARGET constantbuffers PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/build")
 
-# uav barriers example
+# uavbarriers example
 add_executable(uavbarriers src/examples/uavbarriers.cpp)
+target_include_directories(uavbarriers PRIVATE
+	include/engine/system
+	include/engine/x12
+	include/engine/x12/d3d12
+	include/math
+	resources/shaders
+	3rdparty/d3dx12)
+if (VK_ENABLE)
+	target_include_directories(uavbarriers PRIVATE src/engine/x12/vk)
+endif()
 target_link_libraries(uavbarriers engine)
 set_target_properties(uavbarriers PROPERTIES LINK_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /SUBSYSTEM:CONSOLE")
 set_property(TARGET uavbarriers PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/build")
@@ -131,7 +162,14 @@ set_property(TARGET uavbarriers PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_
 # raytracing
 if (RAYTRACING_SAMPLE)
 	add_executable(raytracing src/examples/raytracing.cpp src/examples/raytracing_utils.cpp)
-	target_include_directories(raytracing PRIVATE src/examples)
+	target_include_directories(raytracing PRIVATE
+	include/engine/system
+	include/engine/x12
+	include/engine/x12/d3d12
+	include/math
+	resources/shaders
+	3rdparty/d3dx12)
+	
 	target_link_libraries(raytracing engine)
 	target_link_libraries(raytracing dxcompiler)
 	set_property(TARGET raytracing PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/build")

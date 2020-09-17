@@ -4,7 +4,7 @@
 #include "core.h"
 #include "input.h"
 
-#include "yaml-cpp/include/yaml-cpp/yaml.h"
+#include "yaml-cpp/yaml.h"
 using namespace YAML;
 
 #define MOVE_SPEED 10.f

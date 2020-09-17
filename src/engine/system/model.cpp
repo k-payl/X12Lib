@@ -3,7 +3,7 @@
 #include "core.h"
 #include "resourcemanager.h"
 
-#include "yaml-cpp/include/yaml-cpp/yaml.h"
+#include "yaml-cpp/yaml.h"
 using namespace YAML;
 
 void engine::Model::Copy(GameObject * original)

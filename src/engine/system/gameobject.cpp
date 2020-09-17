@@ -3,7 +3,7 @@
 #include "console.h"
 #include "gameobject.h"
 
-#include "yaml-cpp/include/yaml-cpp/yaml.h"
+#include "yaml-cpp/yaml.h"
 #include "yaml.inl"
 using namespace YAML;
 

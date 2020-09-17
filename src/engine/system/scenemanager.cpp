@@ -7,7 +7,7 @@
 #include "light.h"
 #include "filesystem.h"
 
-#include "yaml-cpp/include/yaml-cpp/yaml.h"
+#include "yaml-cpp/yaml.h"
 
 using engine::GameObject;
 using engine::Model;

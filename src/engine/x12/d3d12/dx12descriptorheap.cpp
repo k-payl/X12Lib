@@ -212,8 +212,17 @@ Alloc Page::Allocate(uint32_t numDescriptors)
 	// Decrement free handles.
 	numFreeHandles -= numDescriptors;
 
+	UINT descriptorSize;
+	switch (heapType)
+	{
+		case D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV: descriptorSize = d3d12::CR_CBSRV_DescriptorsSize(); break;
+		case D3D12_DESCRIPTOR_HEAP_TYPE_RTV: descriptorSize = d3d12::CR_RTV_DescriptorsSize(); break;
+		case D3D12_DESCRIPTOR_HEAP_TYPE_DSV: descriptorSize = d3d12::CR_DSV_DescriptorsSize(); break;
+		default: unreacheble();
+	}
+
 	return Alloc(
-		CD3DX12_CPU_DESCRIPTOR_HANDLE(baseDescriptor, blockOffset, d3d12::CR_CBSRV_DescriptorsSize()),
+		CD3DX12_CPU_DESCRIPTOR_HANDLE(baseDescriptor, blockOffset, descriptorSize),
 		numDescriptors, d3d12::CR_CBSRV_DescriptorsSize(), shared_from_this());
 }
 
