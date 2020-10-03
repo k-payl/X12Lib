@@ -1,5 +1,4 @@
 #include "dx12render.h"
-
 #include "dx12render.h"
 #include "dx12render.h"
 #include "dx12shader.h"
@@ -69,20 +68,34 @@ void x12::Dx12CoreRenderer::Init()
 		ComPtr<IDXGIAdapter1> dxgiAdapter1;
 
 		SIZE_T maxDedicatedVideoMemory = 0;
+		UINT adapaterNum = 0;
 		for (UINT i = 0; dxgiFactory->EnumAdapters1(i, &dxgiAdapter1) != DXGI_ERROR_NOT_FOUND; ++i)
 		{
 			DXGI_ADAPTER_DESC1 adapterDesc;
 			dxgiAdapter1->GetDesc1(&adapterDesc);
+
+			wprintf_s(L"Adapter %d: '%s', dedicated memory %Iu, shared memory: %Iu, software %d \n", adapaterNum,
+				adapterDesc.Description, adapterDesc.DedicatedVideoMemory, adapterDesc.SharedSystemMemory, adapterDesc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE? 1 : 0);
 
 			// Choose adapter with the largest dedicated video memory
 			if ((adapterDesc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) == 0 && 
 				SUCCEEDED(D3D12CreateDevice(dxgiAdapter1.Get(), D3D_FEATURE_LEVEL_12_0, __uuidof(ID3D12Device), nullptr)) &&
 				adapterDesc.DedicatedVideoMemory > maxDedicatedVideoMemory)
 			{
+				if (adapter)
+					adapter->Release();
+
 				maxDedicatedVideoMemory = adapterDesc.DedicatedVideoMemory;
 				throwIfFailed(dxgiAdapter1->QueryInterface(__uuidof(IDXGIAdapter4), (void**)&adapter));
 			}
+
+			adapaterNum++;
 		}
+	}
+
+	if (!adapter)
+	{
+		wprintf_s(L"No descrete adapter");
 	}
 
 	throwIfFailed(D3D12CreateDevice(adapter, D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(&device)));
@@ -444,7 +457,7 @@ bool x12::Dx12CoreRenderer::CreateVertexBuffer(ICoreVertexBuffer** out, LPCWSTR 
 bool x12::Dx12CoreRenderer::CreateConstantBuffer(ICoreBuffer**out, LPCWSTR name, size_t size, bool FastGPUread)
 {
 	auto* ptr = new Dx12CoreBuffer(alignConstantBufferSize(size), nullptr, FastGPUread? MEMORY_TYPE::GPU_READ : MEMORY_TYPE::CPU, BUFFER_FLAGS::CONSTANT_BUFFER, name);
-	ptr->initCBV(size);
+	ptr->initCBV(UINT(size));
 	ptr->AddRef();
 	*out = ptr;
 
@@ -457,10 +470,10 @@ bool x12::Dx12CoreRenderer::CreateStructuredBuffer(ICoreBuffer** out, LPCWSTR na
 	auto* ptr = new Dx12CoreBuffer(structureSize * num, data, MEMORY_TYPE::GPU_READ, flags, name);
 
 	if (flags & BUFFER_FLAGS::SHADER_RESOURCE)
-		ptr->initSRV(num, structureSize, false);
+		ptr->initSRV(num, UINT(structureSize), false);
 
 	if (flags & BUFFER_FLAGS::UNORDERED_ACCESS)
-		ptr->initUAV(num, structureSize, false);
+		ptr->initUAV(num, UINT(structureSize), false);
 
 	ptr->AddRef();
 	*out = ptr;
@@ -473,7 +486,7 @@ bool x12::Dx12CoreRenderer::CreateRawBuffer(ICoreBuffer** out, LPCWSTR name, siz
 	auto* ptr = new Dx12CoreBuffer(size, nullptr, MEMORY_TYPE::GPU_READ, flags, name);
 
 	if (flags & BUFFER_FLAGS::SHADER_RESOURCE)
-		ptr->initSRV(size, 0, true);
+		ptr->initSRV(UINT(size), 0, true);
 
 	if (flags & BUFFER_FLAGS::UNORDERED_ACCESS)
 		ptr->initUAV(size, 0, true);

@@ -26,3 +26,16 @@ jobs:
           comment-on-alert: true
           alert-comment-cc-users: '@k-payl'
           max-items-in-chart: 30
+
+      #- uses: lukka/run-cmake@v3
+      #  with:
+      #    cmakeGenerator: VS16Win64
+      #    cmakeListsOrSettingsJson: CMakeListsTxtBasic
+      #    cmakeListsTxtPath: ${{ github.workspace }}\CMakeLists.txt
+      #    cmakeBuildType: Release
+      #    buildDirectory: ${{ github.workspace }}\build
+      #    buildWithCMake: true
+      #
+      #- name: Run test
+      #  run: cd build && Release\\tests.exe --gtest_catch_exceptions=0
+      #  shell: cmd
