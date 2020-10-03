@@ -45,6 +45,7 @@ namespace x12
 		void BindStructuredBufferSRV(const char* name, ICoreBuffer* buffer) override;
 		void BindStructuredBufferUAV(const char* name, ICoreBuffer* buffer) override;
 		void BindTextueSRV(const char* name, ICoreTexture* texture) override;
+		void BindTextueUAV(const char* name, ICoreTexture* texture) override;
 
 		size_t FindInlineBufferIndex(const char* name) override;
 

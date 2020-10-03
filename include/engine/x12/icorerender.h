@@ -83,7 +83,8 @@ namespace x12
 
 	public:
 		virtual ~ICoreGraphicCommandList() = default;
-		virtual X12_API void BindSurface(surface_ptr& surface_) = 0; // TODO: bind arbitary textures
+		virtual X12_API void BindSurface(surface_ptr& surface_) = 0;
+		virtual X12_API void SetRenderTargets(ICoreTexture** textures, uint32_t count, ICoreTexture* depthStencil) = 0;
 		virtual X12_API void PushState() = 0;
 		virtual X12_API void PopState() = 0;
 		virtual X12_API void SetGraphicPipelineState(const GraphicPipelineState& gpso) = 0;
@@ -212,6 +213,8 @@ namespace x12
 		virtual X12_API bool CreateQuery(ICoreQuery** out) = 0;
 
 		virtual X12_API void* GetNativeDevice() = 0;
+
+		virtual X12_API void* GetNativeGraphicQueue() = 0; // Tmp
 	};
 
 	enum class TEXTURE_FORMAT
@@ -385,6 +388,8 @@ namespace x12
 
 	public:
 		ICoreTexture();
+		virtual X12_API void* GetNativeResource() = 0;
+		virtual X12_API void GetData(void* data) = 0;
 	};
 
 	struct ICoreBuffer : public IResourceUnknown
@@ -407,6 +412,7 @@ namespace x12
 		virtual X12_API void BindStructuredBufferSRV(const char* name, ICoreBuffer* buffer) = 0;
 		virtual X12_API void BindStructuredBufferUAV(const char* name, ICoreBuffer* buffer) = 0;
 		virtual X12_API void BindTextueSRV(const char* name, ICoreTexture* texture) = 0;
+		virtual X12_API void BindTextueUAV(const char* name, ICoreTexture* texture) = 0;
 		virtual X12_API size_t FindInlineBufferIndex(const char* name) = 0;
 	};
 

@@ -16,9 +16,14 @@ const auto numCubesY = 10;
 
 static vec4 colors[] = { vec4(1,1,1,1),vec4(0,1,0,1),vec4(0,0,1,1),vec4(1,0,0,1) };
 
-inline vec4 cubePosition(int i, int j)
+inline mat4 cubePosition(int i, int j, float offset)
 {
-	return vec4(0.5f, 0.5f, 3.0f * (0.5f * (numCubesX % 2 == 0) + i - numCubesX / 2), 3.0f * (float)j);
+	mat4 ret;
+
+	vec3 pos = vec3(6.0f * (j - numCubesY / 2), offset, -6);
+	ret.SetColumn3(3, pos);
+
+	return ret;
 }
 
 inline vec4 cubeColor(int i, int j)
@@ -28,8 +33,9 @@ inline vec4 cubeColor(int i, int j)
 
 struct DynamicCB
 {
-	vec4 transform;
 	vec4 color_out;
+	mat4 transform;
+	mat4 NM;
 };
 
 struct VertexPosColor

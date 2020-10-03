@@ -54,21 +54,23 @@ public:
 class ShaderResource : public Resource<Shader>
 {
 	std::vector<Shader::SafeConstantBuffersDesc> descs;
+	bool compute_{ false };
 
 protected:
 	Shader* create() override
 	{
-		return new Shader(path_, descs);
+		return new Shader(path_, descs, compute_);
 	}
 
 public:
-	ShaderResource(const std::string& path, const x12::ConstantBuffersDesc* buffersdesc, int numdesc) : Resource(path)
+	ShaderResource(const std::string& path, const x12::ConstantBuffersDesc* buffersdesc, int numdesc, bool compute = false) : Resource(path), compute_(compute)
 	{
 		if (buffersdesc && numdesc)
 		{
 			descs.resize(numdesc);
 			for (int i = 0; i < numdesc; i++)
 			{
+				const char *ptr = descs[i].name.c_str();
 				descs[i].mode = buffersdesc[i].mode;
 				descs[i].name = buffersdesc[i].name;
 			}
@@ -125,7 +127,18 @@ X12_API StreamPtr<Shader> engine::ResourceManager::CreateGraphicShader(const cha
 	if (it != shaders.end())
 		return StreamPtr<Shader>(it->second);
 
-	ShaderResource* resource = new ShaderResource(path, buffersdesc, numdesc);
+	ShaderResource* resource = new ShaderResource(path, buffersdesc, numdesc, false);
+	shaders[path] = resource;
+	return StreamPtr<Shader>(resource);
+}
+
+X12_API StreamPtr<Shader> engine::ResourceManager::CreateComputeShader(const char* path, const x12::ConstantBuffersDesc* buffersdesc, int numdesc)
+{
+	auto it = shaders.find(path);
+	if (it != shaders.end())
+		return StreamPtr<Shader>(it->second);
+
+	ShaderResource* resource = new ShaderResource(path, buffersdesc, numdesc, true);
 	shaders[path] = resource;
 	return StreamPtr<Shader>(resource);
 }

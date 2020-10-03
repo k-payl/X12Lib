@@ -156,12 +156,12 @@ void Dx12GpuProfiler::Init()
 
 	// Font shader
 	{
-		auto text = fs->LoadFile(SHADER_DIR "gpuprofiler_font.shader");
+		auto text = fs->LoadFile(SHADER_DIR "gpuprofiler_font.hlsl");
 		const ConstantBuffersDesc buffersdesc[] =
 		{
 			{"TransformCB",	CONSTANT_BUFFER_UPDATE_FRIQUENCY::PER_DRAW},
 		};
-		GetCoreRender()->CreateShader(fontShader.getAdressOf(), L"gpuprofiler_font.shader", text.get(), text.get(), &buffersdesc[0], _countof(buffersdesc));
+		GetCoreRender()->CreateShader(fontShader.getAdressOf(), L"gpuprofiler_font.hlsl", text.get(), text.get(), &buffersdesc[0], _countof(buffersdesc));
 	}
 
 	{
@@ -171,8 +171,8 @@ void Dx12GpuProfiler::Init()
 			{"GraphColor", CONSTANT_BUFFER_UPDATE_FRIQUENCY::PER_DRAW}
 		};
 
-		auto text = fs->LoadFile(SHADER_DIR"gpuprofiler_graph.shader");
-		GetCoreRender()->CreateShader(graphShader.getAdressOf(), L"gpuprofiler_graph.shader", text.get(), text.get(), &buffersdesc[0], _countof(buffersdesc));
+		auto text = fs->LoadFile(SHADER_DIR"gpuprofiler_graph.hlsl");
+		GetCoreRender()->CreateShader(graphShader.getAdressOf(), L"gpuprofiler_graph.hlsl", text.get(), text.get(), &buffersdesc[0], _countof(buffersdesc));
 	}
 
 	GetCoreRender()->CreateConstantBuffer(viewportUniformBuffer.getAdressOf(), L"Dx12GpuProfiler viewport", 16);

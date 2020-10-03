@@ -363,5 +363,5 @@ void x12::Dx12WindowSurface::Present()
 
 void* x12::Dx12WindowSurface::GetNativeResource(int i)
 {
-	return colorBuffers[i].get();
+	return colorBuffers[i]->GetNativeResource();
 }

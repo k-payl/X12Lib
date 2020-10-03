@@ -29,8 +29,7 @@ err_compile.shader
 x64/
 obj/
 build/
-
-out/test*
+resources/tests_out/*.png
 
 
 

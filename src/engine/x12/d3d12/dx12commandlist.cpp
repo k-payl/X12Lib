@@ -215,13 +215,33 @@ void Dx12GraphicCommandList::Dispatch(uint32_t x, uint32_t y, uint32_t z)
 
 void Dx12GraphicCommandList::Clear()
 {
-	Dx12WindowSurface* dx12surface = static_cast<Dx12WindowSurface*>(state.surface.get());
-
 	FLOAT depth = 1.0f;
-	d3dCmdList->ClearDepthStencilView(resource_cast(dx12surface->depthBuffer.get())->GetDSV(), D3D12_CLEAR_FLAG_DEPTH, depth, 0, 0, nullptr);
+	const float color[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 
-	const float color[4] = {0.0f, 0.0f, 0.0f, 0.0f};
-	d3dCmdList->ClearRenderTargetView(resource_cast(dx12surface->colorBuffers[renderer->FrameIndex()].get())->GetRTV(), color, 0, nullptr);
+	if (state.surface)
+	{
+		Dx12WindowSurface* dx12surface = static_cast<Dx12WindowSurface*>(state.surface.get());
+
+		d3dCmdList->ClearDepthStencilView(resource_cast(dx12surface->depthBuffer.get())->GetDSV(), D3D12_CLEAR_FLAG_DEPTH, depth, 0, 0, nullptr);
+		d3dCmdList->ClearRenderTargetView(resource_cast(dx12surface->colorBuffers[renderer->FrameIndex()].get())->GetRTV(), color, 0, nullptr);
+	}
+	else
+	{
+		if (state.depthStencil)
+		{
+			Dx12CoreTexture* dx12surface = static_cast<Dx12CoreTexture*>(state.depthStencil.get());
+			d3dCmdList->ClearDepthStencilView(dx12surface->GetDSV(), D3D12_CLEAR_FLAG_DEPTH, depth, 0, 0, nullptr);
+		}
+
+		for (int i = 0; i < 8; i++)
+		{
+			if (state.renderTarget[i])
+			{
+				Dx12CoreTexture* dx12surface = static_cast<Dx12CoreTexture*>(state.renderTarget[i].get());
+				d3dCmdList->ClearRenderTargetView(dx12surface->GetRTV(), color, 0, nullptr);
+			}
+		}
+	}
 }
 
 void Dx12GraphicCommandList::CompileSet(IResourceSet* set_)
@@ -258,6 +278,8 @@ void Dx12GraphicCommandList::CompileSet(IResourceSet* set_)
 					cpuHandleCPUVisible = res.texture->GetSRV();
 				else if (res.resources & RESOURCE_DEFINITION::RBF_BUFFER_UAV)
 					cpuHandleCPUVisible = res.buffer->GetUAV();
+				else if (res.resources & RESOURCE_DEFINITION::RBF_TEXTURE_UAV)
+					cpuHandleCPUVisible = res.texture->GetUAV();
 				else
 					notImplemented();
 
@@ -475,13 +497,45 @@ void Dx12GraphicCommandList::BindSurface(surface_ptr& surface_)
 
 	state.surface = surface_;
 
-	Dx12WindowSurface* dx12surface = static_cast<Dx12WindowSurface*>(state.surface.get());
+	for (int i = 0; i < 8; i++)
+		state.renderTarget[i] = nullptr;
 
-	ID3D12Resource* backBuffer = 0;// dx12surface->colorBuffers[renderer->FrameIndex()]->;
+	Dx12WindowSurface* dx12surface = static_cast<Dx12WindowSurface*>(state.surface.get());
 
 	resource_cast(dx12surface->colorBuffers[renderer->FrameIndex()].get())->TransiteToState(D3D12_RESOURCE_STATE_RENDER_TARGET, d3dCmdList);
 
 	d3dCmdList->OMSetRenderTargets(1, &resource_cast(dx12surface->colorBuffers[renderer->FrameIndex()].get())->GetRTV(), FALSE, &resource_cast(dx12surface->depthBuffer.get())->GetDSV());
+}
+
+void x12::Dx12GraphicCommandList::SetRenderTargets(ICoreTexture** textures, uint32_t count, ICoreTexture* depthStencil)
+{
+	state.surface = nullptr;
+
+	D3D12_CPU_DESCRIPTOR_HANDLE rtv[8];
+
+	Dx12CoreTexture* dx12depthStenciltexture = static_cast<Dx12CoreTexture*>(depthStencil);
+	D3D12_CPU_DESCRIPTOR_HANDLE dsv;
+	dsv.ptr = dx12depthStenciltexture ? dx12depthStenciltexture->GetDSV().ptr : 0;
+	state.depthStencil = depthStencil;
+
+	for (int i = 0; i < 8; i++)
+	{
+		if (i < count)
+		{
+			state.renderTarget[i] = textures[i];
+
+			Dx12CoreTexture* dx12texture = static_cast<Dx12CoreTexture*>(textures[i]);
+			dx12texture->TransiteToState(D3D12_RESOURCE_STATE_RENDER_TARGET, d3dCmdList);
+
+			rtv[i] = dx12texture->GetRTV();
+		}
+		else
+		{
+			state.renderTarget[i] = nullptr;
+		}
+	}	
+
+	d3dCmdList->OMSetRenderTargets(count, count? rtv : nullptr, FALSE, depthStencil ? &dsv : nullptr);
 }
 
 void Dx12GraphicCommandList::resetOnlyPSOState()

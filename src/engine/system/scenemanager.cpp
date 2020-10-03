@@ -6,6 +6,7 @@
 #include "camera.h"
 #include "light.h"
 #include "filesystem.h"
+#include "cpp_hlsl_shared.h"
 
 #include "yaml-cpp/yaml.h"
 
@@ -206,6 +207,24 @@ auto X12_API engine::SceneManager::LoadScene(const char* name) -> void
 	int i = 0;
 	for (int j = 0; j < roots; j++)
 		loadObj(rootObjectsVec, objects_yaml, &i, nullptr, onObjectAdded);
+
+	std::vector<Light*> lights;
+	getObjectsOfType(lights, OBJECT_TYPE::LIGHT);
+
+	std::vector<engine::Shaders::Light> lightsData;
+	lightsData.resize(lights.size());
+
+	for (auto i = 0; i < lights.size(); i++)
+	{
+		math::mat4 transform = lights[i]->GetWorldTransform();
+		memcpy(lightsData[i].worldTransform, &transform.el_1D[1], sizeof(float) * 16);
+		lightsData[i].color = math::vec4(1, 1, 1, 1);
+		lightsData[i].size = math::vec4(1, 1, 1, 1);
+		lightsData[i].intensity = math::vec4(lights[i]->GetIntensity());
+	}
+
+	GetCoreRenderer()->CreateStructuredBuffer(lightsBuffer.getAdressOf(), L"Lights buffer",
+		sizeof(engine::Shaders::Light), lights.size(), &lightsData[0], x12::BUFFER_FLAGS::SHADER_RESOURCE);
 }
 
 auto engine::SceneManager::GetNumObjects() -> size_t

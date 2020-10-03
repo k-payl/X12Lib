@@ -1,6 +1,5 @@
-#include "Common.hlsl"
-#include "Global.hlsl"
-
+#include "common.hlsl"
+#include "global.hlsl"
 
 struct InstanceData
 {
@@ -34,10 +33,8 @@ void ClosestHit(inout HitInfo payload, Attributes attrib)
 	const uint3 indices = Load3x16BitIndices(baseIndex);
     
 
-#else
-	
+#else	
 	const uint3 indices = uint3(PrimitiveIndex() * 3, PrimitiveIndex() * 3 + 1, PrimitiveIndex() * 3 + 2);
-
 #endif
 
 	float3 vertextPositions[3] = {
@@ -72,22 +69,22 @@ void ClosestHit(inout HitInfo payload, Attributes attrib)
 	ray.Direction = Ln;
 	ray.TMin = 0;
 	ray.TMax = 100000;
-
+	
 	#if 0 // inline ray trace
 		RayQuery<RAY_FLAG_CULL_NON_OPAQUE |
              RAY_FLAG_SKIP_PROCEDURAL_PRIMITIVES |
              RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH> q;
-
+	
 		// Set up a trace. No work is done yet.
 		q.TraceRayInline(
 			SceneBVH,
 			0,
 			0xFF,
 			ray);
-
+	
 		// trace ray
 		q.Proceed();
-
+	
 		// Examine and act on the result of the traversal.
 		// Was a hit committed?
 		if(q.CommittedStatus() == COMMITTED_TRIANGLE_HIT)
@@ -118,7 +115,6 @@ void ClosestHit(inout HitInfo payload, Attributes attrib)
 	#endif
 
 	payload.colorAndDistance = float4(instanceData.color.rgb * max(0, dot(N, Ln)) * (1 - s), RayTCurrent());
-	//payload.colorAndDistance = float4(worldPos.xyz, RayTCurrent());
 }
 
 [shader("closesthit")] 

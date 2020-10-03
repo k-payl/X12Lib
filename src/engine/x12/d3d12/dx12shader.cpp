@@ -150,7 +150,7 @@ static ComPtr<ID3DBlob> compileShader(const char* src, SHADER_TYPE type)
 		{
 			unsigned char* error = (unsigned char*)errorBlob->GetBufferPointer();
 			printf("%s\n", error);
-			assert(0);
+			throw std::runtime_error("");
 		}
 	}
 	return shader;
@@ -199,7 +199,7 @@ bool x12::Dx12CoreShader::processShader(const ConstantBuffersDesc* buffersDesc,
 				if (shaderResource.resourceType == D3D_SHADER_INPUT_TYPE::D3D10_SIT_SAMPLER)
 				{
 					D3D12_STATIC_SAMPLER_DESC sampler{};
-					sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+					sampler.Filter = D3D12_FILTER_MIN_LINEAR_MAG_POINT_MIP_LINEAR;
 					sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
 					sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
 					sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;

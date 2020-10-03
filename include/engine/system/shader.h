@@ -14,7 +14,7 @@ namespace engine
 		};
 
 	public:
-		Shader(std::string path_, const std::vector<Shader::SafeConstantBuffersDesc>& vardesc_) : path(path_), vardesc(vardesc_) {}
+		Shader(std::string path_, const std::vector<Shader::SafeConstantBuffersDesc>& vardesc_, bool compute) : path(path_), vardesc(vardesc_), compute_(compute) {}
 
 		bool Load();
 		x12::ICoreShader* GetCoreShader() { return coreShader.get(); }
@@ -23,5 +23,6 @@ namespace engine
 		intrusive_ptr<x12::ICoreShader> coreShader;
 		std::string path;
 		std::vector<Shader::SafeConstantBuffersDesc> vardesc;
+		bool compute_{ false };
 	};
 }

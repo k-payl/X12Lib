@@ -60,6 +60,11 @@ void Dx12ResourceSet::BindTextueSRV(const char* name, ICoreTexture* texture)
 	Bind<ICoreTexture, Dx12CoreTexture>(name, texture, RESOURCE_DEFINITION::RBF_TEXTURE_SRV);
 }
 
+void Dx12ResourceSet::BindTextueUAV(const char* name, ICoreTexture* texture)
+{
+	Bind<ICoreTexture, Dx12CoreTexture>(name, texture, RESOURCE_DEFINITION::RBF_TEXTURE_UAV);
+}
+
 void x12::Dx12ResourceSet::checkResourceIsTable(const resource_index& index)
 {
 	assert(index.second != -1 && "Resource is not in table");

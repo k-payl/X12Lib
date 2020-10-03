@@ -14,8 +14,13 @@ namespace x12
 		D3D12_CPU_DESCRIPTOR_HANDLE GetSRV() const { return SRVdescriptor.descriptor; }
 		D3D12_CPU_DESCRIPTOR_HANDLE GetRTV() const { return RTVdescriptor.descriptor; }
 		D3D12_CPU_DESCRIPTOR_HANDLE GetDSV() const { return DSVdescriptor.descriptor; }
+		D3D12_CPU_DESCRIPTOR_HANDLE GetUAV() const { return UAVdescriptor.descriptor; }
 
 		void TransiteToState(D3D12_RESOURCE_STATES newState, ID3D12GraphicsCommandList* cmdList);
+
+		void* GetNativeResource() override { return resource.Get(); }
+		void GetData(void* data) override;
+		UINT WholeSize();
 
 	private:
 		TEXTURE_CREATE_FLAGS flags_;
@@ -24,14 +29,22 @@ namespace x12
 		void InitSRV();
 		void InitRTV();
 		void InitDSV();
+		void InitUAV();
 
 		D3D12_RESOURCE_STATES state{};
 		D3D12_RESOURCE_DESC desc{};
 		ComPtr<ID3D12Resource> resource;
 
+		ComPtr<ID3D12Resource> stagingResource;
+		D3D12_RESOURCE_STATES stagingState;
+
 		x12::descriptorheap::Alloc SRVdescriptor;
 		x12::descriptorheap::Alloc RTVdescriptor;
 		x12::descriptorheap::Alloc DSVdescriptor;
+		x12::descriptorheap::Alloc UAVdescriptor;
+
+		void _GPUCopyToStaging(ICoreGraphicCommandList* cmdList);
+		void _GetStagingData(void* data);
 	};
 }
 

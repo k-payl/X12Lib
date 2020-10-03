@@ -185,16 +185,16 @@ void x12::Dx12CoreBuffer::initSRV(UINT num, UINT structireSize, bool raw)
 
 void x12::Dx12CoreBuffer::initUAV(UINT num, UINT structireSize, bool raw)
 {
-	D3D12_UNORDERED_ACCESS_VIEW_DESC srvDesc = {};
-	srvDesc.Format = raw ? DXGI_FORMAT_R32_TYPELESS : DXGI_FORMAT_UNKNOWN;
-	srvDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
-	srvDesc.Buffer.NumElements = raw ? num/4 : num;
-	srvDesc.Buffer.StructureByteStride = structireSize;
-	srvDesc.Buffer.Flags = raw? D3D12_BUFFER_UAV_FLAG_RAW : D3D12_BUFFER_UAV_FLAG_NONE;
+	D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+	uavDesc.Format = raw ? DXGI_FORMAT_R32_TYPELESS : DXGI_FORMAT_UNKNOWN;
+	uavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
+	uavDesc.Buffer.NumElements = raw ? num/4 : num;
+	uavDesc.Buffer.StructureByteStride = structireSize;
+	uavDesc.Buffer.Flags = raw? D3D12_BUFFER_UAV_FLAG_RAW : D3D12_BUFFER_UAV_FLAG_NONE;
 
 	UAVdescriptor = d3d12::D3D12GetCoreRender()->AllocateStaticDescriptor();
 
-	d3d12::CR_GetD3DDevice()->CreateUnorderedAccessView(resource.Get(), nullptr, &srvDesc, UAVdescriptor.descriptor);
+	d3d12::CR_GetD3DDevice()->CreateUnorderedAccessView(resource.Get(), nullptr, &uavDesc, UAVdescriptor.descriptor);
 }
 
 void x12::Dx12CoreBuffer::initCBV(UINT size)

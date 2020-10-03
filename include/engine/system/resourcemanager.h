@@ -16,6 +16,7 @@ namespace engine
 		X12_API auto CreateStreamMesh(const char* path) -> StreamPtr<Mesh>;
 		X12_API auto CreateStreamTexture(const char* path, x12::TEXTURE_CREATE_FLAGS flags) -> StreamPtr<Texture>;
 		X12_API auto CreateGraphicShader(const char *path, const x12::ConstantBuffersDesc *buffersdesc, int numdesc) -> StreamPtr<Shader>;
+		X12_API auto CreateComputeShader(const char *path, const x12::ConstantBuffersDesc *buffersdesc, int numdesc) -> StreamPtr<Shader>;
 		X12_API auto ReloadShaders() -> void;
 	};
 }

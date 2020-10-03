@@ -85,8 +85,6 @@ namespace x12
 		};
 
 		DescriptorHeap srv;
-		//DescriptorHeap rtv;
-		//DescriptorHeap dsv;
 
 		ComPtr<ID3D12RootSignature> defaultRootSignature; // Root signature for shaders without input resources
 
@@ -155,6 +153,10 @@ namespace x12
 		bool CreateQuery(ICoreQuery** out) override;
 
 		void* GetNativeDevice() override { return device; }
+
+		void* GetNativeGraphicQueue() override { return queues[QUEUE_GRAPHIC].d3dCommandQueue; }
+
+		// API-end
 
 		// d3d12 specific
 		auto GetDevice() -> device_t* { return device; }

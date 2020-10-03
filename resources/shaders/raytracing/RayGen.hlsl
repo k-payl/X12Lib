@@ -1,5 +1,5 @@
-#include "Common.hlsl"
-#include "Global.hlsl"
+#include "common.hlsl"
+#include "global.hlsl"
 
 [shader("raygeneration")] 
 void RayGen() 
@@ -11,9 +11,16 @@ void RayGen()
     uint2 launchIndex = DispatchRaysIndex().xy;
     float2 dims = float2(DispatchRaysDimensions().xy);
 
+    float4 color = gOutput.Load(int3(launchIndex, 0));
+
+    uint frame = uint(color.a) % 9;
+    float2 jitter = float2(float(frame % 3), float(frame / 3));
+    jitter /= 2.0f;
+    jitter -= float2(0.5, 0.5);
+
     float2 ndc = float2(
-        float(launchIndex.x + 0.5f) / dims.x * 2 - 1,
-        float(dims.y - launchIndex.y - 1 + 0.5) / dims.y * 2 - 1);
+        float(launchIndex.x + 0.5f + jitter.x) / dims.x * 2 - 1,
+        float(dims.y - launchIndex.y - 1 + 0.5 + jitter.y) / dims.y * 2 - 1);
 
     RayDesc ray;
     ray.Origin = gCamera.origin.xyz;
@@ -74,6 +81,9 @@ void RayGen()
         // between the hit/miss shaders and the raygen
         payload);
 
-    gOutput[launchIndex] = float4(payload.colorAndDistance.rgb, 1.f);
+    float a = color.a / (color.a + 1.0f);
+    color.rgb = payload.colorAndDistance.rgb * (1-a) + color.rgb * a;
+
+    gOutput[launchIndex] = float4(color.rgb, color.a + 1);
 }
 

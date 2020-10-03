@@ -4,10 +4,13 @@ cmake_minimum_required (VERSION 3.4.3)
 # "C:\Program Files\CMake\bin\cmake.exe" -G "Visual Studio 16 2019" ../
 
 # Options:
-# RAYTRACING_SAMPLE
+# RAYTRACING_SAMPLE_ENABLE
 # VK_ENABLE
+# TESTS_ENABLE
 
 project (x12lib)
+
+option(TESTS_ENABLE "" ON)
 
 # YAML
 option(YAML_CPP_BUILD_TOOLS "" OFF)
@@ -42,8 +45,8 @@ file(GLOB SOURCES_3RDPARTY
     3rdparty/DirectXTK/Src/*.cpp
     3rdparty/DirectXTex/*.cpp)
 
-file(GLOB HEADERS_VIDEO src/engine/x12/*.h src/engine/x12/d3d12/*.h)
-file(GLOB HEADERS_SYSTEM src/engine/system/*.h src/math/*.h)
+file(GLOB HEADERS_VIDEO src/engine/x12/*.h src/engine/x12/d3d12/*.h include/engine/x12/d3d12/*.h)
+file(GLOB HEADERS_SYSTEM src/engine/system/*.h src/math/*.h include/engine/system/*.h include/math/*.h)
 file(GLOB HEADERS_3RDPARTY
 	3rdparty/*.h
     3rdparty/pugixml/*.h
@@ -73,6 +76,7 @@ set(DXC_PATH "C:\\Program Files (x86)\\Windows Kits\\10\\bin\\${CMAKE_VS_WINDOWS
 set(DXIL_PATH "C:\\Program Files (x86)\\Windows Kits\\10\\bin\\${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION}\\x64\\dxil.dll")
 message("DXC_PATH = ${DXC_PATH}")
 message("DXIL_PATH = ${DXIL_PATH}")
+#message("HEADERS_SYSTEM = ${HEADERS_SYSTEM}")
 		
 include(CheckCXXCompilerFlag)
 CHECK_CXX_COMPILER_FLAG("/std:c++latest" _cpp_latest_flag_supported)
@@ -83,7 +87,7 @@ else()
 endif()
 
 # engine
-add_library(engine SHARED ${SOURCES})
+add_library(engine SHARED ${SOURCES} ${HEADERS})
 
 target_include_directories(engine PRIVATE
 	include/engine/system
@@ -143,24 +147,8 @@ target_include_directories(constantbuffers PRIVATE src/examples)
 target_link_libraries(constantbuffers engine)
 set_property(TARGET constantbuffers PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/build")
 
-# uavbarriers example
-add_executable(uavbarriers src/examples/uavbarriers.cpp)
-target_include_directories(uavbarriers PRIVATE
-	include/engine/system
-	include/engine/x12
-	include/engine/x12/d3d12
-	include/math
-	resources/shaders
-	3rdparty/d3dx12)
-if (VK_ENABLE)
-	target_include_directories(uavbarriers PRIVATE src/engine/x12/vk)
-endif()
-target_link_libraries(uavbarriers engine)
-set_target_properties(uavbarriers PROPERTIES LINK_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /SUBSYSTEM:CONSOLE")
-set_property(TARGET uavbarriers PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/build")
-
 # raytracing
-if (RAYTRACING_SAMPLE)
+if (RAYTRACING_SAMPLE_ENABLE)
 	add_executable(raytracing src/examples/raytracing.cpp src/examples/raytracing_utils.cpp)
 	target_include_directories(raytracing PRIVATE
 	include/engine/system
@@ -185,4 +173,27 @@ if (RAYTRACING_SAMPLE)
 		COMMAND ${CMAKE_COMMAND} -E copy_if_different
 		"${DXIL_PATH}"
 		$<TARGET_FILE_DIR:raytracing>)
+endif()
+
+# test
+if (TESTS_ENABLE)
+	set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+	add_subdirectory(3rdparty/googletest)
+
+	add_executable(tests src/tests/tests_main.cpp)
+	target_include_directories(tests PRIVATE
+		include/engine/system
+		include/engine/x12
+		include/engine/x12/d3d12
+		include/math
+		resources/shaders
+		3rdparty/d3dx12
+		3rdparty/googletest/googletest/include
+		3rdparty/stb)
+	if (VK_ENABLE)
+		target_include_directories(tests PRIVATE src/engine/x12/vk)
+	endif()
+	target_link_libraries(tests engine gtest_main)
+	set_target_properties(tests PROPERTIES LINK_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /SUBSYSTEM:CONSOLE")
+	set_property(TARGET tests PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/build")
 endif()

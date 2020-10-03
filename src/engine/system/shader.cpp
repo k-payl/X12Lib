@@ -15,5 +15,8 @@ bool engine::Shader::Load()
 		buffersdesc[i].name = vardesc[i].name.c_str();
 	}
 
-	return GetCoreRenderer()->CreateShader(coreShader.getAdressOf(), ConvertFromUtf8ToUtf16(path).c_str(), text.get(), text.get(), &buffersdesc[0], buffersdesc.size());
+	if (compute_)
+		return GetCoreRenderer()->CreateComputeShader(coreShader.getAdressOf(), ConvertFromUtf8ToUtf16(path).c_str(), text.get(), buffersdesc.empty()? nullptr : &buffersdesc[0], buffersdesc.size());
+	else
+		return GetCoreRenderer()->CreateShader(coreShader.getAdressOf(), ConvertFromUtf8ToUtf16(path).c_str(), text.get(), text.get(), buffersdesc.empty()? nullptr : &buffersdesc[0], buffersdesc.size());
 }

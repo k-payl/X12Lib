@@ -20,6 +20,8 @@ namespace x12
 		struct StateCache
 		{
 			surface_ptr surface;
+			intrusive_ptr<ICoreTexture> renderTarget[8];
+			intrusive_ptr<ICoreTexture> depthStencil;
 
 			D3D12_VIEWPORT viewport;
 			D3D12_RECT scissor;
@@ -97,6 +99,7 @@ namespace x12
 		// API
 
 		void BindSurface(surface_ptr& surface_) override; // TODO: bind arbitary textures
+		void SetRenderTargets(ICoreTexture** textures, uint32_t count, ICoreTexture* depthStencil) override;
 
 		void CommandsBegin() override;
 		void CommandsEnd() override;

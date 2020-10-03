@@ -83,11 +83,9 @@ static struct Resources
 
 	ComPtr<ID3D12DescriptorHeap> descriptorHeap;
 
-	ComPtr<ID3D12Resource> raytracingOutput;
-
 	intrusive_ptr<x12::ICoreBuffer> indexBuffer;
 
-	intrusive_ptr<x12::ICoreBuffer> cameraBuffers[engine::DeferredBuffers];
+	intrusive_ptr<x12::ICoreBuffer> cameraBuffers;
 
 	ComPtr<IDxcBlob> raygen;
 	ComPtr<IDxcBlob> hit;
@@ -98,17 +96,28 @@ static struct Resources
 	ComPtr<ID3D12Resource> topLevelAccelerationStructure;
 
 	intrusive_ptr<x12::ICoreBuffer> sceneData;
-} *res;
 
+	engine::StreamPtr<engine::Shader> copyShader;
+	intrusive_ptr<IResourceSet> copyResources;
+	intrusive_ptr<ICoreVertexBuffer> plane;
+	ComPtr<ID3D12Resource> raytracingOutput;
+	intrusive_ptr<ICoreTexture> raytracingOutputCore;
+	ComPtr<ID3D12Fence> rtToCopyFence;
 
+	engine::StreamPtr<engine::Shader> clearShader;
+	intrusive_ptr<IResourceSet> clearResources;
+}
+*res;
 
 engine::Core* core_;
 
 HWND hwnd;
 UINT width, height;
+bool needClearBackBuffer = true;
 
 engine::Camera* cam;
 CameraData cameraData;
+math::mat4 cameraTransform;
 
 ID3D12Device* device;
 ID3D12Device5* m_dxrDevice;
@@ -117,9 +126,11 @@ ID3D12StateObject* dxrStateObject;
 UINT descriptorSize;
 UINT descriptorsAllocated;
 UINT64 fenceValues[engine::DeferredBuffers];
+UINT64 rtToCopyFenceValue;
 UINT backBufferIndex;
 HANDLE event;
 D3D12_GPU_DESCRIPTOR_HANDLE raytracingOutputResourceUAVGpuDescriptor;
+size_t CameraBuffer;
 
 namespace GlobalRootSignatureParams {
 	enum Value {
@@ -127,6 +138,7 @@ namespace GlobalRootSignatureParams {
 		OutputView,
 		AccelerationStructure,
 		Scene,
+		Lights,
 		Count
 	};
 }
@@ -136,14 +148,99 @@ void BuildAccelerationStructures();
 void BuildShaderTables();
 void CreateRaytracingOutputResource(UINT width, UINT height);
 void WaitForGpu();
-UINT AllocateDescriptor(D3D12_CPU_DESCRIPTOR_HANDLE* cpuDescriptor);
 
 void Render()
 {
+	ICoreRenderer* renderer = engine::GetCoreRenderer();
+
 	WaitForGpu();
 
 	throwIfFailed(res->commandAllocators[backBufferIndex]->Reset());
 	throwIfFailed(dxrCommandList->Reset(res->commandAllocators[backBufferIndex].Get(), nullptr));
+
+	// camera
+	{
+		using namespace math;
+
+		float verFullFovInRadians = cam->GetFullVertFOVInRadians();
+		float aspect = float(width) / height;
+
+		mat4 ViewInvMat_ = cam->GetWorldTransform();
+
+		vec4 origin = cam->GetWorldPosition();
+		vec3 forwardWS = -ViewInvMat_.Column3(2).Normalized();
+		vec3 rightWS = ViewInvMat_.Column3(0).Normalized() * tan(verFullFovInRadians * 0.5f) * aspect;
+		vec3 upWS = ViewInvMat_.Column3(1).Normalized() * tan(verFullFovInRadians * 0.5f);
+
+		if (memcmp(&cameraTransform, &ViewInvMat_, sizeof(ViewInvMat_)) != 0)
+		{
+			cameraTransform = ViewInvMat_;
+
+			memcpy(cameraData.forward, &forwardWS, sizeof(vec3));
+			memcpy(cameraData.right, &rightWS, sizeof(vec3));
+			memcpy(cameraData.up, &upWS, sizeof(vec3));
+			memcpy(cameraData.origin, &origin, sizeof(vec4));
+			res->cameraBuffers->SetData(&cameraData, sizeof(cameraData));
+
+			needClearBackBuffer = true;
+		}
+	}
+
+	if (needClearBackBuffer)
+	{
+		
+		surface_ptr surface = renderer->GetWindowSurface(hwnd);
+
+		ICoreGraphicCommandList* cmdList = renderer->GetGraphicCommandList();
+		cmdList->CommandsBegin();
+		cmdList->BindSurface(surface);
+		cmdList->SetViewport(width, height);
+		cmdList->SetScissor(0, 0, width, height);
+
+		ComputePipelineState cpso{};
+		cpso.shader = res->clearShader.get()->GetCoreShader();
+		cmdList->SetComputePipelineState(cpso);
+
+		if (!res->clearResources)
+		{
+			renderer->CreateResourceSet(res->clearResources.getAdressOf(), res->clearShader.get()->GetCoreShader());
+			res->clearResources->BindTextueSRV("tex", res->raytracingOutputCore.get());
+			cmdList->CompileSet(res->clearResources.get());
+			CameraBuffer = res->clearResources->FindInlineBufferIndex("CameraBuffer");
+		}		
+
+		cmdList->BindResourceSet(res->clearResources.get());
+
+		uint32_t sizes[2] = { width, height };
+		cmdList->UpdateInlineConstantBuffer(CameraBuffer, &sizes, 8);
+
+		{
+			constexpr int warpSize = 16;
+			int numGroupsX = (width + (warpSize - 1)) / warpSize;
+			int numGroupsY = (height + (warpSize - 1)) / warpSize;
+			cmdList->Dispatch(numGroupsX, numGroupsY);
+		}
+
+		{
+			ID3D12GraphicsCommandList* d3dCmdList = (ID3D12GraphicsCommandList*)cmdList->GetNativeResource();
+			D3D12_RESOURCE_BARRIER preCopyBarriers[] = {
+			CD3DX12_RESOURCE_BARRIER::UAV(res->raytracingOutput.Get())};
+			d3dCmdList->ResourceBarrier(ARRAYSIZE(preCopyBarriers), preCopyBarriers);
+		}
+
+		cmdList->CommandsEnd();
+		renderer->ExecuteCommandList(cmdList);
+
+		// sync clear with raytracing
+		{
+			ID3D12CommandQueue* queue = reinterpret_cast<ID3D12CommandQueue*>(renderer->GetNativeGraphicQueue());
+			queue->Signal(res->rtToCopyFence.Get(), rtToCopyFenceValue);			
+			res->commandQueue->Wait(res->rtToCopyFence.Get(), rtToCopyFenceValue);
+			rtToCopyFenceValue++;
+		}
+	
+		needClearBackBuffer = false;
+	}
 
 	// raytracing
 	{
@@ -157,33 +254,17 @@ void Render()
 
 		// camera
 		{
-			using namespace math;
-
-			float verFullFovInRadians = cam->GetFullVertFOVInRadians();
-			float aspect = float(width) / height;
-
-			mat4 ViewInvMat_ = cam->GetWorldTransform();
-
-			vec4 origin = cam->GetWorldPosition();
-			vec3 forwardWS = -ViewInvMat_.Column3(2).Normalized();
-			vec3 rightWS = ViewInvMat_.Column3(0).Normalized() * tan(verFullFovInRadians * 0.5f) * aspect;
-			vec3 upWS = ViewInvMat_.Column3(1).Normalized() * tan(verFullFovInRadians * 0.5f);
-
-			memcpy(cameraData.forward, &forwardWS, sizeof(vec3));
-			memcpy(cameraData.right, &rightWS, sizeof(vec3));
-			memcpy(cameraData.up, &upWS, sizeof(vec3));
-			memcpy(cameraData.origin, &origin, sizeof(vec4));
-
-			res->cameraBuffers[backBufferIndex]->SetData(&cameraData, sizeof(cameraData));
-			x12::Dx12CoreBuffer* dx12buffer = reinterpret_cast<x12::Dx12CoreBuffer*>(res->cameraBuffers[backBufferIndex].get());
-
+			x12::Dx12CoreBuffer* dx12buffer = reinterpret_cast<x12::Dx12CoreBuffer*>(res->cameraBuffers.get());
 			dxrCommandList->SetComputeRootConstantBufferView(GlobalRootSignatureParams::CameraConstantBuffer, dx12buffer->GPUAddress());
 		}
 
 		// scene data
 		{
-			auto a = static_cast<x12::Dx12CoreBuffer*>(res->sceneData.get())->GPUAddress();
-			dxrCommandList->SetComputeRootConstantBufferView(GlobalRootSignatureParams::Scene, a);
+			auto adress = static_cast<x12::Dx12CoreBuffer*>(res->sceneData.get())->GPUAddress();
+			dxrCommandList->SetComputeRootConstantBufferView(GlobalRootSignatureParams::Scene, adress);
+
+			adress = static_cast<x12::Dx12CoreBuffer*>(engine::GetSceneManager()->LightsBuffer())->GPUAddress();
+			dxrCommandList->SetComputeRootShaderResourceView(GlobalRootSignatureParams::Lights, adress);
 		}
 
 		D3D12_DISPATCH_RAYS_DESC dispatchDesc = {};
@@ -206,34 +287,66 @@ void Render()
 	ID3D12CommandList* commandLists[] = { dxrCommandList };
 	res->commandQueue->ExecuteCommandLists(ARRAYSIZE(commandLists), commandLists);
 
-	ICoreRenderer* renderer = engine::GetCoreRenderer();
-	surface_ptr surface = renderer->GetWindowSurface(hwnd);
-	ICoreGraphicCommandList* cmdList = renderer->GetGraphicCommandList();
-
-	cmdList->CommandsBegin();
-	cmdList->BindSurface(surface);
-
+	// sync rt with swapchain copy
 	{
-		ID3D12GraphicsCommandList* d3dCmdList = (ID3D12GraphicsCommandList*)cmdList->GetNativeResource();;
-
-		ID3D12Resource* backBuffer = (ID3D12Resource*)surface->GetNativeResource(backBufferIndex);
-
-		D3D12_RESOURCE_BARRIER preCopyBarriers[2];
-		preCopyBarriers[0] = CD3DX12_RESOURCE_BARRIER::Transition(backBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_COPY_DEST);
-		preCopyBarriers[1] = CD3DX12_RESOURCE_BARRIER::Transition(res->raytracingOutput.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COPY_SOURCE);
-		d3dCmdList->ResourceBarrier(ARRAYSIZE(preCopyBarriers), preCopyBarriers);
-
-		d3dCmdList->CopyResource(backBuffer, res->raytracingOutput.Get());
-
-		D3D12_RESOURCE_BARRIER postCopyBarriers[2];
-		postCopyBarriers[0] = CD3DX12_RESOURCE_BARRIER::Transition(backBuffer, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_RENDER_TARGET);
-		postCopyBarriers[1] = CD3DX12_RESOURCE_BARRIER::Transition(res->raytracingOutput.Get(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-
-		d3dCmdList->ResourceBarrier(ARRAYSIZE(postCopyBarriers), postCopyBarriers);
+		res->commandQueue->Signal(res->rtToCopyFence.Get(), rtToCopyFenceValue);
+		ID3D12CommandQueue* queue = reinterpret_cast<ID3D12CommandQueue*>(renderer->GetNativeGraphicQueue());
+		queue->Wait(res->rtToCopyFence.Get(), rtToCopyFenceValue);
+		rtToCopyFenceValue++;
 	}
 
-	cmdList->CommandsEnd();
-	renderer->ExecuteCommandList(cmdList);
+	// swapchain copy
+	{
+		surface_ptr surface = renderer->GetWindowSurface(hwnd);
+
+		ICoreGraphicCommandList* cmdList = renderer->GetGraphicCommandList();
+		cmdList->CommandsBegin();
+		cmdList->BindSurface(surface);
+		cmdList->SetViewport(width, height);
+		cmdList->SetScissor(0, 0, width, height);
+
+		GraphicPipelineState pso{};
+		pso.shader = res->copyShader.get()->GetCoreShader();
+		pso.vb = res->plane.get();
+		pso.primitiveTopology = PRIMITIVE_TOPOLOGY::TRIANGLE;
+		cmdList->SetGraphicPipelineState(pso);
+
+		cmdList->SetVertexBuffer(res->plane.get());
+
+		{
+			ID3D12GraphicsCommandList* d3dCmdList = (ID3D12GraphicsCommandList*)cmdList->GetNativeResource();
+
+			D3D12_RESOURCE_BARRIER preCopyBarriers[] = {
+				CD3DX12_RESOURCE_BARRIER::Transition(res->raytracingOutput.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE),
+			};
+
+			d3dCmdList->ResourceBarrier(ARRAYSIZE(preCopyBarriers), preCopyBarriers);
+		}
+
+		if (!res->copyResources)
+		{
+			renderer->CreateResourceSet(res->copyResources.getAdressOf(), res->copyShader.get()->GetCoreShader());
+			res->copyResources->BindTextueSRV("texture_", res->raytracingOutputCore.get());
+			cmdList->CompileSet(res->copyResources.get());
+		}
+
+		cmdList->BindResourceSet(res->copyResources.get());
+
+		cmdList->Draw(res->plane.get());
+
+		{
+			ID3D12GraphicsCommandList* d3dCmdList = (ID3D12GraphicsCommandList*)cmdList->GetNativeResource();
+
+			D3D12_RESOURCE_BARRIER preCopyBarriers[] = {
+				CD3DX12_RESOURCE_BARRIER::Transition(res->raytracingOutput.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS),
+			};
+
+			d3dCmdList->ResourceBarrier(ARRAYSIZE(preCopyBarriers), preCopyBarriers);
+		}
+
+		cmdList->CommandsEnd();
+		renderer->ExecuteCommandList(cmdList);
+	}
 
 	backBufferIndex = (backBufferIndex + 1) % engine::DeferredBuffers;
 }
@@ -264,8 +377,6 @@ void SerializeAndCreateRaytracingRootSignature(D3D12_ROOT_SIGNATURE_DESC& desc, 
 	throwIfFailed(device->CreateRootSignature(1, blob->GetBufferPointer(), blob->GetBufferSize(), IID_PPV_ARGS(&(*rootSig))));
 }
 
-
-
 void CreateRaygenLocalSignatureSubobject(CD3DX12_STATE_OBJECT_DESC* raytracingPipeline, const wchar_t* raygenName)
 {
 	// Hit group and miss shaders in this sample are not using a local root signature and thus one is not associated with them.
@@ -279,8 +390,6 @@ void CreateRaygenLocalSignatureSubobject(CD3DX12_STATE_OBJECT_DESC* raytracingPi
 	rootSignatureAssociation->AddExport(raygenName);
 }
 
-
-
 void Init()
 {
 	engine::GetSceneManager()->LoadScene("scene.yaml");
@@ -292,12 +401,10 @@ void Init()
 
 	bool tier11 = opt5.RaytracingTier >= D3D12_RAYTRACING_TIER::D3D12_RAYTRACING_TIER_1_1;
 
-
 	// Create the command queue.
 	D3D12_COMMAND_QUEUE_DESC queueDesc = {};
 	queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
 	queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
-
 	throwIfFailed(device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&res->commandQueue)));
 
 	// Create a command allocator for each back buffer that will be rendered to.
@@ -312,6 +419,7 @@ void Init()
 
 	// Create a fence for tracking GPU execution progress.
 	throwIfFailed(device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&res->fence)));
+	throwIfFailed(device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&res->rtToCopyFence)));
 	fenceValues[0]++;
 
 	event = CreateEvent(nullptr, FALSE, FALSE, nullptr);
@@ -337,6 +445,7 @@ void Init()
 		rootParameters[GlobalRootSignatureParams::AccelerationStructure].InitAsShaderResourceView(0); // acceleration structure
 
 		rootParameters[GlobalRootSignatureParams::Scene].InitAsConstantBufferView(2); // scene constants
+		rootParameters[GlobalRootSignatureParams::Lights].InitAsShaderResourceView(1); // lights
 
 		//CD3DX12_DESCRIPTOR_RANGE geomRanges[1];
 		//geomRanges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 1);  // 2 static index and vertex buffers.
@@ -351,16 +460,8 @@ void Init()
 	// This is a root signature that enables a shader to have unique arguments that come from shader tables.
 	{
 		CD3DX12_ROOT_PARAMETER rootParameters[2];
-
-		//CD3DX12_DESCRIPTOR_RANGE UAVDescriptor;
-		//UAVDescriptor.Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0);
-		//rootParameters[0].InitAsDescriptorTable(1, &UAVDescriptor);
-
-		//rootParameters[1].InitAsShaderResourceView(0); // acceleration structure
-
-		////rootParameters[2].InitAsConstants(SizeOfInUint32(m_rayGenCB), 0, 0);
 		rootParameters[0].InitAsConstants(4 + 16, 1, 0); // camera constants
-		rootParameters[1].InitAsShaderResourceView(2, 0);
+		rootParameters[1].InitAsShaderResourceView(2, 0); // vertex buffer
 
 		CD3DX12_ROOT_SIGNATURE_DESC desc(ARRAYSIZE(rootParameters), rootParameters, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE);
 
@@ -371,9 +472,19 @@ void Init()
 		// Create subobjects that combine into a RTPSO
 		CD3DX12_STATE_OBJECT_DESC raytracingPipeline{ D3D12_STATE_OBJECT_TYPE_RAYTRACING_PIPELINE };
 
-		res->raygen = CompileShader(RAYTRACING_SHADER_DIR "RayGen.hlsl");
-		res->hit = CompileShader(RAYTRACING_SHADER_DIR "Hit.hlsl");
-		res->miss = CompileShader(RAYTRACING_SHADER_DIR "Miss.hlsl");
+		res->raygen = CompileShader(RAYTRACING_SHADER_DIR "raygen.hlsl");
+		res->hit = CompileShader(RAYTRACING_SHADER_DIR "hit.hlsl");
+		res->miss = CompileShader(RAYTRACING_SHADER_DIR "miss.hlsl");
+
+		res->copyShader = engine::GetResourceManager()->CreateGraphicShader("../resources/shaders/copy.hlsl", nullptr, 0);
+		res->copyShader.get();
+
+		const x12::ConstantBuffersDesc buffersdesc[1] =
+		{
+			"CameraBuffer",	CONSTANT_BUFFER_UPDATE_FRIQUENCY::PER_DRAW
+		};
+		res->clearShader = engine::GetResourceManager()->CreateComputeShader("../resources/shaders/clear.hlsl", &buffersdesc[0], 1);
+		res->clearShader.get();
 
 		// DXIL library
 		// This contains the shaders and their entrypoints for the state object.
@@ -459,19 +570,42 @@ void Init()
 	height = h;
 	CreateRaytracingOutputResource(w, h);
 
-	for (int i = 0; i < engine::DeferredBuffers; i++)
-		engine::GetCoreRenderer()->CreateConstantBuffer(res->cameraBuffers[i].getAdressOf(), L"camera constant buffer", sizeof(cameraData), false);
+	engine::GetCoreRenderer()->CreateConstantBuffer(res->cameraBuffers.getAdressOf(), L"camera constant buffer", sizeof(cameraData), false);
+
+	{
+		float planeVert[6 * 2] =
+		{
+			-1, -1,
+			1, 1,
+			-1, 1,
+			-1, -1,
+			1, -1,
+			1, 1
+		};
+
+		VertexAttributeDesc attr;
+		attr.format = VERTEX_BUFFER_FORMAT::FLOAT2;
+		attr.offset = 0;
+		attr.semanticName = "POSITION";
+
+		VeretxBufferDesc desc{};
+		desc.vertexCount = 6;
+		desc.attributesCount = 1;
+		desc.attributes = &attr;
+
+		engine::GetCoreRenderer()->CreateVertexBuffer(res->plane.getAdressOf(), L"plane", planeVert, &desc, nullptr, nullptr, MEMORY_TYPE::GPU_READ);
+	}
 }
 
 void CreateDescriptorHeap()
 {
 	D3D12_DESCRIPTOR_HEAP_DESC descriptorHeapDesc = {};
-	descriptorHeapDesc.NumDescriptors = 3; // 3 = 1 raytracing output texture UAV + 1 vertex + 1 index buffer
+	descriptorHeapDesc.NumDescriptors = 1; // 1 raytracing output
 	descriptorHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	descriptorHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	descriptorHeapDesc.NodeMask = 0;
 	device->CreateDescriptorHeap(&descriptorHeapDesc, IID_PPV_ARGS(&res->descriptorHeap));
-	res->descriptorHeap->SetName(L"Descriptor heap for UAV");
+	res->descriptorHeap->SetName(L"Descriptor heap for raytracing (gpu visible)");
 
 	descriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 }
@@ -563,7 +697,7 @@ void BuildAccelerationStructures()
 		geometryDesc.Triangles.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
 		geometryDesc.Triangles.VertexCount = m->GetVertexCount();
 		geometryDesc.Triangles.VertexBuffer.StartAddress = gpuAddress;
-		geometryDesc.Triangles.VertexBuffer.StrideInBytes = sizeof(engine::Vertex);
+		geometryDesc.Triangles.VertexBuffer.StrideInBytes = sizeof(engine::Shaders::Vertex);
 
 		// Mark the geometry as opaque. 
 		// PERFORMANCE TIP: mark geometry as opaque whenever applicable as it can enable important ray processing optimizations.
@@ -823,29 +957,36 @@ void BuildShaderTables()
 	}
 }
 
-UINT AllocateDescriptor(D3D12_CPU_DESCRIPTOR_HANDLE* cpuDescriptor)
-{
-	auto descriptorHeapCpuBase = res->descriptorHeap->GetCPUDescriptorHandleForHeapStart();
-	UINT descriptorIndexToUse = descriptorsAllocated++;
-	*cpuDescriptor = CD3DX12_CPU_DESCRIPTOR_HANDLE(descriptorHeapCpuBase, descriptorIndexToUse, descriptorSize);
-	return descriptorIndexToUse;
-}
-
 void CreateRaytracingOutputResource(UINT width, UINT height)
 {
 	// Create the output resource. The dimensions and format should match the swap-chain.
-	auto uavDesc = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R8G8B8A8_UNORM, width, height, 1, 1, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+	auto uavDesc = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R32G32B32A32_FLOAT, width, height, 1, 1, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
 	auto defaultHeapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
 	throwIfFailed(device->CreateCommittedResource(&defaultHeapProperties, D3D12_HEAP_FLAG_NONE, &uavDesc, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, nullptr, IID_PPV_ARGS(&res->raytracingOutput)));
+	res->raytracingOutput->SetName(L"raytracingOutput");
 
-	D3D12_CPU_DESCRIPTOR_HANDLE uavDescriptorHandle;
-	UINT m_raytracingOutputResourceUAVDescriptorHeapIndex = AllocateDescriptor(&uavDescriptorHandle);
+	UINT m_raytracingOutputResourceUAVDescriptorHeapIndex = 0;// AllocateDescriptor(&uavDescriptorHandle);
+	D3D12_CPU_DESCRIPTOR_HANDLE uavDescriptorHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(res->descriptorHeap->GetCPUDescriptorHandleForHeapStart(), m_raytracingOutputResourceUAVDescriptorHeapIndex, descriptorSize);	
 
 	D3D12_UNORDERED_ACCESS_VIEW_DESC UAVDesc = {};
 	UAVDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
 	device->CreateUnorderedAccessView(res->raytracingOutput.Get(), nullptr, &UAVDesc, uavDescriptorHandle);
 	raytracingOutputResourceUAVGpuDescriptor = CD3DX12_GPU_DESCRIPTOR_HANDLE(res->descriptorHeap->GetGPUDescriptorHandleForHeapStart(), m_raytracingOutputResourceUAVDescriptorHeapIndex, descriptorSize);
+
+	engine::GetCoreRenderer()->CreateTextureFrom(res->raytracingOutputCore.getAdressOf(), L"Raytracing output", res->raytracingOutput.Get());
+}
+
+void messageCallback(HWND hwnd, engine::WINDOW_MESSAGE type, uint32_t param1, uint32_t param2, void* pData)
+{
+	if (type == engine::WINDOW_MESSAGE::SIZE && (width != param1 && height != param2))
+	{
+		engine::GetCoreRenderer()->WaitGPUAll();
+		width = param1; height = param2;
+		CreateRaytracingOutputResource(width, height);
+		needClearBackBuffer = true;
+		backBufferIndex = 0;
+	}
 }
 
 // ----------------------------
@@ -864,6 +1005,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPWSTR, _In_ int)
 	cam = engine::GetSceneManager()->CreateCamera();
 
 	engine::MainWindow* window = core_->GetWindow();
+	window->AddMessageCallback(messageCallback);
 	hwnd = *window->handle();
 
 	core_->Start();

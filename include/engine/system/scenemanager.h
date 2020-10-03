@@ -1,5 +1,6 @@
 #pragma once
 #include "common.h"
+#include "icorerender.h"
 
 namespace engine
 {
@@ -8,8 +9,36 @@ namespace engine
 		std::vector<GameObject*> rootObjectsVec;
 		Signal<GameObject*> onObjectAdded;
 		Signal<GameObject*> onObjectDestroy;
+		intrusive_ptr<x12::ICoreBuffer> lightsBuffer;
 
 		void destroyObjects();
+
+		template<typename T>
+		void addObjectsRecursive(std::vector<T*>& ret, engine::GameObject* root, engine::OBJECT_TYPE type)
+		{
+			size_t childs = root->GetNumChilds();
+
+			for (size_t i = 0; i < childs; i++)
+			{
+				engine::GameObject* g = root->GetChild(i);
+				addObjectsRecursive<T>(ret, g, type);
+			}
+
+			if (root->GetType() == type && root->IsEnabled())
+				ret.push_back(static_cast<T*>(root));
+		}
+
+		template<typename T>
+		void getObjectsOfType(std::vector<T*>& vec, engine::OBJECT_TYPE type)
+		{
+			size_t objects = rootObjectsVec.size();
+
+			for (size_t i = 0; i < objects; i++)
+			{
+				T* g = static_cast<T*>(engine::GetSceneManager()->GetObject_(i));
+				addObjectsRecursive<T>(vec, g, type);
+			}
+		}
 
 	public:
 		~SceneManager();
@@ -29,5 +58,6 @@ namespace engine
 
 		auto X12_API LoadScene(const char* name) -> void;
 
+		X12_API x12::ICoreBuffer* LightsBuffer() { return lightsBuffer.get(); }
 	};
 }

@@ -11,12 +11,23 @@
 
 namespace engine
 {
-	#pragma pack(push, 1)
-	struct Vertex
+	namespace Shaders
 	{
-		float3 NAME(Position, POSITION);
-		float3 NAME(Normal, TEXCOORD);
-		float2 NAME(UV, COLOR);
-	};
-	#pragma pack(pop)
+#pragma pack(push, 1)
+		struct Vertex
+		{
+			float3 NAME(Position, POSITION);
+			float3 NAME(Normal, TEXCOORD);
+			float2 NAME(UV, COLOR);
+		};
+#pragma pack(pop)
+
+		struct Light
+		{
+			float worldTransform[16];
+			float4 color;
+			float4 size;
+			float4 intensity;
+		};
+	}
 }

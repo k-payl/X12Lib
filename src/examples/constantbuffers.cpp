@@ -31,6 +31,7 @@ constexpr inline UINT float4chunks = 10;
 static HWND hwnd;
 static size_t mvpIdx;
 static size_t transformIdx;
+static size_t shadingIdx;
 static size_t chunkIdx;
 static engine::Camera* cam;
 
@@ -85,10 +86,16 @@ void Render()
 
 	cmdList->SetVertexBuffer(res->teapot.get()->RenderVertexBuffer());
 
-	mat4 MVP;
-	cam->GetModelViewProjectionMatrix(MVP, aspect);
+	struct CamCB
+	{
+		mat4 MVP;
+		vec4 cameraPos;
+	}camc;
 
-	res->cameraBuffer->SetData(&MVP, sizeof(MVP));
+	cam->GetModelViewProjectionMatrix(camc.MVP, aspect);
+	camc.cameraPos = cam->GetWorldPosition();
+
+	res->cameraBuffer->SetData(&camc, sizeof(mat4) + 16);
 
 	if (!res->cubeResources)
 	{
@@ -97,6 +104,7 @@ void Render()
 		res->cubeResources->BindTextueSRV("texture_", res->tex.get()->GetCoreTexture());
 		cmdList->CompileSet(res->cubeResources.get());
 		transformIdx = res->cubeResources->FindInlineBufferIndex("TransformCB");
+		shadingIdx = res->cubeResources->FindInlineBufferIndex("ShadingCB");
 	}
 
 	cmdList->BindResourceSet(res->cubeResources.get());
@@ -107,22 +115,28 @@ void Render()
 		{
 			for (int j = 0; j < numCubesY; ++j)
 			{
-				static_assert(sizeof(DynamicCB) == 4 * 8);
-
 				DynamicCB dynCB;
-				dynCB.transform = cubePosition(i, j);
+				dynCB.transform = cubePosition(i, j, x);
 				dynCB.color_out = cubeColor(i, j);
-				dynCB.transform.z += x;
-
+				dynCB.NM = dynCB.transform.Inverse().Transpose();
 				cmdList->UpdateInlineConstantBuffer(transformIdx, &dynCB, sizeof(dynCB));
+
+				vec4 shading;
+				shading.x = saturate(0.15f + float(j) / numCubesY);
+				if (x < 16)
+					shading.y = 1;
+				else
+					shading.y = 0;
+
+				cmdList->UpdateInlineConstantBuffer(shadingIdx, &shading, sizeof(vec4));
+
 				cmdList->Draw(res->teapot.get()->RenderVertexBuffer());
 			}
 		}
 	};
 
-	drawCubes(-3);
-
-	drawCubes(3);
+	drawCubes(15);
+	drawCubes(19);
 
 	cmdList->CommandsEnd();
 	renderer->ExecuteCommandList(cmdList);
@@ -135,13 +149,14 @@ void Init()
 	{
 		const ConstantBuffersDesc buffersdesc[] =
 		{
-			"TransformCB",	CONSTANT_BUFFER_UPDATE_FRIQUENCY::PER_DRAW
+			"TransformCB",	CONSTANT_BUFFER_UPDATE_FRIQUENCY::PER_DRAW,
+			"ShadingCB", CONSTANT_BUFFER_UPDATE_FRIQUENCY::PER_DRAW
 		};
 
-		res->shader = engine::GetResourceManager()->CreateGraphicShader(SHADER_DIR "mesh.shader", buffersdesc, _countof(buffersdesc));
+		res->shader = engine::GetResourceManager()->CreateGraphicShader(SHADER_DIR "mesh.hlsl", buffersdesc, _countof(buffersdesc));
 
 	}
-	renderer->CreateConstantBuffer(res->cameraBuffer.getAdressOf(), L"Camera constant buffer", sizeof(mat4));
+	renderer->CreateConstantBuffer(res->cameraBuffer.getAdressOf(), L"Camera constant buffer", sizeof(mat4) + 16);
 
 	res->tex = engine::GetResourceManager()->CreateStreamTexture(TEXTURES_DIR"chipped-paint-metal-albedo_3_512x512.dds", TEXTURE_CREATE_FLAGS::NONE);
 	res->tex.get(); // force load

@@ -50,6 +50,7 @@ void x12::Dx12CoreTexture::InitFromExisting(ID3D12Resource* resource_)
 	InitSRV();
 	InitRTV();
 	InitDSV();
+	InitUAV();
 }
 
 void x12::Dx12CoreTexture::TransiteToState(D3D12_RESOURCE_STATES newState, ID3D12GraphicsCommandList* cmdList)
@@ -62,6 +63,92 @@ void x12::Dx12CoreTexture::TransiteToState(D3D12_RESOURCE_STATES newState, ID3D1
 	cmdList->ResourceBarrier(1, &barrier);
 	
 	state = newState;
+}
+
+void x12::Dx12CoreTexture::_GPUCopyToStaging(ICoreGraphicCommandList* cmdList)
+{
+	if (!stagingResource)
+	{
+
+		x12::memory::CreateCommittedBuffer(stagingResource.GetAddressOf(), WholeSize(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_HEAP_TYPE_READBACK);
+		//CD3DX12_HEAP_PROPERTIES defaultHeapProperties(D3D12_HEAP_TYPE_READBACK);
+
+		//throwIfFailed(d3d12::CR_GetD3DDevice()->CreateCommittedResource(
+		//	&defaultHeapProperties,
+		//	D3D12_HEAP_FLAG_NONE,
+		//	&desc,
+		//	D3D12_RESOURCE_STATE_COPY_DEST,
+		//	nullptr,
+		//	IID_ID3D12Resource, reinterpret_cast<void**>(stagingResource.GetAddressOf())));
+
+		x12::d3d12::set_name(stagingResource.Get(), L"Staging buffer for gpu->cpu copying %u bytes for '%s'", WholeSize(), L"");
+	}
+
+	{
+		Dx12GraphicCommandList* dx12ctx = static_cast<Dx12GraphicCommandList*>(cmdList);
+		auto d3dCmdList = dx12ctx->GetD3D12CmdList(); // TODO: avoid
+
+		D3D12_RESOURCE_STATES oldState = state;
+		if (state != D3D12_RESOURCE_STATE_COPY_SOURCE)
+		{
+			d3dCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(resource.Get(), state, D3D12_RESOURCE_STATE_COPY_SOURCE));
+			state = D3D12_RESOURCE_STATE_COPY_SOURCE;
+		}
+		{
+			size_t bytes;
+			size_t outRow, outNUmRow;
+			GetSurfaceInfo(desc.Width, desc.Height, EngToD3D(format_), &bytes, &outRow, &outNUmRow);
+
+			D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint = {};
+			footprint.Footprint.Width = desc.Width;
+			footprint.Footprint.Height = desc.Height;
+			footprint.Footprint.Depth = 1;
+			footprint.Footprint.RowPitch = outRow;
+			footprint.Footprint.Format = desc.Format;
+
+			CD3DX12_TEXTURE_COPY_LOCATION Dst(stagingResource.Get(), footprint);
+			CD3DX12_TEXTURE_COPY_LOCATION Src(resource.Get(), 0);
+
+			d3dCmdList->CopyTextureRegion(&Dst, 0, 0, 0, &Src, nullptr);
+		}
+		if (oldState != state)
+		{
+			d3dCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(resource.Get(), state, oldState));
+			state = oldState;
+		}
+	}
+}
+void x12::Dx12CoreTexture::_GetStagingData(void* data)
+{
+	void* ptr;
+	stagingResource->Map(0, nullptr, &ptr);
+
+	memcpy(data, ptr, WholeSize());
+
+	stagingResource->Unmap(0, nullptr);
+}
+
+UINT x12::Dx12CoreTexture::WholeSize()
+{
+	size_t bytes;
+	size_t outRow, outNUmRow;
+	GetSurfaceInfo(desc.Width, desc.Height, EngToD3D(format_), &bytes, &outRow, &outNUmRow);
+	return UINT(bytes);
+}
+
+void x12::Dx12CoreTexture::GetData(void* data)
+{
+	ICoreRenderer* renderer = engine::GetCoreRenderer();
+	ICoreGraphicCommandList* cmdList = renderer->GetGraphicCommandList();
+
+	cmdList->CommandsBegin();
+	_GPUCopyToStaging(cmdList);
+	cmdList->CommandsEnd();
+	renderer->ExecuteCommandList(cmdList);
+
+	renderer->WaitGPUAll(); // execute current GPU work and wait
+
+	_GetStagingData(data);
 }
 
 void x12::Dx12CoreTexture::InitSRV()
@@ -86,6 +173,21 @@ void x12::Dx12CoreTexture::InitRTV()
 	{
 		RTVdescriptor = d3d12::D3D12GetCoreRender()->AllocateStaticRTVDescriptor();
 		d3d12::CR_GetD3DDevice()->CreateRenderTargetView(resource.Get(), nullptr, RTVdescriptor.descriptor);
+	}
+}
+
+void x12::Dx12CoreTexture::InitUAV()
+{
+	if (flags_ & TEXTURE_CREATE_FLAGS::USAGE_UNORDRED_ACCESS)
+	{
+		UAVdescriptor = d3d12::D3D12GetCoreRender()->AllocateStaticDescriptor();
+
+		D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+		uavDesc.Format = desc.Format;
+		uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D; // TODO
+		uavDesc.Texture2D.MipSlice = 0; // TODO
+
+		d3d12::CR_GetD3DDevice()->CreateUnorderedAccessView(resource.Get(), nullptr, &uavDesc, UAVdescriptor.descriptor);
 	}
 }
 
@@ -132,8 +234,8 @@ void x12::Dx12CoreTexture::Init(LPCWSTR name, const uint8_t* data, size_t size,
 	if (flags & TEXTURE_CREATE_FLAGS::USAGE_UNORDRED_ACCESS)
 		desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 
-	if (!(flags & TEXTURE_CREATE_FLAGS::USAGE_SHADER_RESOURCE))
-		desc.Flags |= D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE;
+	//if (!(flags & TEXTURE_CREATE_FLAGS::USAGE_SHADER_RESOURCE))
+	//	desc.Flags |= D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE;
 
 	desc.SampleDesc.Count = 1;
 	desc.SampleDesc.Quality = 0;
@@ -199,6 +301,7 @@ void x12::Dx12CoreTexture::Init(LPCWSTR name, const uint8_t* data, size_t size,
 	InitSRV();
 	InitRTV();
 	InitDSV();
+	InitUAV();
 }
 
 // From DDSTextureLoader12.cpp

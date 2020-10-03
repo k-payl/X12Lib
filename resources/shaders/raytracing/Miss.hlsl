@@ -1,4 +1,4 @@
-#include "Common.hlsl"
+#include "common.hlsl"
 
 [shader("miss")] 
 void Miss(inout HitInfo payload : SV_RayPayload)

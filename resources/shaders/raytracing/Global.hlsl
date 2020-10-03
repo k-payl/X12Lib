@@ -1,3 +1,5 @@
+#include "../cpp_hlsl_shared.h"
+
 // Raytracing output texture, accessed as a UAV
 RWTexture2D<float4> gOutput : register(u0);
 
@@ -20,12 +22,5 @@ struct SceneData
 };
 ConstantBuffer<SceneData> gScene : register(b2);
 
-//ByteAddressBuffer Indices : register(t1, space0);
 
-//struct Vertex
-//{
-//    float3 position;
-//    float3 normal;
-//    float2 tex;
-//};
-//StructuredBuffer<Vertex> Vertices : register(t2, space0);
+StructuredBuffer<engine::Shaders::Light> LightsBuffer : register(t1);

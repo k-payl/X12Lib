@@ -18,8 +18,8 @@ static float vertexPlane[] =
 
 static unsigned short indexPlane[6]
 {
-	0 + 0, 0 + 2, 0 + 1,
-	0 + 0, 0 + 1, 0 + 3
+	0, 2, 1,
+	3, 5, 4
 };
 
 static float vertexCube[] =
@@ -93,9 +93,9 @@ engine::Mesh::~Mesh()
 
 void engine::Mesh::checksStride()
 {
-	assert(desc.positionStride == sizeof(Vertex));
-	assert(desc.normalStride == sizeof(Vertex));
-	assert(desc.texCoordStride == sizeof(Vertex));
+	assert(desc.positionStride == sizeof(Shaders::Vertex));
+	assert(desc.normalStride == sizeof(Shaders::Vertex));
+	assert(desc.texCoordStride == sizeof(Shaders::Vertex));
 }
 
 bool engine::Mesh::createStdMesh(const char* path)
@@ -121,12 +121,33 @@ bool engine::Mesh::createStdMesh(const char* path)
 
 		checksStride();
 
-		//index.pData = reinterpret_cast<uint8_t*>(indexPlane);
-		//index.number = 6;
-		//index.format = MESH_INDEX_FORMAT::INT16;
-
 		GetCoreRenderer()->CreateStructuredBuffer(vertexBuffer.getAdressOf(), L"std#plane",
-			sizeof(Vertex), desc.numberOfVertex, desc.pData, x12::BUFFER_FLAGS::SHADER_RESOURCE);
+			sizeof(Shaders::Vertex), desc.numberOfVertex, desc.pData, x12::BUFFER_FLAGS::SHADER_RESOURCE);
+
+		x12::VertexAttributeDesc attr[3];
+
+		attr[0].format = x12::VERTEX_BUFFER_FORMAT::FLOAT3;
+		attr[0].offset = offsetof(Shaders::Vertex, Position);
+		attr[0].semanticName = "POSITION";
+
+		attr[1].format = x12::VERTEX_BUFFER_FORMAT::FLOAT3;
+		attr[1].offset = offsetof(Shaders::Vertex, Normal);
+		attr[1].semanticName = "TEXCOORD";
+
+		attr[2].format = x12::VERTEX_BUFFER_FORMAT::FLOAT2;
+		attr[2].offset = offsetof(Shaders::Vertex, UV);
+		attr[2].semanticName = "COLOR";
+
+		x12::VeretxBufferDesc desc;
+		desc.attributesCount = 3;
+		desc.attributes = &attr[0];
+		desc.vertexCount = 6;
+
+		x12::IndexBufferDesc indexdesc;
+		indexdesc.format = x12::INDEX_BUFFER_FORMAT::UNSIGNED_16;
+		indexdesc.vertexCount = 6;
+
+		GetCoreRenderer()->CreateVertexBuffer(renderVetexBuffer.getAdressOf(), ConvertFromUtf8ToUtf16(path_).c_str(), vertexPlane, &desc, indexPlane, &indexdesc, x12::MEMORY_TYPE::GPU_READ);
 
 		return true;
 	}
@@ -152,7 +173,7 @@ bool engine::Mesh::createStdMesh(const char* path)
 		checksStride();
 
 		GetCoreRenderer()->CreateStructuredBuffer(vertexBuffer.getAdressOf(), L"std#grid",
-			sizeof(Vertex), desc.numberOfVertex, desc.pData, x12::BUFFER_FLAGS::SHADER_RESOURCE);
+			sizeof(Shaders::Vertex), desc.numberOfVertex, desc.pData, x12::BUFFER_FLAGS::SHADER_RESOURCE);
 		return true;
 	}
 	else if (!strcmp(path, "std#line"))
@@ -166,7 +187,7 @@ bool engine::Mesh::createStdMesh(const char* path)
 		checksStride();
 
 		GetCoreRenderer()->CreateStructuredBuffer(vertexBuffer.getAdressOf(), L"std#line",
-			sizeof(Vertex), desc.numberOfVertex, desc.pData, x12::BUFFER_FLAGS::SHADER_RESOURCE);
+			sizeof(Shaders::Vertex), desc.numberOfVertex, desc.pData, x12::BUFFER_FLAGS::SHADER_RESOURCE);
 		return true;
 	}
 	else if (!strcmp(path, "std#axes_arrows"))
@@ -213,7 +234,7 @@ bool engine::Mesh::createStdMesh(const char* path)
 		checksStride();
 
 		GetCoreRenderer()->CreateStructuredBuffer(vertexBuffer.getAdressOf(), L"std#axes",
-			sizeof(Vertex), desc.numberOfVertex, desc.pData, x12::BUFFER_FLAGS::SHADER_RESOURCE);
+			sizeof(Shaders::Vertex), desc.numberOfVertex, desc.pData, x12::BUFFER_FLAGS::SHADER_RESOURCE);
 		return true;
 	}
 	else if (!strcmp(path, "std#cube"))
@@ -244,7 +265,7 @@ bool engine::Mesh::createStdMesh(const char* path)
 		checksStride();
 
 		GetCoreRenderer()->CreateStructuredBuffer(vertexBuffer.getAdressOf(), L"std#cube",
-			sizeof(Vertex), desc.numberOfVertex, desc.pData, x12::BUFFER_FLAGS::SHADER_RESOURCE);
+			sizeof(Shaders::Vertex), desc.numberOfVertex, desc.pData, x12::BUFFER_FLAGS::SHADER_RESOURCE);
 		return true;
 	}
 	return false;
@@ -307,7 +328,7 @@ bool engine::Mesh::Load()
 	bytes = std::max(bytes, header.binormalOffset + bBinormal * header.numberOfVertex * sizeof(vec4));
 	bytes = std::max(bytes, header.colorOffset + bColor * header.numberOfVertex * sizeof(vec4));
 
-	std::vector<Vertex> vs(header.numberOfVertex);
+	std::vector<Shaders::Vertex> vs(header.numberOfVertex);
 
 	for (int i = 0; i < header.numberOfVertex; ++i)
 	{
@@ -316,21 +337,21 @@ bool engine::Mesh::Load()
 		memcpy(&vs[i].UV, &desc.pData[i * header.uvStride + header.uvOffset], sizeof(vec2));
 	}
 
-	GetCoreRenderer()->CreateStructuredBuffer(vertexBuffer.getAdressOf(), ConvertFromUtf8ToUtf16(path_).c_str(), sizeof(Vertex), header.numberOfVertex, vs.data(), x12::BUFFER_FLAGS::SHADER_RESOURCE);
+	GetCoreRenderer()->CreateStructuredBuffer(vertexBuffer.getAdressOf(), ConvertFromUtf8ToUtf16(path_).c_str(), sizeof(Shaders::Vertex), header.numberOfVertex, vs.data(), x12::BUFFER_FLAGS::SHADER_RESOURCE);
 
 	{
 		x12::VertexAttributeDesc attr[3];
 
 		attr[0].format = x12::VERTEX_BUFFER_FORMAT::FLOAT3;
-		attr[0].offset = offsetof(Vertex, Position);
+		attr[0].offset = offsetof(Shaders::Vertex, Position);
 		attr[0].semanticName = "POSITION";
 
 		attr[1].format = x12::VERTEX_BUFFER_FORMAT::FLOAT3;
-		attr[1].offset = offsetof(Vertex, Normal);
+		attr[1].offset = offsetof(Shaders::Vertex, Normal);
 		attr[1].semanticName = "TEXCOORD";
 
 		attr[2].format = x12::VERTEX_BUFFER_FORMAT::FLOAT2;
-		attr[2].offset = offsetof(Vertex, UV);
+		attr[2].offset = offsetof(Shaders::Vertex, UV);
 		attr[2].semanticName = "COLOR";
 
 		x12::VeretxBufferDesc desc;
