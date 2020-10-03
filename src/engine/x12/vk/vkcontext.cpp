@@ -58,7 +58,11 @@ void x12::VkGraphicCommandList::BindSurface(x12::surface_ptr& surface_)
 		//windowResize(core);
 		notImplemented();
 	}
+}
 
+void x12::VkGraphicCommandList::SetRenderTargets(x12::ICoreTexture**, uint32_t, x12::ICoreTexture*)
+{
+	notImplemented();
 }
 void x12::VkGraphicCommandList::CommandsBegin()
 {
@@ -111,32 +115,35 @@ void x12::VkGraphicCommandList::WaitGPUFrame()
 	vkResetFences(vk::GetDevice(), 1, &fencesRenderFinished[frameIndex]);
 }
 */
-void x12::VkGraphicCommandList::PushState() {}
-void x12::VkGraphicCommandList::PopState() {}
-void x12::VkGraphicCommandList::SetGraphicPipelineState(const GraphicPipelineState& gpso) {}
-void x12::VkGraphicCommandList::SetComputePipelineState(const ComputePipelineState& cpso) {}
-void x12::VkGraphicCommandList::SetVertexBuffer(ICoreVertexBuffer* vb) {}
-void x12::VkGraphicCommandList::SetViewport(unsigned width, unsigned heigth) {}
-void x12::VkGraphicCommandList::GetViewport(unsigned& width, unsigned& heigth) {}
-void x12::VkGraphicCommandList::SetScissor(unsigned x, unsigned y, unsigned width, unsigned heigth) {}
-void x12::VkGraphicCommandList::Draw(const ICoreVertexBuffer* vb, uint32_t vertexCount, uint32_t vertexOffset) {}
-void x12::VkGraphicCommandList::Dispatch(uint32_t x, uint32_t y, uint32_t z) {}
-void x12::VkGraphicCommandList::Clear() {}
-void x12::VkGraphicCommandList::CompileSet(IResourceSet* set_) {}
-void x12::VkGraphicCommandList::BindResourceSet(IResourceSet* set_) {}
-void x12::VkGraphicCommandList::UpdateInlineConstantBuffer(size_t idx, const void* data, size_t size) {}
-void x12::VkGraphicCommandList::EmitUAVBarrier(ICoreBuffer* buffer) {}
+void x12::VkGraphicCommandList::PushState() { notImplemented(); }
+void x12::VkGraphicCommandList::PopState() { notImplemented(); }
+void x12::VkGraphicCommandList::SetGraphicPipelineState(const GraphicPipelineState& gpso) { notImplemented(); }
+void x12::VkGraphicCommandList::SetComputePipelineState(const ComputePipelineState& cpso) { notImplemented(); }
+void x12::VkGraphicCommandList::SetVertexBuffer(ICoreVertexBuffer* vb) { notImplemented(); }
+void x12::VkGraphicCommandList::SetViewport(unsigned width, unsigned heigth) { notImplemented(); }
+void x12::VkGraphicCommandList::GetViewport(unsigned& width, unsigned& heigth) { notImplemented(); }
+void x12::VkGraphicCommandList::SetScissor(unsigned x, unsigned y, unsigned width, unsigned heigth) { notImplemented(); }
+void x12::VkGraphicCommandList::Draw(const ICoreVertexBuffer* vb, uint32_t vertexCount, uint32_t vertexOffset) { notImplemented(); }
+void x12::VkGraphicCommandList::Dispatch(uint32_t x, uint32_t y, uint32_t z) { notImplemented(); }
+void x12::VkGraphicCommandList::Clear() { notImplemented(); }
+void x12::VkGraphicCommandList::CompileSet(IResourceSet* set_) { notImplemented(); }
+void x12::VkGraphicCommandList::BindResourceSet(IResourceSet* set_) { notImplemented(); }
+void x12::VkGraphicCommandList::UpdateInlineConstantBuffer(size_t idx, const void* data, size_t size) { notImplemented(); }
+void x12::VkGraphicCommandList::EmitUAVBarrier(ICoreBuffer* buffer) { notImplemented(); }
 
 void x12::VkGraphicCommandList::StartQuery(ICoreQuery* query)
 {
+	notImplemented();
 }
 
 void x12::VkGraphicCommandList::StopQuery(ICoreQuery* query)
 {
+	notImplemented();
 }
 
 void* x12::VkGraphicCommandList::GetNativeResource()
 {
+	notImplemented();
 	return nullptr;
 }
 

@@ -173,6 +173,11 @@ bool x12::VkCoreRenderer::CreateTexture(ICoreTexture** out, LPCWSTR name, const 
 	return false;
 }
 
+bool x12::VkCoreRenderer::CreateTextureFrom(ICoreTexture** out, LPCWSTR name, ID3D12Resource* d3dexistingtexture)
+{
+	return false;
+}
+
 bool x12::VkCoreRenderer::CreateTextureFrom(ICoreTexture** out, LPCWSTR name, std::vector<D3D12_SUBRESOURCE_DATA> subresources, ID3D12Resource* d3dexistingtexture)
 {
 	return false;

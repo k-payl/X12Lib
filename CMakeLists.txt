@@ -45,7 +45,7 @@ file(GLOB SOURCES_3RDPARTY
     3rdparty/DirectXTK/Src/*.cpp
     3rdparty/DirectXTex/*.cpp)
 
-file(GLOB HEADERS_VIDEO src/engine/x12/*.h src/engine/x12/d3d12/*.h include/engine/x12/d3d12/*.h)
+file(GLOB HEADERS_VIDEO src/engine/x12/*.h src/engine/x12/d3d12/*.h include/engine/x12/d3d12/*.h include/engine/x12/*.h)
 file(GLOB HEADERS_SYSTEM src/engine/system/*.h src/math/*.h include/engine/system/*.h include/math/*.h)
 file(GLOB HEADERS_3RDPARTY
 	3rdparty/*.h
@@ -57,7 +57,7 @@ file(GLOB HEADERS_3RDPARTY
 if (VK_ENABLE)
 	add_definitions(-DVK_ENABLE=1)
 	file(GLOB SOURCES_VK src/engine/x12/vk/*.cpp)
-	file(GLOB HEADERS_VK src/engine/x12/vk/*.h)
+	file(GLOB HEADERS_VK src/engine/x12/vk/*.h include/engine/x12/vk/*.h)
 	set(SOURCES_VIDEO ${SOURCES_VIDEO} ${SOURCES_VK})
 	set(HEADERS_VIDEO ${HEADERS_VIDEO} ${HEADERS_VK})
 	set(HEADERS ${HEADERS} ${Vulkan_INCLUDE_DIR}/vulkan/)
@@ -106,13 +106,15 @@ target_include_directories(engine PRIVATE
     3rdparty/DirectXTK/Inc
     3rdparty/DirectXTex)
 
+set(ENGINE_LIBS dxguid dxgi d3d12 d3dcompiler)
 if (VK_ENABLE)
-	target_include_directories(engine PRIVATE include/engine/x12/vk)
-	target_include_directories(engine PRIVATE 3rdparty/VulkanMemoryAllocator)
+	target_include_directories(engine PRIVATE 
+		include/engine/x12/vk
+		3rdparty/VulkanMemoryAllocator
+		${Vulkan_INCLUDE_DIR}/vulkan)
 	set(ENGINE_LIBS ${ENGINE_LIBS} ${Vulkan_LIBRARY})
 endif()
 
-set(ENGINE_LIBS dxguid dxgi d3d12 d3dcompiler)
 target_precompile_headers(engine PRIVATE src/engine/system/pch.h)
 target_link_libraries(engine ${ENGINE_LIBS})
 target_link_libraries(engine yaml-cpp)

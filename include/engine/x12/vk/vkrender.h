@@ -93,13 +93,15 @@ namespace x12
 		bool CreateTexture(ICoreTexture** out, LPCWSTR name, const uint8_t* data, size_t size, int32_t width, int32_t height, uint32_t mipCount,
 						   TEXTURE_TYPE type, TEXTURE_FORMAT format, TEXTURE_CREATE_FLAGS flags) override;
 
-		bool CreateTextureFrom(ICoreTexture** out, LPCWSTR name, std::vector<D3D12_SUBRESOURCE_DATA> subresources, ID3D12Resource* d3dexistingtexture) override;
-
+		bool CreateTextureFrom(ICoreTexture** out, LPCWSTR name, ID3D12Resource* d3dexistingtexture) override;
+		bool CreateTextureFrom(x12::ICoreTexture**, LPCWSTR, std::vector<D3D12_SUBRESOURCE_DATA, std::allocator<D3D12_SUBRESOURCE_DATA>>, ID3D12Resource*) override;
 		bool CreateResourceSet(IResourceSet** out, const ICoreShader* shader) override;
 
 		bool CreateQuery(ICoreQuery** out) override;
 
 		void* GetNativeDevice() override { return device; }
+
+		void* GetNativeGraphicQueue() override { return nullptr; }
 	};
 
 	namespace vk

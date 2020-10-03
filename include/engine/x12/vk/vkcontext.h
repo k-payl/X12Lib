@@ -40,6 +40,7 @@ namespace x12
 		VkGraphicCommandList();
 		~VkGraphicCommandList();
 		void BindSurface(surface_ptr& surface_) override; // TODO: bind arbitary textures
+		void SetRenderTargets(x12::ICoreTexture**, uint32_t, x12::ICoreTexture*) override;
 		void CommandsBegin() override;
 		void CommandsEnd() override;
 		void FrameEnd() override;
