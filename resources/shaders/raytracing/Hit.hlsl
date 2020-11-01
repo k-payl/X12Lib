@@ -77,7 +77,7 @@ void ClosestHit(inout HitInfo payload, Attributes attrib)
 	
 		// Set up a trace. No work is done yet.
 		q.TraceRayInline(
-			SceneBVH,
+			gSceneBVH,
 			0,
 			0xFF,
 			ray);
@@ -95,12 +95,12 @@ void ClosestHit(inout HitInfo payload, Attributes attrib)
 		HitInfo shadowPayload;
 				
 		TraceRay(
-			SceneBVH,
+			gSceneBVH,
 			RAY_FLAG_NONE,
 			0xFF,
 		
 			// Parameter name: RayContributionToHitGroupIndex
-			gScene.numInstances,
+			gScene.instanceCount,
 		
 			// Parameter name: MultiplierForGeometryContributionToHitGroupIndex
 			0,

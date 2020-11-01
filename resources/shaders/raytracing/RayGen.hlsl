@@ -32,7 +32,7 @@ void RayGen()
     TraceRay(
         // Parameter name: AccelerationStructure
         // Acceleration structure
-        SceneBVH,
+        gSceneBVH,
     
         // Parameter name: RayFlags
         // Flags can be used to specify the behavior upon hitting a surface

@@ -13,6 +13,9 @@ namespace engine
 
 		void destroyObjects();
 
+	public:
+		~SceneManager();
+
 		template<typename T>
 		void addObjectsRecursive(std::vector<T*>& ret, engine::GameObject* root, engine::OBJECT_TYPE type)
 		{
@@ -39,9 +42,6 @@ namespace engine
 				addObjectsRecursive<T>(vec, g, type);
 			}
 		}
-
-	public:
-		~SceneManager();
 
 		void Update(float dt);
 
