@@ -30,9 +30,10 @@ static HRESULT FillInitData(_In_ size_t width,
 	_Out_ size_t& skipMip,
 	std::vector<D3D12_SUBRESOURCE_DATA>& initData);
 
-void x12::Dx12CoreTexture::InitFromExisting(ID3D12Resource* resource_)
+void x12::Dx12CoreTexture::InitFromExisting(LPCWSTR name, ID3D12Resource* resource_)
 {
 	resource.Attach(resource_);
+	x12::d3d12::set_name(resource.Get(), name);
 
 	desc = resource->GetDesc();
 

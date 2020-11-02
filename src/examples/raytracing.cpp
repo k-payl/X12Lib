@@ -47,12 +47,21 @@ UINT hitRecordSize()
 	return x12::Align(D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES + sizeof(HitArg), D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT);
 }
 
+struct Fence
+{
+	ComPtr<ID3D12Fence> fence[engine::DeferredBuffers];
+	UINT64 fenceValues[engine::DeferredBuffers];
+};
+
 static struct Resources
 {
 	ComPtr<ID3D12CommandQueue>          commandQueue;
 	ComPtr<ID3D12GraphicsCommandList>   commandList;
 	ComPtr<ID3D12CommandAllocator>      commandAllocators[engine::DeferredBuffers];
-	ComPtr<ID3D12Fence>                 fence;
+
+	Fence rtToSwapchainFence;
+	Fence clearToRTFence;
+	Fence frameEndFence;
 
 	// DXR
 	ComPtr<ID3D12Device5> dxrDevice;
@@ -89,7 +98,7 @@ static struct Resources
 	intrusive_ptr<ICoreVertexBuffer> plane;
 	ComPtr<ID3D12Resource> raytracingOutput;
 	intrusive_ptr<ICoreTexture> raytracingOutputCore;
-	ComPtr<ID3D12Fence> rtToCopyFence;
+	//ComPtr<ID3D12Fence> rtToCopyFence;
 
 	engine::StreamPtr<engine::Shader> clearShader;
 	intrusive_ptr<IResourceSet> clearResources;
@@ -112,7 +121,8 @@ ID3D12GraphicsCommandList4* dxrCommandList;
 ID3D12StateObject* dxrStateObject;
 UINT descriptorSize;
 UINT descriptorsAllocated;
-UINT64 fenceValues[engine::DeferredBuffers];
+ID3D12CommandQueue *rtxQueue;
+
 UINT64 rtToCopyFenceValue;
 UINT backBufferIndex;
 HANDLE event;
@@ -132,11 +142,15 @@ namespace GlobalRootSignatureParams {
 
 void CreateRaytracingOutputResource(UINT width, UINT height);
 void WaitForGpu();
+void Sync(ID3D12CommandQueue* fromQueue, ID3D12CommandQueue* ToQueue, Fence& fence);
+void SignalFence(ID3D12CommandQueue* ToQueue, Fence& fence);
 
 void Render()
 {
 	ICoreRenderer* renderer = engine::GetCoreRenderer();
+	ID3D12CommandQueue* graphicQueue = reinterpret_cast<ID3D12CommandQueue*>(renderer->GetNativeGraphicQueue());
 
+	renderer->WaitGPU();
 	WaitForGpu();
 
 	throwIfFailed(res->commandAllocators[backBufferIndex]->Reset());
@@ -215,13 +229,8 @@ void Render()
 		cmdList->CommandsEnd();
 		renderer->ExecuteCommandList(cmdList);
 
-		// sync clear with raytracing
-		{
-			ID3D12CommandQueue* queue = reinterpret_cast<ID3D12CommandQueue*>(renderer->GetNativeGraphicQueue());
-			queue->Signal(res->rtToCopyFence.Get(), rtToCopyFenceValue);			
-			res->commandQueue->Wait(res->rtToCopyFence.Get(), rtToCopyFenceValue);
-			rtToCopyFenceValue++;
-		}
+		// Sync clear with RT
+		Sync(graphicQueue, rtxQueue, res->clearToRTFence);
 	
 		needClearBackBuffer = false;
 	}
@@ -271,13 +280,8 @@ void Render()
 	ID3D12CommandList* commandLists[] = { dxrCommandList };
 	res->commandQueue->ExecuteCommandLists(ARRAYSIZE(commandLists), commandLists);
 
-	// sync rt with swapchain copy
-	{
-		res->commandQueue->Signal(res->rtToCopyFence.Get(), rtToCopyFenceValue);
-		ID3D12CommandQueue* queue = reinterpret_cast<ID3D12CommandQueue*>(renderer->GetNativeGraphicQueue());
-		queue->Wait(res->rtToCopyFence.Get(), rtToCopyFenceValue);
-		rtToCopyFenceValue++;
-	}
+	// Sync RT with swapchain copy
+	Sync(rtxQueue, graphicQueue, res->rtToSwapchainFence);
 
 	// swapchain copy
 	{
@@ -335,19 +339,41 @@ void Render()
 	backBufferIndex = (backBufferIndex + 1) % engine::DeferredBuffers;
 }
 
+void InitFence(Fence& fence)
+{
+	for (int i = 0; i < engine::DeferredBuffers; i++)
+	{
+		throwIfFailed(device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence.fence[i])));
+	}
+	fence.fenceValues[0]++;
+}
+
+void SignalFence(ID3D12CommandQueue* ToQueue, Fence& fence)
+{
+	ToQueue->Signal(fence.fence[backBufferIndex].Get(), fence.fenceValues[backBufferIndex]);
+	fence.fenceValues[backBufferIndex]++;
+}
+
+void Sync(ID3D12CommandQueue* fromQueue, ID3D12CommandQueue* ToQueue, Fence& fence)
+{
+	ToQueue->Signal(fence.fence[backBufferIndex].Get(), fence.fenceValues[backBufferIndex]);	
+	ToQueue->Wait(fence.fence[backBufferIndex].Get(), fence.fenceValues[backBufferIndex]);
+	fence.fenceValues[backBufferIndex]++;
+}
+
 void WaitForGpu()
 {
 	// Schedule a Signal command in the GPU queue.
-	UINT64 fenceValue = fenceValues[backBufferIndex];
-	if (SUCCEEDED(res->commandQueue->Signal(res->fence.Get(), fenceValue)))
+	UINT64 fenceValue = res->frameEndFence.fenceValues[backBufferIndex];
+	if (SUCCEEDED(res->commandQueue->Signal(res->frameEndFence.fence[backBufferIndex].Get(), fenceValue)))
 	{
 		// Wait until the Signal has been processed.
-		if (SUCCEEDED(res->fence->SetEventOnCompletion(fenceValue, event)))
+		if (SUCCEEDED(res->frameEndFence.fence[backBufferIndex]->SetEventOnCompletion(fenceValue, event)))
 		{
 			WaitForSingleObjectEx(event, INFINITE, FALSE);
 
 			// Increment the fence value for the current frame.
-			fenceValues[backBufferIndex]++;
+			res->frameEndFence.fenceValues[backBufferIndex]++;
 		}
 	}
 }
@@ -368,6 +394,7 @@ void Init()
 	queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
 	queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
 	throwIfFailed(device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&res->commandQueue)));
+	rtxQueue = res->commandQueue.Get();
 
 	// Create a command allocator for each back buffer that will be rendered to.
 	for (UINT n = 0; n < engine::DeferredBuffers; n++)
@@ -379,10 +406,9 @@ void Init()
 	throwIfFailed(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, res->commandAllocators[0].Get(), nullptr, IID_PPV_ARGS(&res->commandList)));
 	throwIfFailed(res->commandList->Close());
 
-	// Create a fence for tracking GPU execution progress.
-	throwIfFailed(device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&res->fence)));
-	throwIfFailed(device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&res->rtToCopyFence)));
-	fenceValues[0]++;
+	InitFence(res->rtToSwapchainFence);
+	InitFence(res->clearToRTFence);
+	InitFence(res->frameEndFence);
 
 	event = CreateEvent(nullptr, FALSE, FALSE, nullptr);
 
@@ -408,10 +434,6 @@ void Init()
 
 		rootParameters[GlobalRootSignatureParams::Scene].InitAsConstantBufferView(2); // scene constants
 		rootParameters[GlobalRootSignatureParams::Lights].InitAsShaderResourceView(1); // lights
-
-		//CD3DX12_DESCRIPTOR_RANGE geomRanges[1];
-		//geomRanges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 1);  // 2 static index and vertex buffers.
-		//rootParameters[GlobalRootSignatureParams::VertexIndexBuffers].InitAsDescriptorTable(1, &geomRanges[0]);
 
 		CD3DX12_ROOT_SIGNATURE_DESC desc(ARRAYSIZE(rootParameters), rootParameters, 0, nullptr);
 
@@ -684,6 +706,7 @@ void messageCallback(HWND hwnd, engine::WINDOW_MESSAGE type, uint32_t param1, ui
 	if (type == engine::WINDOW_MESSAGE::SIZE && (width != param1 && height != param2))
 	{
 		engine::GetCoreRenderer()->WaitGPUAll();
+		WaitForGpu();
 		width = param1; height = param2;
 		CreateRaytracingOutputResource(width, height);
 		needClearBackBuffer = true;

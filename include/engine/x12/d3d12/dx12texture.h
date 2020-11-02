@@ -9,7 +9,7 @@ namespace x12
 	public:
 		void Init(LPCWSTR name, const uint8_t* data, size_t size,
 			int32_t width, int32_t height, uint32_t mipCount, TEXTURE_TYPE type, TEXTURE_FORMAT format, TEXTURE_CREATE_FLAGS flags);
-		void InitFromExisting(ID3D12Resource* resource_);
+		void InitFromExisting(LPCWSTR name, ID3D12Resource* resource_);
 
 		D3D12_CPU_DESCRIPTOR_HANDLE GetSRV() const { return SRVdescriptor.descriptor; }
 		D3D12_CPU_DESCRIPTOR_HANDLE GetRTV() const { return RTVdescriptor.descriptor; }

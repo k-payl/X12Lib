@@ -154,8 +154,10 @@ void x12::Dx12CoreRenderer::Init()
 		queueDesc.Type = types[i];
 
 		throwIfFailed(device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&queues[i].d3dCommandQueue)));
-		x12::d3d12::set_name(queues[i].d3dCommandQueue, L"queue");
 	}
+
+	x12::d3d12::set_name(queues[QUEUE_GRAPHIC].d3dCommandQueue, L"dx12render QUEUE_GRAPHIC");
+	x12::d3d12::set_name(queues[QUEUE_COPY].d3dCommandQueue, L"dx12render QUEUE_COPY");
 
 	uint64_t gpuFrequency;
 	queues[QUEUE_GRAPHIC].d3dCommandQueue->GetTimestampFrequency(&gpuFrequency);
@@ -374,6 +376,19 @@ void x12::Dx12CoreRenderer::RecreateBuffers(HWND hwnd, UINT newWidth, UINT newHe
 {
 	WaitGPUAll();
 
+	queues[0].Signal(frameIndex);
+
+	uint64_t valueToWait = 0;
+	for (int j = 0; j < engine::DeferredBuffers; ++j)
+		valueToWait = std::max(queues[0].submitedValues[j], valueToWait);
+	uint64_t valueCompleted = queues[0].completedValue;
+
+	if (valueCompleted < valueToWait)
+	{
+		WaitForFenceValue(queues[0].d3dFence, valueToWait, queues[0].fenceEvent);
+		queues[0].completedValue = valueToWait;
+	}
+
 	surface_ptr surf = _FetchSurface(hwnd);
 	surf->ResizeBuffers(newWidth, newHeight);
 
@@ -537,7 +552,7 @@ bool x12::Dx12CoreRenderer::CreateTextureFrom(ICoreTexture** out, LPCWSTR name, 
 	WaitGPUAll(); // wait GPU copying upload -> default heap
 
 	auto* ptr = new Dx12CoreTexture();
-	ptr->InitFromExisting(d3dexistingtexture);
+	ptr->InitFromExisting(name, d3dexistingtexture);
 	ptr->AddRef();
 
 	*out = ptr;
@@ -548,7 +563,7 @@ bool x12::Dx12CoreRenderer::CreateTextureFrom(ICoreTexture** out, LPCWSTR name, 
 bool x12::Dx12CoreRenderer::CreateTextureFrom(ICoreTexture** out, LPCWSTR name, ID3D12Resource* existingTexture)
 {
 	auto* ptr = new Dx12CoreTexture();
-	ptr->InitFromExisting(existingTexture);
+	ptr->InitFromExisting(name, existingTexture);
 	ptr->AddRef();
 
 	*out = ptr;
