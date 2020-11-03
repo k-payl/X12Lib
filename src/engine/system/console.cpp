@@ -246,8 +246,8 @@ void engine::Console::CreateHintWindow(const std::string& word_)
 
 	hint = new Console::Hint;
 	hint->commandIndexes = std::move(indexes);
-	hint->count = count;
-	hint->hListBox_ = CreateWindow(TEXT("LISTBOX"), TEXT(""), WS_CHILD | WS_VISIBLE, 0, 0, 400, 17 * count, hMemo_, 0, 0, NULL);
+	hint->count = (int32_t)count;
+	hint->hListBox_ = CreateWindow(TEXT("LISTBOX"), TEXT(""), WS_CHILD | WS_VISIBLE, 0, 0, 400, 17 * (int)count, hMemo_, 0, 0, NULL);
 
 	for (int i = 0; i < ConsoleVariables().size(); ++i)
 	{
@@ -321,11 +321,11 @@ void engine::Console::CompleteNextHistory()
 		return;
 
 	if (historyIndex == -1)
-		historyIndex = history.size() - 1;
+		historyIndex = (int32_t)history.size() - 1;
 	else if (history.size() > 1)
 	{
 		if (historyIndex == 0)
-			historyIndex = history.size() - 1;
+			historyIndex = (int32_t)history.size() - 1;
 		else
 			historyIndex--;
 	}

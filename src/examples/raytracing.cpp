@@ -59,10 +59,6 @@ static struct Resources
 	ComPtr<ID3D12GraphicsCommandList>   commandList;
 	ComPtr<ID3D12CommandAllocator>      commandAllocators[engine::DeferredBuffers];
 
-	Fence rtToSwapchainFence;
-	Fence clearToRTFence;
-	Fence frameEndFence;
-
 	// DXR
 	ComPtr<ID3D12Device5> dxrDevice;
 	ComPtr<ID3D12GraphicsCommandList4> dxrCommandList;
@@ -73,35 +69,34 @@ static struct Resources
 	ComPtr<ID3D12Resource> missShaderTable;
 	ComPtr<ID3D12Resource> hitGroupShaderTable;
 	ComPtr<ID3D12Resource> rayGenShaderTable;
-
-	ComPtr<ID3D12RootSignature> raytracingGlobalRootSignature;
-	ComPtr<ID3D12RootSignature> raytracingLocalRootSignature;
-
-	ComPtr<ID3D12DescriptorHeap> descriptorHeap;
-
-	intrusive_ptr<x12::ICoreBuffer> indexBuffer;
-
-	intrusive_ptr<x12::ICoreBuffer> cameraBuffers;
-
 	ComPtr<IDxcBlob> raygen;
 	ComPtr<IDxcBlob> hit;
 	ComPtr<IDxcBlob> miss;
 
-	ComPtr<ID3D12Resource> accelerationStructure;
+	ComPtr<ID3D12RootSignature> raytracingGlobalRootSignature;
+	ComPtr<ID3D12RootSignature> raytracingLocalRootSignature;
+
 	std::map<engine::Mesh*, ComPtr<ID3D12Resource>> bottomLevelAccelerationStructures;
 	ComPtr<ID3D12Resource> topLevelAccelerationStructure;
 
-	intrusive_ptr<x12::ICoreBuffer> sceneData;
+	ComPtr<ID3D12DescriptorHeap> descriptorHeap;
+
+	intrusive_ptr<x12::ICoreBuffer> sceneBuffer;
+	intrusive_ptr<x12::ICoreBuffer> cameraBuffer;
+
+	ComPtr<ID3D12Resource> outputRGBA32f;
+	intrusive_ptr<ICoreTexture> outputRGBA32fcoreWeakPtr;
 
 	engine::StreamPtr<engine::Shader> copyShader;
-	intrusive_ptr<IResourceSet> copyResources;
+	intrusive_ptr<IResourceSet> copyResourceSet;
 	intrusive_ptr<ICoreVertexBuffer> plane;
-	ComPtr<ID3D12Resource> raytracingOutput;
-	intrusive_ptr<ICoreTexture> raytracingOutputCore;
-	//ComPtr<ID3D12Fence> rtToCopyFence;
 
 	engine::StreamPtr<engine::Shader> clearShader;
 	intrusive_ptr<IResourceSet> clearResources;
+
+	Fence rtToSwapchainFence;
+	Fence clearToRTFence;
+	Fence frameEndFence;
 }
 *res;
 
@@ -112,7 +107,7 @@ UINT width, height;
 bool needClearBackBuffer = true;
 
 engine::Camera* cam;
-
+size_t CameraBuffer;
 math::mat4 cameraTransform;
 
 ID3D12Device* device;
@@ -123,19 +118,26 @@ UINT descriptorSize;
 UINT descriptorsAllocated;
 ID3D12CommandQueue *rtxQueue;
 
-UINT64 rtToCopyFenceValue;
 UINT backBufferIndex;
 HANDLE event;
 D3D12_GPU_DESCRIPTOR_HANDLE raytracingOutputResourceUAVGpuDescriptor;
-size_t CameraBuffer;
+
 
 namespace GlobalRootSignatureParams {
-	enum Value {
+	enum {
 		CameraConstantBuffer = 0,
 		OutputView,
 		AccelerationStructure,
-		Scene,
-		Lights,
+		SceneConstants,
+		LightStructuredBuffer,
+		Count
+	};
+}
+
+namespace LocalRootSignatureParams {
+	enum {
+		InstanceConstants = 0,
+		VertexBuffer,
 		Count
 	};
 }
@@ -179,7 +181,7 @@ void Render()
 			memcpy(&cameraData.right.x, &rightWS, sizeof(vec3));
 			memcpy(&cameraData.up.x, &upWS, sizeof(vec3));
 			memcpy(&cameraData.origin.x, &origin, sizeof(vec4));
-			res->cameraBuffers->SetData(&cameraData, sizeof(cameraData));
+			res->cameraBuffer->SetData(&cameraData, sizeof(cameraData));
 
 			needClearBackBuffer = true;
 		}
@@ -202,7 +204,7 @@ void Render()
 		if (!res->clearResources)
 		{
 			renderer->CreateResourceSet(res->clearResources.getAdressOf(), res->clearShader.get()->GetCoreShader());
-			res->clearResources->BindTextueSRV("tex", res->raytracingOutputCore.get());
+			res->clearResources->BindTextueSRV("tex", res->outputRGBA32fcoreWeakPtr.get());
 			cmdList->CompileSet(res->clearResources.get());
 			CameraBuffer = res->clearResources->FindInlineBufferIndex("CameraBuffer");
 		}		
@@ -222,7 +224,7 @@ void Render()
 		{
 			ID3D12GraphicsCommandList* d3dCmdList = (ID3D12GraphicsCommandList*)cmdList->GetNativeResource();
 			D3D12_RESOURCE_BARRIER preCopyBarriers[] = {
-			CD3DX12_RESOURCE_BARRIER::UAV(res->raytracingOutput.Get())};
+			CD3DX12_RESOURCE_BARRIER::UAV(res->outputRGBA32f.Get())};
 			d3dCmdList->ResourceBarrier(ARRAYSIZE(preCopyBarriers), preCopyBarriers);
 		}
 
@@ -247,17 +249,17 @@ void Render()
 
 		// camera
 		{
-			x12::Dx12CoreBuffer* dx12buffer = reinterpret_cast<x12::Dx12CoreBuffer*>(res->cameraBuffers.get());
+			x12::Dx12CoreBuffer* dx12buffer = reinterpret_cast<x12::Dx12CoreBuffer*>(res->cameraBuffer.get());
 			dxrCommandList->SetComputeRootConstantBufferView(GlobalRootSignatureParams::CameraConstantBuffer, dx12buffer->GPUAddress());
 		}
 
 		// scene data
 		{
-			auto adress = static_cast<x12::Dx12CoreBuffer*>(res->sceneData.get())->GPUAddress();
-			dxrCommandList->SetComputeRootConstantBufferView(GlobalRootSignatureParams::Scene, adress);
+			auto adress = static_cast<x12::Dx12CoreBuffer*>(res->sceneBuffer.get())->GPUAddress();
+			dxrCommandList->SetComputeRootConstantBufferView(GlobalRootSignatureParams::SceneConstants, adress);
 
 			adress = static_cast<x12::Dx12CoreBuffer*>(engine::GetSceneManager()->LightsBuffer())->GPUAddress();
-			dxrCommandList->SetComputeRootShaderResourceView(GlobalRootSignatureParams::Lights, adress);
+			dxrCommandList->SetComputeRootShaderResourceView(GlobalRootSignatureParams::LightStructuredBuffer, adress);
 		}
 
 		D3D12_DISPATCH_RAYS_DESC dispatchDesc = {};
@@ -305,20 +307,20 @@ void Render()
 			ID3D12GraphicsCommandList* d3dCmdList = (ID3D12GraphicsCommandList*)cmdList->GetNativeResource();
 
 			D3D12_RESOURCE_BARRIER preCopyBarriers[] = {
-				CD3DX12_RESOURCE_BARRIER::Transition(res->raytracingOutput.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE),
+				CD3DX12_RESOURCE_BARRIER::Transition(res->outputRGBA32f.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE),
 			};
 
 			d3dCmdList->ResourceBarrier(ARRAYSIZE(preCopyBarriers), preCopyBarriers);
 		}
 
-		if (!res->copyResources)
+		if (!res->copyResourceSet)
 		{
-			renderer->CreateResourceSet(res->copyResources.getAdressOf(), res->copyShader.get()->GetCoreShader());
-			res->copyResources->BindTextueSRV("texture_", res->raytracingOutputCore.get());
-			cmdList->CompileSet(res->copyResources.get());
+			renderer->CreateResourceSet(res->copyResourceSet.getAdressOf(), res->copyShader.get()->GetCoreShader());
+			res->copyResourceSet->BindTextueSRV("texture_", res->outputRGBA32fcoreWeakPtr.get());
+			cmdList->CompileSet(res->copyResourceSet.get());
 		}
 
-		cmdList->BindResourceSet(res->copyResources.get());
+		cmdList->BindResourceSet(res->copyResourceSet.get());
 
 		cmdList->Draw(res->plane.get());
 
@@ -326,7 +328,7 @@ void Render()
 			ID3D12GraphicsCommandList* d3dCmdList = (ID3D12GraphicsCommandList*)cmdList->GetNativeResource();
 
 			D3D12_RESOURCE_BARRIER preCopyBarriers[] = {
-				CD3DX12_RESOURCE_BARRIER::Transition(res->raytracingOutput.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS),
+				CD3DX12_RESOURCE_BARRIER::Transition(res->outputRGBA32f.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS),
 			};
 
 			d3dCmdList->ResourceBarrier(ARRAYSIZE(preCopyBarriers), preCopyBarriers);
@@ -388,6 +390,8 @@ void Init()
 	throwIfFailed(device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS5, &opt5, sizeof(opt5)));
 
 	bool tier11 = opt5.RaytracingTier >= D3D12_RAYTRACING_TIER::D3D12_RAYTRACING_TIER_1_1;
+	if (opt5.RaytracingTier == D3D12_RAYTRACING_TIER_NOT_SUPPORTED)
+		abort();
 
 	// Create the command queue.
 	D3D12_COMMAND_QUEUE_DESC queueDesc = {};
@@ -420,20 +424,17 @@ void Init()
 	dxrCommandList = res->dxrCommandList.Get();
 
 	// Global Root Signature
-	// This is a root signature that is shared across all raytracing shaders invoked during a DispatchRays() call.
 	{
 		CD3DX12_ROOT_PARAMETER rootParameters[GlobalRootSignatureParams::Count];
 
 		CD3DX12_DESCRIPTOR_RANGE UAVDescriptor;
 		UAVDescriptor.Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0);
+
 		rootParameters[GlobalRootSignatureParams::OutputView].InitAsDescriptorTable(1, &UAVDescriptor);
-
-		rootParameters[GlobalRootSignatureParams::CameraConstantBuffer].InitAsConstantBufferView(0); // camera constants
-
-		rootParameters[GlobalRootSignatureParams::AccelerationStructure].InitAsShaderResourceView(0); // acceleration structure
-
-		rootParameters[GlobalRootSignatureParams::Scene].InitAsConstantBufferView(2); // scene constants
-		rootParameters[GlobalRootSignatureParams::Lights].InitAsShaderResourceView(1); // lights
+		rootParameters[GlobalRootSignatureParams::CameraConstantBuffer].InitAsConstantBufferView(0);
+		rootParameters[GlobalRootSignatureParams::AccelerationStructure].InitAsShaderResourceView(0);
+		rootParameters[GlobalRootSignatureParams::SceneConstants].InitAsConstantBufferView(2);
+		rootParameters[GlobalRootSignatureParams::LightStructuredBuffer].InitAsShaderResourceView(1);
 
 		CD3DX12_ROOT_SIGNATURE_DESC desc(ARRAYSIZE(rootParameters), rootParameters, 0, nullptr);
 
@@ -441,11 +442,10 @@ void Init()
 	}
 
 	// Local Root Signature
-	// This is a root signature that enables a shader to have unique arguments that come from shader tables.
 	{
-		CD3DX12_ROOT_PARAMETER rootParameters[2];
-		rootParameters[0].InitAsConstants(4 + 16, 1, 0); // camera constants
-		rootParameters[1].InitAsShaderResourceView(2, 0); // vertex buffer
+		CD3DX12_ROOT_PARAMETER rootParameters[LocalRootSignatureParams::Count];
+		rootParameters[LocalRootSignatureParams::InstanceConstants].InitAsConstants(4 + 16, 1, 0);
+		rootParameters[LocalRootSignatureParams::VertexBuffer].InitAsShaderResourceView(2, 0);
 
 		CD3DX12_ROOT_SIGNATURE_DESC desc(ARRAYSIZE(rootParameters), rootParameters, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE);
 
@@ -565,15 +565,15 @@ void Init()
 	// Scene buffer
 	{
 		engine::Shaders::Scene scene;
-		scene.instanceCount = models.size();
+		scene.instanceCount = (uint32_t)models.size();
 
 		std::vector<engine::Model*> lights;
 		engine::GetSceneManager()->getObjectsOfType(lights, engine::OBJECT_TYPE::LIGHT);
 
-		scene.lightCount = lights.size();
+		scene.lightCount = (uint32_t)lights.size();
 
-		engine::GetCoreRenderer()->CreateConstantBuffer(res->sceneData.getAdressOf(), L"Scene data", sizeof(engine::Shaders::Scene), false);
-		res->sceneData->SetData(&scene, sizeof(engine::Shaders::Scene));
+		engine::GetCoreRenderer()->CreateConstantBuffer(res->sceneBuffer.getAdressOf(), L"Scene data", sizeof(engine::Shaders::Scene), false);
+		res->sceneBuffer->SetData(&scene, sizeof(engine::Shaders::Scene));
 	}
 
 	// Build Shader Tables
@@ -621,7 +621,7 @@ void Init()
 			std::vector<engine::Model*> models;
 			engine::GetSceneManager()->getObjectsOfType(models, engine::OBJECT_TYPE::MODEL);
 
-			const UINT numShaderRecords = models.size() * 2;
+			const UINT numShaderRecords = (UINT)models.size() * 2;
 			ShaderTable hitGroupShaderTable(device, numShaderRecords, hitRecordSize(), L"HitGroupShaderTable");
 
 			for (size_t i = 0; i < models.size(); ++i)
@@ -654,7 +654,7 @@ void Init()
 	height = h;
 	CreateRaytracingOutputResource(w, h);
 
-	engine::GetCoreRenderer()->CreateConstantBuffer(res->cameraBuffers.getAdressOf(), L"camera constant buffer", sizeof(engine::Shaders::Camera), false);
+	engine::GetCoreRenderer()->CreateConstantBuffer(res->cameraBuffer.getAdressOf(), L"camera constant buffer", sizeof(engine::Shaders::Camera), false);
 
 	{
 		float planeVert[6 * 2] =
@@ -687,18 +687,18 @@ void CreateRaytracingOutputResource(UINT width, UINT height)
 	auto uavDesc = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R32G32B32A32_FLOAT, width, height, 1, 1, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
 	auto defaultHeapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
-	throwIfFailed(device->CreateCommittedResource(&defaultHeapProperties, D3D12_HEAP_FLAG_NONE, &uavDesc, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, nullptr, IID_PPV_ARGS(&res->raytracingOutput)));
-	res->raytracingOutput->SetName(L"raytracingOutput");
+	throwIfFailed(device->CreateCommittedResource(&defaultHeapProperties, D3D12_HEAP_FLAG_NONE, &uavDesc, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, nullptr, IID_PPV_ARGS(&res->outputRGBA32f)));
+	res->outputRGBA32f->SetName(L"raytracingOutput");
 
 	UINT m_raytracingOutputResourceUAVDescriptorHeapIndex = 0;// AllocateDescriptor(&uavDescriptorHandle);
 	D3D12_CPU_DESCRIPTOR_HANDLE uavDescriptorHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(res->descriptorHeap->GetCPUDescriptorHandleForHeapStart(), m_raytracingOutputResourceUAVDescriptorHeapIndex, descriptorSize);	
 
 	D3D12_UNORDERED_ACCESS_VIEW_DESC UAVDesc = {};
 	UAVDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
-	device->CreateUnorderedAccessView(res->raytracingOutput.Get(), nullptr, &UAVDesc, uavDescriptorHandle);
+	device->CreateUnorderedAccessView(res->outputRGBA32f.Get(), nullptr, &UAVDesc, uavDescriptorHandle);
 	raytracingOutputResourceUAVGpuDescriptor = CD3DX12_GPU_DESCRIPTOR_HANDLE(res->descriptorHeap->GetGPUDescriptorHandleForHeapStart(), m_raytracingOutputResourceUAVDescriptorHeapIndex, descriptorSize);
 
-	engine::GetCoreRenderer()->CreateTextureFrom(res->raytracingOutputCore.getAdressOf(), L"Raytracing output", res->raytracingOutput.Get());
+	engine::GetCoreRenderer()->CreateTextureFrom(res->outputRGBA32fcoreWeakPtr.getAdressOf(), L"Raytracing output", res->outputRGBA32f.Get());
 }
 
 void messageCallback(HWND hwnd, engine::WINDOW_MESSAGE type, uint32_t param1, uint32_t param2, void* pData)

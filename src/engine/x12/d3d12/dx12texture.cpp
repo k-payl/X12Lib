@@ -101,10 +101,10 @@ void x12::Dx12CoreTexture::_GPUCopyToStaging(ICoreGraphicCommandList* cmdList)
 			GetSurfaceInfo(desc.Width, desc.Height, EngToD3D(format_), &bytes, &outRow, &outNUmRow);
 
 			D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint = {};
-			footprint.Footprint.Width = desc.Width;
-			footprint.Footprint.Height = desc.Height;
+			footprint.Footprint.Width = (UINT)desc.Width;
+			footprint.Footprint.Height = (UINT)desc.Height;
 			footprint.Footprint.Depth = 1;
-			footprint.Footprint.RowPitch = outRow;
+			footprint.Footprint.RowPitch = (UINT)outRow;
 			footprint.Footprint.Format = desc.Format;
 
 			CD3DX12_TEXTURE_COPY_LOCATION Dst(stagingResource.Get(), footprint);

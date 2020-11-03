@@ -44,7 +44,7 @@ void Core::mainLoop()
 
 	if (!queryCmdListsStart[frameEmit])
 	{
-		x12::ICoreGraphicCommandList* cmdList = queryCmdListsStart[frameEmit] = renderer->GetGraphicCommandList(frameEmit);
+		x12::ICoreGraphicCommandList* cmdList = queryCmdListsStart[frameEmit] = renderer->GetGraphicCommandList((int32_t)frameEmit);
 		cmdList->CommandsBegin();
 		cmdList->StartQuery(queries[frameEmit].get());
 		cmdList->CommandsEnd();
@@ -92,7 +92,7 @@ void Core::mainLoop()
 
 	if (!queryCmdListsStop[frameEmit])
 	{
-		x12::ICoreGraphicCommandList* cmdList = queryCmdListsStop[frameEmit] = renderer->GetGraphicCommandList(QueryNum + frameEmit);
+		x12::ICoreGraphicCommandList* cmdList = queryCmdListsStop[frameEmit] = renderer->GetGraphicCommandList(QueryNum + (int)frameEmit);
 		cmdList->CommandsBegin();
 		cmdList->StopQuery(queries[frameEmit].get());
 		cmdList->CommandsEnd();

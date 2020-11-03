@@ -485,10 +485,10 @@ bool x12::Dx12CoreRenderer::CreateStructuredBuffer(ICoreBuffer** out, LPCWSTR na
 	auto* ptr = new Dx12CoreBuffer(structureSize * num, data, MEMORY_TYPE::GPU_READ, flags, name);
 
 	if (flags & BUFFER_FLAGS::SHADER_RESOURCE)
-		ptr->initSRV(num, UINT(structureSize), false);
+		ptr->initSRV(UINT(num), UINT(structureSize), false);
 
 	if (flags & BUFFER_FLAGS::UNORDERED_ACCESS)
-		ptr->initUAV(num, UINT(structureSize), false);
+		ptr->initUAV(UINT(num), UINT(structureSize), false);
 
 	ptr->AddRef();
 	*out = ptr;
@@ -501,10 +501,10 @@ bool x12::Dx12CoreRenderer::CreateRawBuffer(ICoreBuffer** out, LPCWSTR name, siz
 	auto* ptr = new Dx12CoreBuffer(size, nullptr, MEMORY_TYPE::GPU_READ, flags, name);
 
 	if (flags & BUFFER_FLAGS::SHADER_RESOURCE)
-		ptr->initSRV(UINT(size), 0, true);
+		ptr->initSRV((UINT)size, 0, true);
 
 	if (flags & BUFFER_FLAGS::UNORDERED_ACCESS)
-		ptr->initUAV(size, 0, true);
+		ptr->initUAV((UINT)size, 0, true);
 
 	ptr->AddRef();
 	*out = ptr;

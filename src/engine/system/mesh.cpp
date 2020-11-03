@@ -330,7 +330,7 @@ bool engine::Mesh::Load()
 
 	std::vector<Shaders::Vertex> vs(header.numberOfVertex);
 
-	for (int i = 0; i < header.numberOfVertex; ++i)
+	for (uint32_t i = 0; i < header.numberOfVertex; ++i)
 	{
 		memcpy(&vs[i].Position, &desc.pData[i * header.positionStride + header.positionOffset], sizeof(vec3));
 		memcpy(&vs[i].Normal, &desc.pData[i * header.normalStride + header.normalOffset], sizeof(vec3));

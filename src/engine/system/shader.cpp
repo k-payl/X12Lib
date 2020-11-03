@@ -16,7 +16,7 @@ bool engine::Shader::Load()
 	}
 
 	if (compute_)
-		return GetCoreRenderer()->CreateComputeShader(coreShader.getAdressOf(), ConvertFromUtf8ToUtf16(path).c_str(), text.get(), buffersdesc.empty()? nullptr : &buffersdesc[0], buffersdesc.size());
+		return GetCoreRenderer()->CreateComputeShader(coreShader.getAdressOf(), ConvertFromUtf8ToUtf16(path).c_str(), text.get(), buffersdesc.empty()? nullptr : &buffersdesc[0], (uint32_t)buffersdesc.size());
 	else
-		return GetCoreRenderer()->CreateShader(coreShader.getAdressOf(), ConvertFromUtf8ToUtf16(path).c_str(), text.get(), text.get(), buffersdesc.empty()? nullptr : &buffersdesc[0], buffersdesc.size());
+		return GetCoreRenderer()->CreateShader(coreShader.getAdressOf(), ConvertFromUtf8ToUtf16(path).c_str(), text.get(), text.get(), buffersdesc.empty()? nullptr : &buffersdesc[0], (uint32_t)buffersdesc.size());
 }
