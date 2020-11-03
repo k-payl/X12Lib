@@ -14,15 +14,10 @@
 #include "mesh.h"
 #include "d3d12/dx12buffer.h"
 #include "cpp_hlsl_shared.h"
-
-
 using namespace x12;
 
-#define VIDEO_API engine::INIT_FLAGS::DIRECTX12_RENDERER
 #define RAYTRACING_SHADER_DIR L"../resources/shaders/raytracing/"
 #define SizeOfInUint32(obj) ((sizeof(obj) - 1) / sizeof(UINT32) + 1)
-
-typedef UINT16 Index;
 
 const wchar_t* raygenname = L"RayGen";
 
@@ -34,11 +29,11 @@ const wchar_t* shadowHitGroupName = L"ShadowHitGroup";
 const wchar_t* shadowhitname = L"ShadowClosestHit";
 const wchar_t* shadowmissname = L"ShadowMiss";
 
-
 struct HitArg
 {
 	math::vec4 color = { 0.5, 0.5, 0.5, 1 };
 	math::mat4 transform;
+	math::mat4 normalTransform;
 	D3D12_GPU_VIRTUAL_ADDRESS vertexBuffer;
 };
 
@@ -237,46 +232,49 @@ void Render()
 		needClearBackBuffer = false;
 	}
 
-	// raytracing
+	// Raytracing
 	{
+		// Bind root signature
 		dxrCommandList->SetComputeRootSignature(res->raytracingGlobalRootSignature.Get());
 
-		// Bind the heaps, acceleration structure and dispatch rays.    
+		// Bind heaps
 		dxrCommandList->SetDescriptorHeaps(1, res->descriptorHeap.GetAddressOf());
 
-		dxrCommandList->SetComputeRootDescriptorTable(GlobalRootSignatureParams::OutputView, raytracingOutputResourceUAVGpuDescriptor);
-		dxrCommandList->SetComputeRootShaderResourceView(GlobalRootSignatureParams::AccelerationStructure, res->topLevelAccelerationStructure->GetGPUVirtualAddress());
-
-		// camera
+		// Bind global resources
 		{
-			x12::Dx12CoreBuffer* dx12buffer = reinterpret_cast<x12::Dx12CoreBuffer*>(res->cameraBuffer.get());
+			x12::Dx12CoreBuffer* dx12buffer = static_cast<x12::Dx12CoreBuffer*>(res->cameraBuffer.get());
 			dxrCommandList->SetComputeRootConstantBufferView(GlobalRootSignatureParams::CameraConstantBuffer, dx12buffer->GPUAddress());
+
+			dxrCommandList->SetComputeRootDescriptorTable(GlobalRootSignatureParams::OutputView, raytracingOutputResourceUAVGpuDescriptor);
+
+			dxrCommandList->SetComputeRootShaderResourceView(GlobalRootSignatureParams::AccelerationStructure, res->topLevelAccelerationStructure->GetGPUVirtualAddress());
+
+			dx12buffer = static_cast<x12::Dx12CoreBuffer*>(res->sceneBuffer.get());
+			dxrCommandList->SetComputeRootConstantBufferView(GlobalRootSignatureParams::SceneConstants, dx12buffer->GPUAddress());
+
+			dx12buffer = static_cast<x12::Dx12CoreBuffer*>(engine::GetSceneManager()->LightsBuffer());
+			dxrCommandList->SetComputeRootShaderResourceView(GlobalRootSignatureParams::LightStructuredBuffer, dx12buffer->GPUAddress());
 		}
 
-		// scene data
-		{
-			auto adress = static_cast<x12::Dx12CoreBuffer*>(res->sceneBuffer.get())->GPUAddress();
-			dxrCommandList->SetComputeRootConstantBufferView(GlobalRootSignatureParams::SceneConstants, adress);
-
-			adress = static_cast<x12::Dx12CoreBuffer*>(engine::GetSceneManager()->LightsBuffer())->GPUAddress();
-			dxrCommandList->SetComputeRootShaderResourceView(GlobalRootSignatureParams::LightStructuredBuffer, adress);
-		}
-
-		D3D12_DISPATCH_RAYS_DESC dispatchDesc = {};
-		dispatchDesc.HitGroupTable.StartAddress = res->hitGroupShaderTable->GetGPUVirtualAddress();
-		dispatchDesc.HitGroupTable.SizeInBytes = res->hitGroupShaderTable->GetDesc().Width;
-		dispatchDesc.HitGroupTable.StrideInBytes = hitRecordSize();
-		dispatchDesc.MissShaderTable.StartAddress = res->missShaderTable->GetGPUVirtualAddress();
-		dispatchDesc.MissShaderTable.SizeInBytes = res->missShaderTable->GetDesc().Width;
-		dispatchDesc.MissShaderTable.StrideInBytes = 32;
-		dispatchDesc.RayGenerationShaderRecord.StartAddress = res->rayGenShaderTable->GetGPUVirtualAddress();
-		dispatchDesc.RayGenerationShaderRecord.SizeInBytes = res->rayGenShaderTable->GetDesc().Width;
-		dispatchDesc.Width = width;
-		dispatchDesc.Height = height;
-		dispatchDesc.Depth = 1;
+		// Bind pipeline
 		dxrCommandList->SetPipelineState1(res->dxrStateObject.Get());
 
-		dxrCommandList->DispatchRays(&dispatchDesc);
+		// Do raytracing
+		{
+			D3D12_DISPATCH_RAYS_DESC dispatchDesc = {};
+			dispatchDesc.HitGroupTable.StartAddress = res->hitGroupShaderTable->GetGPUVirtualAddress();
+			dispatchDesc.HitGroupTable.SizeInBytes = res->hitGroupShaderTable->GetDesc().Width;
+			dispatchDesc.HitGroupTable.StrideInBytes = hitRecordSize();
+			dispatchDesc.MissShaderTable.StartAddress = res->missShaderTable->GetGPUVirtualAddress();
+			dispatchDesc.MissShaderTable.SizeInBytes = res->missShaderTable->GetDesc().Width;
+			dispatchDesc.MissShaderTable.StrideInBytes = 32;
+			dispatchDesc.RayGenerationShaderRecord.StartAddress = res->rayGenShaderTable->GetGPUVirtualAddress();
+			dispatchDesc.RayGenerationShaderRecord.SizeInBytes = res->rayGenShaderTable->GetDesc().Width;
+			dispatchDesc.Width = width;
+			dispatchDesc.Height = height;
+			dispatchDesc.Depth = 1;
+			dxrCommandList->DispatchRays(&dispatchDesc);
+		}
 	}
 	throwIfFailed(dxrCommandList->Close());
 	ID3D12CommandList* commandLists[] = { dxrCommandList };
@@ -433,7 +431,7 @@ void Init()
 		rootParameters[GlobalRootSignatureParams::OutputView].InitAsDescriptorTable(1, &UAVDescriptor);
 		rootParameters[GlobalRootSignatureParams::CameraConstantBuffer].InitAsConstantBufferView(0);
 		rootParameters[GlobalRootSignatureParams::AccelerationStructure].InitAsShaderResourceView(0);
-		rootParameters[GlobalRootSignatureParams::SceneConstants].InitAsConstantBufferView(2);
+		rootParameters[GlobalRootSignatureParams::SceneConstants].InitAsConstantBufferView(1);
 		rootParameters[GlobalRootSignatureParams::LightStructuredBuffer].InitAsShaderResourceView(1);
 
 		CD3DX12_ROOT_SIGNATURE_DESC desc(ARRAYSIZE(rootParameters), rootParameters, 0, nullptr);
@@ -444,7 +442,7 @@ void Init()
 	// Local Root Signature
 	{
 		CD3DX12_ROOT_PARAMETER rootParameters[LocalRootSignatureParams::Count];
-		rootParameters[LocalRootSignatureParams::InstanceConstants].InitAsConstants(4 + 16, 1, 0);
+		rootParameters[LocalRootSignatureParams::InstanceConstants].InitAsConstants(4 + 16 + 16, 2, 0);
 		rootParameters[LocalRootSignatureParams::VertexBuffer].InitAsShaderResourceView(2, 0);
 
 		CD3DX12_ROOT_SIGNATURE_DESC desc(ARRAYSIZE(rootParameters), rootParameters, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE);
@@ -487,22 +485,14 @@ void Init()
 		};
 
 		addLibrary(res->raygen, { raygenname });
-		addLibrary(res->hit, { hitname, shadowhitname });
-		addLibrary(res->miss, { missname, shadowmissname });
+		addLibrary(res->hit, { hitname });
+		addLibrary(res->miss, { missname });
 
 		// Triangle hit group
 		{
 			auto hitGroup = raytracingPipeline.CreateSubobject<CD3DX12_HIT_GROUP_SUBOBJECT>();
 			hitGroup->SetClosestHitShaderImport(hitname);
 			hitGroup->SetHitGroupExport(hitGroupName);
-			hitGroup->SetHitGroupType(D3D12_HIT_GROUP_TYPE_TRIANGLES);
-		}
-
-		// Shadow hit group
-		{
-			auto hitGroup = raytracingPipeline.CreateSubobject<CD3DX12_HIT_GROUP_SUBOBJECT>();
-			hitGroup->SetClosestHitShaderImport(shadowhitname);
-			hitGroup->SetHitGroupExport(shadowHitGroupName);
 			hitGroup->SetHitGroupType(D3D12_HIT_GROUP_TYPE_TRIANGLES);
 		}
 
@@ -515,7 +505,6 @@ void Init()
 
 		// Local root signature and shader association
 		CreateRaygenLocalSignatureSubobject(&raytracingPipeline, hitGroupName, res->raytracingLocalRootSignature.Get());
-		CreateRaygenLocalSignatureSubobject(&raytracingPipeline, shadowHitGroupName, res->raytracingLocalRootSignature.Get());
 		// This is a root signature that enables a shader to have unique arguments that come from shader tables.
 
 		// Global root signature
@@ -534,7 +523,6 @@ void Init()
 #if _DEBUG
 		PrintStateObjectDesc(raytracingPipeline);
 #endif
-
 		// Create the state object.
 		throwIfFailed(m_dxrDevice->CreateStateObject(raytracingPipeline, IID_PPV_ARGS(&res->dxrStateObject)));
 		dxrStateObject = res->dxrStateObject.Get();
@@ -581,8 +569,6 @@ void Init()
 		void* rayGenShaderIdentifier;
 		void* missShaderIdentifier;
 		void* hitGroupShaderIdentifier;
-		void* shadowMissShaderIdentifier;
-		void* shadowHitGroupShaderIdentifier;
 
 		// Get shader identifiers
 		{
@@ -591,9 +577,7 @@ void Init()
 
 			rayGenShaderIdentifier = stateObjectProperties->GetShaderIdentifier(raygenname);
 			missShaderIdentifier = stateObjectProperties->GetShaderIdentifier(missname);
-			shadowMissShaderIdentifier = stateObjectProperties->GetShaderIdentifier(shadowmissname);
 			hitGroupShaderIdentifier = stateObjectProperties->GetShaderIdentifier(hitGroupName);
-			shadowHitGroupShaderIdentifier = stateObjectProperties->GetShaderIdentifier(shadowHitGroupName);
 		}
 
 		// Ray gen shader table
@@ -601,7 +585,7 @@ void Init()
 			UINT numShaderRecords = 1;
 
 			ShaderTable rayGenShaderTable(device, numShaderRecords, D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES, L"RayGenShaderTable");
-			rayGenShaderTable.push_back(ShaderRecord(rayGenShaderIdentifier, D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES/*, &rootArguments, sizeof(rootArguments)*/));
+			rayGenShaderTable.push_back(ShaderRecord(rayGenShaderIdentifier, D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES));
 			res->rayGenShaderTable = rayGenShaderTable.GetResource();
 		}
 
@@ -612,7 +596,6 @@ void Init()
 			UINT shaderRecordSize = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
 			ShaderTable missShaderTable(device, numShaderRecords, shaderRecordSize, L"MissShaderTable");
 			missShaderTable.push_back(ShaderRecord(missShaderIdentifier, shaderRecordSize));
-			missShaderTable.push_back(ShaderRecord(shadowMissShaderIdentifier, shaderRecordSize));
 			res->missShaderTable = missShaderTable.GetResource();
 		}
 
@@ -631,15 +614,10 @@ void Init()
 
 				HitArg args;
 				args.transform = models[i]->GetWorldTransform();
+				args.normalTransform = args.transform.Inverse().Transpose();
 				args.vertexBuffer = reinterpret_cast<x12::Dx12CoreBuffer*>(m->VertexBuffer())->GPUAddress();;
 
 				hitGroupShaderTable.push_back(ShaderRecord(hitGroupShaderIdentifier, D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES, &args, sizeof(HitArg)));
-			}
-
-			// shadows
-			for (size_t i = 0; i < models.size(); ++i)
-			{
-				hitGroupShaderTable.push_back(ShaderRecord(shadowHitGroupShaderIdentifier, D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES, nullptr, sizeof(HitArg)));
 			}
 
 			res->hitGroupShaderTable = hitGroupShaderTable.GetResource();
@@ -726,7 +704,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPWSTR, _In_ int)
 	core_->AddInitProcedure(Init);
 
 	res = new Resources();
-	core_->Init(VIDEO_API);
+	core_->Init(engine::INIT_FLAGS::DIRECTX12_RENDERER);
 	cam = engine::GetSceneManager()->CreateCamera();
 
 	engine::MainWindow* window = core_->GetWindow();
@@ -735,6 +713,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPWSTR, _In_ int)
 
 	core_->Start();
 
+	WaitForGpu();
 	FreeUtils();
 	::CloseHandle(event);
 	delete res;

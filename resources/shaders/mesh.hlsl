@@ -26,7 +26,7 @@ struct VertexShaderOutput
 		float4x4 NormalMat;
 	};
 
-	VertexShaderOutput main(engine::Shaders::Vertex IN)
+	VertexShaderOutput main(engine::Shaders::VertexIn IN)
 	{
 		VertexShaderOutput OUT;
 		

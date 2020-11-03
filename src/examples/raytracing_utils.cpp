@@ -18,24 +18,27 @@
 
 void WaitForGpu();
 
-ID3D12Resource* scratchResource;
-size_t scratchSize;
+static ID3D12Resource* scratchResource;
+static size_t scratchSize;
+static IDxcCompiler* pCompiler = nullptr;
+static IDxcLibrary* pLibrary = nullptr;
+static IDxcIncludeHandler* dxcIncludeHandler;
+
+
 const D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS acelStructFlags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE;
 
 void FreeUtils()
 {
-	if (scratchResource)
-	{
-		scratchResource->Release();
-		scratchResource = nullptr;
-	}
+#define SAFE_RELEASE(ptr) if (ptr) { ptr->Release(); ptr = nullptr; }
+
+	SAFE_RELEASE(scratchResource)
+	SAFE_RELEASE(pCompiler)
+	SAFE_RELEASE(pLibrary)
+	SAFE_RELEASE(dxcIncludeHandler)
 }
 
 IDxcBlob* CompileShader(LPCWSTR fileName)
 {
-	static IDxcCompiler* pCompiler = nullptr;
-	static IDxcLibrary* pLibrary = nullptr;
-	static IDxcIncludeHandler* dxcIncludeHandler;
 
 	HRESULT hr;
 

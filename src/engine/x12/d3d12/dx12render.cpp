@@ -216,8 +216,6 @@ void x12::Dx12CoreRenderer::Free()
 	psoMap.clear();
 
 	srv.Free();
-	//rtv.Free();
-	//dsv.Free();
 
 	delete SRVdescriptorAllocator;
 	SRVdescriptorAllocator = nullptr;

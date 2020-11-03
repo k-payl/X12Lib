@@ -156,6 +156,7 @@ static void loadObj(std::vector<GameObject*>& rootObjectsVec, YAML::Node& object
 auto X12_API engine::SceneManager::LoadScene(const char* name) -> void
 {
 	using namespace YAML;
+	using namespace math;
 
 	if(rootObjectsVec.size())
 	{
@@ -218,9 +219,20 @@ auto X12_API engine::SceneManager::LoadScene(const char* name) -> void
 	{
 		math::mat4 transform = lights[i]->GetWorldTransform();
 		memcpy(lightsData[i].worldTransform, &transform.el_1D[1], sizeof(float) * 16);
-		lightsData[i].color = math::vec4(1, 1, 1, 1);
+
+		vec4 p0 = transform * (vec4(-1, 1, 0, 1));
+		vec4 p1 = transform * (vec4(-1, -1, 0, 1));
+		vec4 p2 = transform * (vec4(1, -1, 0, 1));
+		vec4 p3 = transform * (vec4(1, 1, 0, 1));
+		lightsData[i].T_world = (p1 - p0) * .5f;
+		lightsData[i].B_world = (p3 - p0) * .5f;
+
+		lightsData[i].center_world = vec4(transform.Column3(3));
+		lightsData[i].center_world.w = 1;
+
+		lightsData[i].color = math::vec4(1, 1, 1, 1) * lights[i]->GetIntensity();
 		lightsData[i].size = math::vec4(1, 1, 1, 1);
-		lightsData[i].intensity = math::vec4(lights[i]->GetIntensity());
+		lightsData[i].normal = math::triangle_normal(p0, p1, p2);
 	}
 
 	GetCoreRenderer()->CreateStructuredBuffer(lightsBuffer.getAdressOf(), L"Lights buffer",

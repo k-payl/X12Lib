@@ -18,6 +18,11 @@ float3 GetWorldRay(float2 ndc, float3 forwardWS, float3 rightWS, float3 upWS)
     return normalize(forwardWS + rightWS * ndc.x + upWS * ndc.y);
 }
 
+#define PI (3.1415926f)
+#define _2PI (2.0f * PI)
+#define INV2PI (rcp(2PI))
+#define INVPI (rcp(PI))
+
 // Load three 16 bit indices from a byte addressed buffer.
 //uint3 Load3x16BitIndices(uint offsetBytes)
 //{

@@ -1,17 +1,16 @@
-#include "common.hlsl"
-#include "global.hlsl"
+#include "rt_common.h"
+#include "rt_resources.h"
 
 [shader("raygeneration")] 
 void RayGen() 
 {
-    // Initialize the ray payload
-    HitInfo payload;
-    payload.colorAndDistance = float4(0, 0, 0, 0);
-    
     uint2 launchIndex = DispatchRaysIndex().xy;
     float2 dims = float2(DispatchRaysDimensions().xy);
-
     float4 color = gOutput.Load(int3(launchIndex, 0));
+
+    // Initialize the ray payload
+    HitInfo payload;
+    payload.colorAndDistance = float4(0, 0, 0, color.a); // for seed
 
     uint frame = uint(color.a) % 9;
     float2 jitter = float2(float(frame % 3), float(frame / 3));

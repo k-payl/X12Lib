@@ -4,6 +4,7 @@
 	#define float2 math::vec2
 	#define float3 math::vec3
 	#define float4 math::vec4
+	#define float4x4 math::mat4
 	#define uint uint32_t
 	#define DECLARE_VERTEX_IN(N, S) N
 #else
@@ -15,19 +16,36 @@ namespace engine
 	namespace Shaders
 	{
 #pragma pack(push, 1)
-		struct Vertex
+		struct VertexIn
 		{
 			float3 DECLARE_VERTEX_IN(Position, POSITION);
 			float3 DECLARE_VERTEX_IN(Normal, TEXCOORD);
 			float2 DECLARE_VERTEX_IN(UV, COLOR);
 		};
 
+		struct Vertex
+		{
+			float3 Position;
+			float3 Normal;
+			float2 UV;
+		};
+
+		struct InstanceData
+		{
+			float4 color;
+			float4x4 transform;
+			float4x4 normalTransform;
+		};
+
 		struct Light
 		{
 			float worldTransform[16];
-			float4 color;
+			float4 center_world;
+			float4 T_world;
+			float4 B_world;
+			float4 normal;
+			float4 color; // multiplied by intensity
 			float4 size;
-			float4 intensity;
 		};
 
 		struct Scene

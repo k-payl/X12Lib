@@ -23,7 +23,7 @@
 
 	float4 main(float4 IN : SV_Position) : SV_Target
 	{
-		return texture_.Load(int3(IN.xy, 0));
+		return pow(texture_.Load(int3(IN.xy, 0)), 0.45);
 	}
 
 #endif
