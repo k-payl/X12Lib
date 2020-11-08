@@ -1,44 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1604446837702,
+  "lastUpdate": 1604832372891,
   "repoUrl": "https://github.com/k-payl/X12Lib",
   "entries": {
     "C++ Benchmark": [
-      {
-        "commit": {
-          "author": {
-            "email": "aaa@bbb.com",
-            "name": "k-payl",
-            "username": "xkarlois"
-          },
-          "committer": {
-            "email": "aaa@bbb.com",
-            "name": "k-payl",
-            "username": "xkarlois"
-          },
-          "distinct": true,
-          "id": "9f7a252be3590bd95c1d22874b9f4f2ad7fe3e76",
-          "message": "appveyor 2",
-          "timestamp": "2020-05-03T14:37:25+07:00",
-          "tree_id": "6e16940a659aeb15b229ad8095d02b306d5d5ccf",
-          "url": "https://github.com/k-payl/X12Lib/commit/9f7a252be3590bd95c1d22874b9f4f2ad7fe3e76"
-        },
-        "date": 1588491679362,
-        "tool": "googlecpp",
-        "benches": [
-          {
-            "name": "mat4_mult",
-            "value": 20589319.352941304,
-            "unit": "ns/iter",
-            "extra": "iterations: 34\ncpu: 20582732.91176471 ns\nthreads: 1"
-          },
-          {
-            "name": "mat4_inv",
-            "value": 127974721.20000179,
-            "unit": "ns/iter",
-            "extra": "iterations: 5\ncpu: 127944513 ns\nthreads: 1"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -1080,6 +1044,42 @@ window.BENCHMARK_DATA = {
             "value": 137210220.999998,
             "unit": "ns/iter",
             "extra": "iterations: 5\ncpu: 137204494.2 ns\nthreads: 1"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "k-payl@yandex.ru",
+            "name": "Konstantin Pail",
+            "username": "k-payl"
+          },
+          "committer": {
+            "email": "k-payl@yandex.ru",
+            "name": "Konstantin Pail",
+            "username": "k-payl"
+          },
+          "distinct": true,
+          "id": "6027a7579970ef91c7c417baae229f673d575d21",
+          "message": "gltf exporter, tinygltf submodule, material, sponza",
+          "timestamp": "2020-11-08T13:43:58+04:00",
+          "tree_id": "c23f23a254f95df5b3401d07486eb77b472de41e",
+          "url": "https://github.com/k-payl/X12Lib/commit/6027a7579970ef91c7c417baae229f673d575d21"
+        },
+        "date": 1604832368839,
+        "tool": "googlecpp",
+        "benches": [
+          {
+            "name": "mat4_mult",
+            "value": 25339077.892857023,
+            "unit": "ns/iter",
+            "extra": "iterations: 28\ncpu: 25337136.14285714 ns\nthreads: 1"
+          },
+          {
+            "name": "mat4_inv",
+            "value": 129805002.39999628,
+            "unit": "ns/iter",
+            "extra": "iterations: 5\ncpu: 129796219.8 ns\nthreads: 1"
           }
         ]
       }
