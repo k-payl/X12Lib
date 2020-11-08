@@ -15,6 +15,7 @@ using engine::Model;
 using engine::Camera;
 using engine::Light;
 
+
 void engine::SceneManager::Update(float dt)
 {
 	for (GameObject* g : rootObjectsVec)
@@ -155,17 +156,67 @@ static void loadObj(std::vector<GameObject*>& rootObjectsVec, YAML::Node& object
 
 auto X12_API engine::SceneManager::LoadScene(const char* name) -> void
 {
-	using namespace YAML;
-	using namespace math;
-
 	if(rootObjectsVec.size())
 	{
-
 		LogCritical("ResourceManager::LoadWorld(): scene loaded");
 		return;
 	}
 
-	engine::File f = GetFS()->OpenFile("scene.yaml", FILE_OPEN_MODE::READ | FILE_OPEN_MODE::BINARY);
+	auto ext = engine::GetFS()->FileExtension(name);
+	if (ext == "yaml")
+	{
+		loadSceneYAML(name);
+	}
+	else
+	{
+		LogCritical("ResourceManager::LoadWorld(): inavlid name");
+		return;
+	}
+}
+
+void saveObj(YAML::Emitter& out, GameObject* o)
+{
+	if (!o)
+		return;
+
+	out << YAML::BeginMap;
+	out << YAML::Key << "childs" << YAML::Value << o->GetNumChilds();
+	o->SaveYAML(static_cast<void*>(&out));
+	out << YAML::EndMap;
+
+	for (int i = 0; i < o->GetNumChilds(); i++)
+		saveObj(out, o->GetChild(i));
+}
+
+auto X12_API engine::SceneManager::SaveScene(const char* name) -> void
+{
+	using namespace YAML;
+	YAML::Emitter out;
+
+	out << YAML::BeginMap;
+
+	out << Key << "roots" << Value << rootObjectsVec.size();
+
+	out << Key << "objects" << Value;
+	out << YAML::BeginSeq;
+
+	for (int i = 0; i < rootObjectsVec.size(); i++)
+		saveObj(out, rootObjectsVec[i]);
+
+	out << YAML::EndSeq;
+	out << YAML::EndMap;
+
+	File f = GetFS()->OpenFile(name, FILE_OPEN_MODE::WRITE | FILE_OPEN_MODE::BINARY);
+
+	f.WriteStr(out.c_str());
+}
+
+void engine::SceneManager::loadSceneYAML(const char* name)
+{
+	using namespace YAML;
+	using namespace math;
+
+	engine::File f = GetFS()->OpenFile(name, FILE_OPEN_MODE::READ | FILE_OPEN_MODE::BINARY);
 
 	size_t fileSize = f.FileSize();
 
@@ -208,6 +259,22 @@ auto X12_API engine::SceneManager::LoadScene(const char* name) -> void
 	int i = 0;
 	for (int j = 0; j < roots; j++)
 		loadObj(rootObjectsVec, objects_yaml, &i, nullptr, onObjectAdded);
+
+	createLightsGPUBuffer();
+}
+
+auto X12_API engine::SceneManager::DestroyObjects() -> void
+{
+	if (const int roots = (int)rootObjectsVec.size())
+	{
+		for (int i = roots - 1; i >= 0; i--)
+			DestroyObject(rootObjectsVec[i]);
+	}
+}
+
+void engine::SceneManager::createLightsGPUBuffer()
+{
+	using namespace math;
 
 	std::vector<Light*> lights;
 	getObjectsOfType(lights, OBJECT_TYPE::LIGHT);

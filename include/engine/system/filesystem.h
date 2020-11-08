@@ -64,16 +64,18 @@ namespace engine
 	public:
 		auto X12_API FileExist(const char *path) -> bool;
 		auto X12_API DirectoryExist(const char *path) -> bool;
+		auto X12_API CreateDirectory_(const char* name) -> void;
 		auto X12_API GetWorkingPath(const char *path) -> std::string;
 		auto X12_API IsRelative(const char *path) -> bool;
 		auto X12_API OpenFile(const char *path, FILE_OPEN_MODE mode = FILE_OPEN_MODE::WRITE) -> File;
 		auto X12_API ClearFile(const char *path) -> void;
-		auto X12_API FilterPaths(const char *ext) -> std::vector<std::string>;
+		auto X12_API FilterPaths(const char* path, const char *ext) -> std::vector<std::string>;
 		auto X12_API CreateMemoryMapedFile(const char *path) -> FileMapping;
 		auto X12_API GetFileName(const std::string& filePath, bool withExtension = true) -> std::string;
 		auto X12_API IsValid(const std::string& filePath) -> bool;
 		auto X12_API ToValid(std::string& path) -> void;
 		auto X12_API GetTime(std::string& path) -> int64_t;
 		auto X12_API LoadFile(const char* path) ->std::shared_ptr<char[]>;
+		auto X12_API FileExtension(const std::string& path) ->std::string;
 	};
 }

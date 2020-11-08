@@ -47,6 +47,13 @@ bool FileSystem::DirectoryExist(const char *path)
 	return _exist(path);
 }
 
+auto X12_API engine::FileSystem::CreateDirectory_(const char* name) -> void
+{
+	fs::path fsPath = fs::path(name);
+	fsPath = fs::path(dataPath) / fsPath;
+	std::filesystem::create_directory(fsPath);
+}
+
 std::string FileSystem::GetWorkingPath(const char *path)
 {
 	if (strlen(path)==0)
@@ -104,11 +111,11 @@ auto FileSystem::ClearFile(const char *path) -> void
 	}
 }
 
-auto FileSystem::FilterPaths(const char *ext) -> std::vector<std::string>
+auto FileSystem::FilterPaths(const char* path_, const char *ext) -> std::vector<std::string>
 {
 	std::vector<std::string> files;
 	std::string extension(ext);
-	fs::path path = fs::path(dataPath);
+	fs::path path = fs::path(dataPath + path_ + "\\");
 	fs::recursive_directory_iterator it(path);
 	fs::recursive_directory_iterator endit;
 
@@ -116,7 +123,7 @@ auto FileSystem::FilterPaths(const char *ext) -> std::vector<std::string>
 	{
 		if(fs::is_regular_file(*it) && (extension=="") ? true : it->path().extension() == extension)
 		{
-			fs::path rel = fs::relative(*it, path);
+			fs::path rel = fs::relative(*it, fs::path(dataPath));
 			files.push_back(rel.string());
 		}
 		++it;
@@ -222,6 +229,18 @@ auto FileSystem::LoadFile(const char* path) -> std::shared_ptr<char[]>
 	ptr[size] = 0;
 
 	return ptr;
+}
+
+template<typename Char>
+std::basic_string<Char> ToLowerCase(std::basic_string<Char> str)
+{
+	std::transform(str.begin(), str.end(), str.begin(), ::tolower);
+	return str;
+}
+
+auto X12_API engine::FileSystem::FileExtension(const std::string& path) -> std::string
+{
+	return ToLowerCase(fs::path(path).extension().string().erase(0, 1));
 }
 
 File::File(const std::ios_base::openmode & fileMode, const std::filesystem::path & path)

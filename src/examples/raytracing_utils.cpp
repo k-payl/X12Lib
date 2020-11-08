@@ -242,7 +242,7 @@ void CreateRaygenLocalSignatureSubobject(CD3DX12_STATE_OBJECT_DESC* raytracingPi
 UINT CreateDescriptorHeap(ID3D12Device* device, ID3D12DescriptorHeap** descriptorHeap)
 {
 	D3D12_DESCRIPTOR_HEAP_DESC descriptorHeapDesc = {};
-	descriptorHeapDesc.NumDescriptors = 1; // 1 raytracing output
+	descriptorHeapDesc.NumDescriptors = 200; // 1 raytracing output
 	descriptorHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	descriptorHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	descriptorHeapDesc.NodeMask = 0;
@@ -422,7 +422,7 @@ ComPtr<ID3D12Resource> BuildTLAS(std::map<engine::Mesh*, ComPtr<ID3D12Resource>>
 		instanceDesc[i].AccelerationStructure = BLASes[models[i]->GetMesh()]->GetGPUVirtualAddress();
 	}
 
-	engine::GetCoreRenderer()->CreateStructuredBuffer(instanceDescsBuffer.getAdressOf(), L"instance desc for the top-level acceleration structure", sizeof(instanceDesc) * topLevelInstances, topLevelInstances, &instanceDesc[0], x12::BUFFER_FLAGS::NONE);
+	engine::GetCoreRenderer()->CreateStructuredBuffer(instanceDescsBuffer.getAdressOf(), L"instance desc for the top-level acceleration structure", sizeof(D3D12_RAYTRACING_INSTANCE_DESC), topLevelInstances, &instanceDesc[0], x12::BUFFER_FLAGS::NONE);
 
 	D3D12_RESOURCE_STATES initialResourceState = D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE;
 	AllocateUAVBuffer(m_dxrDevice, topLevelPrebuildInfo.ResultDataMaxSizeInBytes, &TLAS, initialResourceState, L"TopLevelAccelerationStructure");

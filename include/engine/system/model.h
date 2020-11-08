@@ -10,6 +10,7 @@ namespace engine
 		friend SceneManager;
 
 		StreamPtr<Mesh> meshPtr;
+		Material* mat_{};
 		//vec3 meshCeneter;
 		//Material *mat_{nullptr};
 		//std::shared_ptr<RaytracingData> trianglesDataPtrWorldSpace;
@@ -29,6 +30,7 @@ namespace engine
 		//std::shared_ptr<RaytracingData> GetRaytracingData(uint mat);
 
 		auto GetMesh() -> Mesh* { return meshPtr.get(); };
+		auto GetMaterial() -> Material* { return mat_; }
 		//auto GetMeshPath() -> const char*;
 		//auto SetMaterial(Material *mat) -> void { mat_ = mat; }
 		//auto GetMaterial() -> Material* { return mat_; }

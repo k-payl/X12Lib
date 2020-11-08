@@ -149,6 +149,22 @@ target_include_directories(constantbuffers PRIVATE src/examples)
 target_link_libraries(constantbuffers engine)
 set_property(TARGET constantbuffers PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/build")
 
+# gltf mesh exporter
+add_executable(gltfmeshexporter src/examples/gltfmeshexporter.cpp)
+target_include_directories(gltfmeshexporter PRIVATE
+	include/engine/system
+	include/math
+	include/engine/x12
+	include/engine/x12/d3d12
+	include/d3dx12
+	3rdparty/tinygltf
+	3rdparty/d3dx12
+	src/engine/3rdparty/yaml-cpp/include
+	resources/shaders)
+target_link_libraries(gltfmeshexporter yaml-cpp)
+target_link_libraries(gltfmeshexporter engine)
+set_property(TARGET gltfmeshexporter PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/build")
+
 # raytracing
 if (RAYTRACING_SAMPLE_ENABLE)
 	add_executable(raytracing src/examples/raytracing.cpp src/examples/raytracing_utils.cpp)

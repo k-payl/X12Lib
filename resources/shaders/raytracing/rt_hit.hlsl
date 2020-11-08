@@ -64,14 +64,27 @@ void ClosestHit(inout HitInfo payload, Attributes attrib)
         lVertices[indices[1]].Normal,
         lVertices[indices[2]].Normal
     };
+
+	float2 vertexUV[3] = {
+		lVertices[indices[0]].UV,
+		lVertices[indices[1]].UV,
+		lVertices[indices[2]].UV
+	};
 	
-	float3 objectNormal = vertexNormals[0] * barycentrics.x +
+	float3 objectNormal = 
+		vertexNormals[0] * barycentrics.x +
         vertexNormals[1] * barycentrics.y +
         vertexNormals[2] * barycentrics.z;
 
-	float3 objectPosition = vertextPositions[0] * barycentrics.x +
+	float3 objectPosition = 
+		vertextPositions[0] * barycentrics.x +
         vertextPositions[1] * barycentrics.y +
         vertextPositions[2] * barycentrics.z;
+
+	float2 UV = 
+		vertexUV[0] * barycentrics.x +
+		vertexUV[1] * barycentrics.y +
+		vertexUV[2] * barycentrics.z;
 
 	objectPosition += objectNormal * 0.002f;
 
@@ -90,7 +103,7 @@ void ClosestHit(inout HitInfo payload, Attributes attrib)
 		L /= L_len;
 		float brdf = INVPI;
 		float areaLightFactor = max(dot(gLights[i].normal, -L), 0) / (L_len * L_len);
-		float3 directRadiance = /*WTF*/100 * areaLightFactor * brdf * max(dot(L, worldNormal.xyz), 0) * gLights[i].color;
+		float3 directRadiance = /*WTF*/30 * areaLightFactor * brdf * max(dot(L, worldNormal.xyz), 0) * gLights[i].color;
 
 		RayDesc ray;
 		ray.Origin = worldPosition.xyz;
@@ -118,6 +131,13 @@ void ClosestHit(inout HitInfo payload, Attributes attrib)
 
 		directLighting += directRadiance * (1 - isShadow);
 	}
+
+	//float3 textureAlbedo = gTxMats[0].SampleLevel(gSampler, UV, 0).rgb; // TODO texture index
+	//directLighting *= textureAlbedo;
+
+	//const float3 light1 = float3(5, -4, 10);
+	//const float3 Ln = normalize(light1 - worldPosition.xyz);
+	//directLighting = max(0, dot(objectNormal, Ln)) * float3(1,1,1) + float3(0.3, 0.3, 0.3);
 
 	payload.colorAndDistance = float4(lInstanceData.color.rgb * directLighting, RayTCurrent());
 }

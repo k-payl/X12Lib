@@ -85,11 +85,15 @@ namespace engine {
 	class Render;
 	class SceneManager;
 	class ResourceManager;
-
+	struct GenericMaterial;
+	class Material;
 	class GameObject;
 	class Model;
 	class Light;
 	class Camera;
+	class Mesh;
+	class Texture;
+	class MaterialManager;
 }
 
 namespace x12 {
@@ -220,8 +224,6 @@ namespace engine
 
 	const char *getNameByType(OBJECT_TYPE type);
 	OBJECT_TYPE getTypeByName(const std::string& name);
-
-	X12_API std::string fileExtension(const std::string& path);
 
 	template<typename... Signature>
 	class Signal

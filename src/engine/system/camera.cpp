@@ -112,8 +112,8 @@ void engine::Camera::Copy(GameObject * original)
 engine::Camera::Camera()
 {
 	type_ = OBJECT_TYPE::CAMERA;
-	SetWorldPosition(vec3(0.0f, -10.0f, 5.0f));
-	SetLocalRotation(quat(65.0f, 0.0f, 0.0f));
+	SetWorldPosition(vec3(10.0f, 0.0f, 1.0f));
+	SetLocalRotation(quat(90.0f, 90.0f, 0.0f));
 }
 
 auto engine::Camera::Clone() -> GameObject *

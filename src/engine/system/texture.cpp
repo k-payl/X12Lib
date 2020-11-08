@@ -42,7 +42,7 @@ bool Texture::Load()
 		return false;
 	}
 
-	const std::string ext = engine::fileExtension(path_.c_str());
+	const std::string ext = engine::GetFS()->FileExtension(path_);
 	if (ext != "dds")
 	{
 		LogCritical("Texture::Load(): extension %s is not supported", ext.c_str());

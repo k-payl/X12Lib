@@ -8,11 +8,13 @@
 #include "mainwindow.h"
 #include "icorerender.h"
 #include "model.h"
+#include "material.h"
 #include "gameobject.h"
 #include "scenemanager.h"
 #include "resourcemanager.h"
 #include "mesh.h"
 #include "d3d12/dx12buffer.h"
+#include "d3d12/dx12texture.h"
 #include "cpp_hlsl_shared.h"
 using namespace x12;
 
@@ -116,6 +118,7 @@ ID3D12CommandQueue *rtxQueue;
 UINT backBufferIndex;
 HANDLE event;
 D3D12_GPU_DESCRIPTOR_HANDLE raytracingOutputResourceUAVGpuDescriptor;
+D3D12_GPU_DESCRIPTOR_HANDLE texturesHandle;
 
 
 namespace GlobalRootSignatureParams {
@@ -125,6 +128,7 @@ namespace GlobalRootSignatureParams {
 		AccelerationStructure,
 		SceneConstants,
 		LightStructuredBuffer,
+		Textures,
 		Count
 	};
 }
@@ -254,6 +258,9 @@ void Render()
 
 			dx12buffer = static_cast<x12::Dx12CoreBuffer*>(engine::GetSceneManager()->LightsBuffer());
 			dxrCommandList->SetComputeRootShaderResourceView(GlobalRootSignatureParams::LightStructuredBuffer, dx12buffer->GPUAddress());
+
+			if (texturesHandle.ptr)
+				dxrCommandList->SetComputeRootDescriptorTable(GlobalRootSignatureParams::Textures, texturesHandle);
 		}
 
 		// Bind pipeline
@@ -380,7 +387,11 @@ void WaitForGpu()
 
 void Init()
 {
+#if 1
+	engine::GetSceneManager()->LoadScene("sponza/sponza.yaml");
+#else
 	engine::GetSceneManager()->LoadScene("scene.yaml");
+#endif
 
 	device = (ID3D12Device*)engine::GetCoreRenderer()->GetNativeDevice();
 
@@ -434,7 +445,20 @@ void Init()
 		rootParameters[GlobalRootSignatureParams::SceneConstants].InitAsConstantBufferView(1);
 		rootParameters[GlobalRootSignatureParams::LightStructuredBuffer].InitAsShaderResourceView(1);
 
-		CD3DX12_ROOT_SIGNATURE_DESC desc(ARRAYSIZE(rootParameters), rootParameters, 0, nullptr);
+		CD3DX12_DESCRIPTOR_RANGE ranges;
+		ranges.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 100, 3);  // array of textures
+		rootParameters[GlobalRootSignatureParams::Textures].InitAsDescriptorTable(1, &ranges);
+
+		D3D12_STATIC_SAMPLER_DESC sampler{};
+		sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+		sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+		sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+		sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+		sampler.ShaderRegister = 0;
+		sampler.RegisterSpace = 0;
+		sampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+
+		CD3DX12_ROOT_SIGNATURE_DESC desc(ARRAYSIZE(rootParameters), rootParameters, 1, &sampler);
 
 		SerializeAndCreateRaytracingRootSignature(device, desc, &res->raytracingGlobalRootSignature);
 	}
@@ -454,9 +478,9 @@ void Init()
 		// Create subobjects that combine into a RTPSO
 		CD3DX12_STATE_OBJECT_DESC raytracingPipeline{ D3D12_STATE_OBJECT_TYPE_RAYTRACING_PIPELINE };
 
-		res->raygen = CompileShader(RAYTRACING_SHADER_DIR "raygen.hlsl");
-		res->hit = CompileShader(RAYTRACING_SHADER_DIR "hit.hlsl");
-		res->miss = CompileShader(RAYTRACING_SHADER_DIR "miss.hlsl");
+		res->raygen = CompileShader(RAYTRACING_SHADER_DIR "rt_raygen.hlsl");
+		res->hit = CompileShader(RAYTRACING_SHADER_DIR "rt_hit.hlsl");
+		res->miss = CompileShader(RAYTRACING_SHADER_DIR "rt_miss.hlsl");
 
 		res->copyShader = engine::GetResourceManager()->CreateGraphicShader("../resources/shaders/copy.hlsl", nullptr, 0);
 		res->copyShader.get();
@@ -543,6 +567,24 @@ void Init()
 			if (res->bottomLevelAccelerationStructures[m])
 				continue;
 
+			// TODO: prepare array of textures
+			engine::Material* mat = models[i]->GetMaterial();
+			if (mat)
+			{
+				engine::Texture * t = mat->GetTexture(engine::Material::Params::Albedo);
+				if (t)
+				{
+					auto coreTexture = t->GetCoreTexture();
+					Dx12CoreTexture* dx12CoreTexure = static_cast<x12::Dx12CoreTexture*>(coreTexture);
+					D3D12_CPU_DESCRIPTOR_HANDLE cputextureHandle = dx12CoreTexure->GetSRV();
+					D3D12_CPU_DESCRIPTOR_HANDLE destCPU = CD3DX12_CPU_DESCRIPTOR_HANDLE(res->descriptorHeap->GetCPUDescriptorHandleForHeapStart(), 1, descriptorSize);
+
+					device->CopyDescriptorsSimple(1, destCPU, cputextureHandle, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+					texturesHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(res->descriptorHeap->GetGPUDescriptorHandleForHeapStart(), 1, descriptorSize);
+				}
+			}
+
 			res->bottomLevelAccelerationStructures[m] = BuildBLAS(models[i], m_dxrDevice, res->commandQueue.Get(), dxrCommandList, res->commandAllocators[backBufferIndex].Get());
 		}
 	}
@@ -615,7 +657,13 @@ void Init()
 				HitArg args;
 				args.transform = models[i]->GetWorldTransform();
 				args.normalTransform = args.transform.Inverse().Transpose();
-				args.vertexBuffer = reinterpret_cast<x12::Dx12CoreBuffer*>(m->VertexBuffer())->GPUAddress();;
+				args.vertexBuffer = reinterpret_cast<x12::Dx12CoreBuffer*>(m->VertexBuffer())->GPUAddress();
+
+				engine::Material* material = models[i]->GetMaterial();
+				if (material)
+				{
+					args.color = material->GetValue(engine::Material::Params::Albedo);
+				}
 
 				hitGroupShaderTable.push_back(ShaderRecord(hitGroupShaderIdentifier, D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES, &args, sizeof(HitArg)));
 			}
@@ -704,7 +752,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPWSTR, _In_ int)
 	core_->AddInitProcedure(Init);
 
 	res = new Resources();
-	core_->Init(engine::INIT_FLAGS::DIRECTX12_RENDERER);
+	core_->Init("", engine::INIT_FLAGS::DIRECTX12_RENDERER);
 	cam = engine::GetSceneManager()->CreateCamera();
 
 	engine::MainWindow* window = core_->GetWindow();

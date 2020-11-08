@@ -132,7 +132,7 @@ static ComPtr<ID3DBlob> compileShader(const char* src, SHADER_TYPE type)
 			s += pFileName;
 
 			text = engine::GetFS()->LoadFile(s.c_str());
-			*pBytes = strlen(text.get());
+			*pBytes = (UINT)strlen(text.get());
 			*ppData = text.get();
 			return 0;
 		};

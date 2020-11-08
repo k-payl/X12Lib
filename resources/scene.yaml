@@ -19,19 +19,19 @@ objects:
     enabled: true
     type: Model
     worldTransform: [1, 0, 0, -3, 0, 1, 0, -0.01566553, 0, 0, 1, 1.553444, 0, 0, 0, 1]
-    mesh: meshes/Teapot.002.mesh
-    material: material_14
+    mesh: Cube.mesh
+    material: material_59
   - childs: 0
     id: 2076238943
     enabled: true
     type: Model
     worldTransform: [1, 0, 0, 3, 0, 1, 0, -0.01566553, 0, 0, 1, 1.553444, 0, 0, 0, 1]
     mesh: meshes/Teapot.002.mesh
-    material: material_14
+    material: material_59
   - childs: 0
     id: 2076238943
     enabled: true
     type: Model
     worldTransform: [1, 0, 0, 9, 0, 1, 0, -0.01566553, 0, 0, 1, 1.553444, 0, 0, 0, 1]
     mesh: meshes/Teapot.002.mesh
-    material: material_14
+    material: material_59

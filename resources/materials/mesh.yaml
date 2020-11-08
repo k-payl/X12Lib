@@ -1,0 +1,7 @@
+name: 'material_59'
+parameters:
+  - name: 'base_color'
+    value: [1, 1, 1, 1]
+    texture: 'textures/chipped-paint-metal-albedo_3_512x512.dds'
+  - name: 'roughness'
+    value: 1

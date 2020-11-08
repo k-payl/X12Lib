@@ -44,13 +44,13 @@ void engine::GameObject::Update(float dt)
 
 void engine::GameObject::SaveYAML(void *yaml)
 {
-	//YAML::Emitter *_n = static_cast<YAML::Emitter*>(yaml);
-	//YAML::Emitter& n = *_n;
+	YAML::Emitter *_n = static_cast<YAML::Emitter*>(yaml);
+	YAML::Emitter& n = *_n;
 
-	//n << YAML::Key << "id" << YAML::Value << id_;
-	//n << YAML::Key << "enabled" << YAML::Value << enabled_;
-	//n << YAML::Key << "type" << YAML::Value << getNameByType(type_);
-	//n << YAML::Key << "worldTransform" << YAML::Value << worldTransform_;
+	n << YAML::Key << "id" << YAML::Value << id_;
+	n << YAML::Key << "enabled" << YAML::Value << enabled_;
+	n << YAML::Key << "type" << YAML::Value << getNameByType(type_);
+	n << YAML::Key << "worldTransform" << YAML::Value << worldTransform_;
 }
 
 void engine::GameObject::LoadYAML(void * yaml)

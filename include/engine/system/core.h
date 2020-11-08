@@ -16,6 +16,7 @@ namespace engine
 	X12_API FileSystem*				GetFS();
 	X12_API SceneManager*			GetSceneManager();
 	X12_API ResourceManager*		GetResourceManager();
+	X12_API MaterialManager*		GetMaterialManager();
 	X12_API Console*				GetConsole();
 	X12_API void					Log(const char* str);
 
@@ -51,6 +52,7 @@ namespace engine
 		std::unique_ptr<Render> render;
 		std::unique_ptr<SceneManager> sceneManager;
 		std::unique_ptr<ResourceManager> resourceManager;
+		std::unique_ptr<MaterialManager> matManager;
 
 		std::vector<intrusive_ptr<x12::ICoreQuery>> queries;
 
@@ -92,7 +94,12 @@ namespace engine
 
 		std::mutex logMtx;
 
-		void X12_API Init(INIT_FLAGS flags, GpuProfiler* gpuprofiler_ = nullptr, InitRendererProcedure initRenderer = nullptr);
+		// Pathes without end backslashes
+		std::string rootPath_;
+		std::string workingPath_;
+		std::string dataPath_;
+
+		void X12_API Init(const char* rootPath, INIT_FLAGS flags, GpuProfiler* gpuprofiler_ = nullptr, InitRendererProcedure initRenderer = nullptr);
 		void X12_API Free();
 		void X12_API Start(Camera* cam = 0);
 
@@ -112,6 +119,7 @@ namespace engine
 		FileSystem* GetFS() { return fs.get(); }
 		SceneManager* GetSceneManager() { return sceneManager.get(); }
 		ResourceManager* GetResourceManager() { return resourceManager.get(); }
+		MaterialManager* GetMaterialManager() { return matManager.get(); }
 		Console* GetConsole() { return console.get(); }
 
 		template<class T, typename... Arguments>

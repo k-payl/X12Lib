@@ -51,17 +51,3 @@ engine::OBJECT_TYPE engine::getTypeByName(const std::string& name)
 {
 	return types[name];
 }
-
-template<typename Char>
-std::basic_string<Char> ToLowerCase(std::basic_string<Char> str)
-{
-	std::transform(str.begin(), str.end(), str.begin(), ::tolower);
-	return str;
-}
-
-X12_API std::string engine::fileExtension(const std::string& path)
-{
-	return ToLowerCase(fs::path(path).extension().string().erase(0, 1));
-}
-
-

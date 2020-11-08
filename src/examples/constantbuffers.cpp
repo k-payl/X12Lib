@@ -47,7 +47,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPWSTR, _In_ int)
 	core->AddInitProcedure(Init);
 
 	res = new Resources();
-	core->Init(VIDEO_API);
+	core->Init("", VIDEO_API);
 	cam = engine::GetSceneManager()->CreateCamera();
 	hwnd = *core->GetWindow()->handle();
 

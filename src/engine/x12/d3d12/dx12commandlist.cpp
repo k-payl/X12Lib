@@ -127,7 +127,7 @@ void Dx12GraphicCommandList::SetVertexBuffer(ICoreVertexBuffer* vb)// TODO add v
 	if (dxBuffer->GetReadBarrier(&numBarriers, barriers))
 		d3dCmdList->ResourceBarrier(numBarriers, barriers);
 
-	d3dCmdList->IASetVertexBuffers(0, dxBuffer->vertexBufferView.size(), &dxBuffer->vertexBufferView[0]);
+	d3dCmdList->IASetVertexBuffers(0, (UINT)dxBuffer->vertexBufferView.size(), &dxBuffer->vertexBufferView[0]);
 	d3dCmdList->IASetIndexBuffer(dxBuffer->pIndexBufferVew());
 }
 
@@ -518,7 +518,7 @@ void x12::Dx12GraphicCommandList::SetRenderTargets(ICoreTexture** textures, uint
 	dsv.ptr = dx12depthStenciltexture ? dx12depthStenciltexture->GetDSV().ptr : 0;
 	state.depthStencil = depthStencil;
 
-	for (int i = 0; i < 8; i++)
+	for (uint32_t i = 0; i < 8; i++)
 	{
 		if (i < count)
 		{

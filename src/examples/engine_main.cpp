@@ -1,5 +1,6 @@
 #include "core.h"
 #include "scenemanager.h"
+#include "materialmanager.h"
 
 #define VIDEO_API engine::INIT_FLAGS::DIRECTX12_RENDERER
 
@@ -10,10 +11,10 @@
 int APIENTRY wWinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPWSTR, _In_ int)
 {
 	auto core = engine::CreateCore();
-	core->Init(engine::INIT_FLAGS::HIGH_LEVEL_RENDER | VIDEO_API);
+	core->Init("", engine::INIT_FLAGS::HIGH_LEVEL_RENDER | VIDEO_API);
 
 	engine::GetSceneManager()->LoadScene("scene.yaml");
-
+	engine::GetMaterialManager()->LoadMaterial("materials//mesh.yaml");
 
 	core->Start();
 	core->Free();

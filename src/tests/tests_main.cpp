@@ -155,7 +155,7 @@ protected:
 			engine::INIT_FLAGS::NO_CONSOLE;
 
 		core = engine::CreateCore();
-		core->Init(flags);
+		core->Init("", flags);
 
 		renderer = engine::GetCoreRenderer();
 

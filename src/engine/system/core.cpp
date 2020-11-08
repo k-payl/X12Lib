@@ -10,6 +10,7 @@
 #include "camera.h"
 #include "dx12gpuprofiler.h"
 #include "resourcemanager.h"
+#include "materialmanager.h"
 
 #if VK_ENABLE
 #include "vkrender.h"
@@ -140,12 +141,34 @@ Core::Core()
 
 Core::~Core() = default;
 
-void Core::Init(INIT_FLAGS flags, GpuProfiler* gpuprofiler_, InitRendererProcedure initRenderer)
+void Core::Init(const char *rootPath, INIT_FLAGS flags, GpuProfiler* gpuprofiler_, InitRendererProcedure initRenderer)
 {
 #define FLAG(arg) (flags & arg)
 #define NOT(arg) (!(flags & arg))
 
-	fs = std::make_unique<FileSystem>(DATA_DIR);
+	// root path
+	if (fs->IsRelative(rootPath))
+	{
+		workingPath_ = fs->GetWorkingPath("");
+		string rootRelativeToWorking_;
+		if (strlen(rootPath) == 0)
+			rootRelativeToWorking_ = "..\\";
+		else
+			rootRelativeToWorking_ = rootPath;
+		rootPath_ = fs->GetWorkingPath(rootRelativeToWorking_.c_str());;
+	}
+	else
+		rootPath_ = rootPath;
+
+	if (!fs->DirectoryExist(rootPath_.c_str()))
+		abort();
+
+	assert(rootPath_.size() > 0);
+
+	// data path
+	dataPath_ = rootPath_ + "\\resources\\";// +DATA_DIR;
+
+	fs = std::make_unique<FileSystem>(dataPath_);
 	sceneManager = std::make_unique<SceneManager>();
 
 	if (NOT(INIT_FLAGS::NO_CONSOLE))
@@ -185,6 +208,8 @@ void Core::Init(INIT_FLAGS flags, GpuProfiler* gpuprofiler_, InitRendererProcedu
 
 	if (renderer)
 		renderer->Init();
+
+	matManager->Init();
 
 	if (renderer && FLAG(INIT_FLAGS::DIRECTX12_RENDERER))
 	{
@@ -230,10 +255,13 @@ void Core::Init(INIT_FLAGS flags, GpuProfiler* gpuprofiler_, InitRendererProcedu
 		render->Init();
 	}
 
-	queries.resize(QueryNum);
-	for (int i = 0; i < QueryNum; i++)
+	if (renderer)
 	{
-		renderer->CreateQuery(queries[i].getAdressOf());
+		queries.resize(QueryNum);
+		for (int i = 0; i < QueryNum; i++)
+		{
+			renderer->CreateQuery(queries[i].getAdressOf());
+		}
 	}
 
 	onInit.Invoke();
@@ -283,6 +311,9 @@ void Core::Free()
 		window->Destroy();
 		window = nullptr;
 	}
+
+	matManager->Free();
+	matManager = nullptr;
 
 	resourceManager->Free();
 	resourceManager = nullptr;
@@ -466,6 +497,11 @@ SceneManager* engine::GetSceneManager()
 ResourceManager* engine::GetResourceManager()
 {
 	return core__->GetResourceManager();
+}
+
+MaterialManager* engine::GetMaterialManager()
+{
+	return core__->GetMaterialManager();
 }
 
 X12_API Console* engine::GetConsole()
