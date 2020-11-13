@@ -12,5 +12,6 @@ namespace engine
 	public:
 		auto X12_API LoadMaterial(const char *path) -> Material*;
 		auto X12_API FindMaterial(const char* name)->Material*;
+		auto X12_API CreateMaterial(const char* path)->Material*;
 	};
 }

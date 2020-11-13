@@ -16,6 +16,7 @@ namespace engine
 	namespace Shaders
 	{
 #pragma pack(push, 1)
+		// For graphic
 		struct VertexIn
 		{
 			float3 DECLARE_VERTEX_IN(Position, POSITION);
@@ -23,6 +24,7 @@ namespace engine
 			float2 DECLARE_VERTEX_IN(UV, COLOR);
 		};
 
+		// For BLAS
 		struct Vertex
 		{
 			float3 Position;
@@ -30,11 +32,18 @@ namespace engine
 			float2 UV;
 		};
 
+		struct InstancePointer
+		{
+			uint offset;
+			float __padding[3];
+		};
+
 		struct InstanceData
 		{
-			float4 color;
 			float4x4 transform;
 			float4x4 normalTransform;
+			float emission; // For area light
+			float __padding[3];
 		};
 
 		struct Light
@@ -52,6 +61,7 @@ namespace engine
 		{
 			uint instanceCount;
 			uint lightCount;
+			float __padding[2];
 		};
 
 		struct Camera

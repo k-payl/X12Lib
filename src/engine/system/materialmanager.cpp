@@ -24,6 +24,11 @@ auto X12_API engine::MaterialManager::FindMaterial(const char* name) -> Material
 	return nullptr;
 }
 
+auto X12_API engine::MaterialManager::CreateMaterial(const char* path) -> Material*
+{
+	return nullptr;
+}
+
 auto engine::MaterialManager::Free() -> void
 {
 	for (auto m : materials)

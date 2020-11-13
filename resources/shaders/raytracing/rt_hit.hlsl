@@ -33,6 +33,16 @@ float Uniform01()
 	return float(rand_xorshift() * png_01_convert);
 }
 
+float goldenRatioU1()
+{
+	return frac(Uniform01() / fi);
+}
+
+float goldenRatioU2()
+{
+	return frac(Uniform01() / (fi * fi));
+}
+
 [shader("closesthit")] 
 void ClosestHit(inout HitInfo payload, Attributes attrib)
 {
@@ -42,11 +52,11 @@ void ClosestHit(inout HitInfo payload, Attributes attrib)
 	float3 barycentrics = float3(1.f - attrib.bary.x - attrib.bary.y, attrib.bary.x, attrib.bary.y);
 
 #if 0 // Indexing
-    // Get the base index of the triangle's first 16 bit index.
-    const uint indexSizeInBytes = 2;
-    const uint indicesPerTriangle = 3;
-    uint triangleIndexStride = indicesPerTriangle * indexSizeInBytes;
-    uint baseIndex = PrimitiveIndex() * triangleIndexStride;
+	// Get the base index of the triangle's first 16 bit index.
+	const uint indexSizeInBytes = 2;
+	const uint indicesPerTriangle = 3;
+	uint triangleIndexStride = indicesPerTriangle * indexSizeInBytes;
+	uint baseIndex = PrimitiveIndex() * triangleIndexStride;
 
 	const uint3 indices = Load3x16BitIndices(baseIndex);
 #else	
@@ -54,16 +64,16 @@ void ClosestHit(inout HitInfo payload, Attributes attrib)
 #endif
 
 	float3 vertextPositions[3] = {
-        lVertices[indices[0]].Position,
-        lVertices[indices[1]].Position,
-        lVertices[indices[2]].Position
-    };
+		lVertices[indices[0]].Position,
+		lVertices[indices[1]].Position,
+		lVertices[indices[2]].Position
+	};
 	
 	float3 vertexNormals[3] = {
-        lVertices[indices[0]].Normal,
-        lVertices[indices[1]].Normal,
-        lVertices[indices[2]].Normal
-    };
+		lVertices[indices[0]].Normal,
+		lVertices[indices[1]].Normal,
+		lVertices[indices[2]].Normal
+	};
 
 	float2 vertexUV[3] = {
 		lVertices[indices[0]].UV,
@@ -73,13 +83,13 @@ void ClosestHit(inout HitInfo payload, Attributes attrib)
 	
 	float3 objectNormal = 
 		vertexNormals[0] * barycentrics.x +
-        vertexNormals[1] * barycentrics.y +
-        vertexNormals[2] * barycentrics.z;
+		vertexNormals[1] * barycentrics.y +
+		vertexNormals[2] * barycentrics.z;
 
 	float3 objectPosition = 
 		vertextPositions[0] * barycentrics.x +
-        vertextPositions[1] * barycentrics.y +
-        vertextPositions[2] * barycentrics.z;
+		vertextPositions[1] * barycentrics.y +
+		vertextPositions[2] * barycentrics.z;
 
 	float2 UV = 
 		vertexUV[0] * barycentrics.x +
@@ -88,12 +98,14 @@ void ClosestHit(inout HitInfo payload, Attributes attrib)
 
 	objectPosition += objectNormal * 0.002f;
 
-	float4 worldPosition = mul(float4(objectPosition, 1), lInstanceData.transform);
-	float4 worldNormal = mul(lInstanceData.normalTransform, float4(objectNormal, 0));
+	float4 worldPosition = mul(float4(objectPosition, 1), gInstances[lInstanceData.offset].transform);
+	float4 worldNormal =  mul(gInstances[lInstanceData.offset].normalTransform, float4(objectNormal, 0));
+	float3 V = worldPosition.xyz - gCamera.origin.xyz;
 
 	float3 directLighting = 0;
-	float tt = lerp(-1, 1, Uniform01());
-	float bb = lerp(-1, 1, Uniform01());
+
+	float tt = lerp(-1, 1, goldenRatioU1());
+	float bb = lerp(-1, 1, goldenRatioU2());
 
 	for (int i = 0; i < gScene.lightCount; ++i)
 	{
@@ -103,13 +115,13 @@ void ClosestHit(inout HitInfo payload, Attributes attrib)
 		L /= L_len;
 		float brdf = INVPI;
 		float areaLightFactor = max(dot(gLights[i].normal, -L), 0) / (L_len * L_len);
-		float3 directRadiance = /*WTF*/30 * areaLightFactor * brdf * max(dot(L, worldNormal.xyz), 0) * gLights[i].color;
+		float3 directRadiance = /*WTF*/20 * areaLightFactor * brdf * max(dot(L, worldNormal.xyz), 0) * gLights[i].color;
 
 		RayDesc ray;
 		ray.Origin = worldPosition.xyz;
 		ray.Direction = L;
 		ray.TMin = 0;
-		ray.TMax = 100000;
+		ray.TMax = max(L_len - 0.001, 0);
 
 		RayQuery<RAY_FLAG_CULL_NON_OPAQUE |
 			RAY_FLAG_SKIP_PROCEDURAL_PRIMITIVES |
@@ -139,7 +151,10 @@ void ClosestHit(inout HitInfo payload, Attributes attrib)
 	//const float3 Ln = normalize(light1 - worldPosition.xyz);
 	//directLighting = max(0, dot(objectNormal, Ln)) * float3(1,1,1) + float3(0.3, 0.3, 0.3);
 
-	payload.colorAndDistance = float4(lInstanceData.color.rgb * directLighting, RayTCurrent());
+	// Add area light emission for primary rays
+	directLighting += float3(1, 1, 1) * gInstances[lInstanceData.offset].emission * sign(dot(worldNormal.xyz, V)); // TODO: handle back face. need only for primary visibility
+
+	payload.colorAndDistance = float4(/*lInstanceData.color.rgb **/ directLighting, RayTCurrent());
 }
 
 [shader("closesthit")] 

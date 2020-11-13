@@ -8,6 +8,7 @@
 #include "mainwindow.h"
 #include "icorerender.h"
 #include "model.h"
+#include "light.h"
 #include "material.h"
 #include "gameobject.h"
 #include "scenemanager.h"
@@ -31,13 +32,14 @@ const wchar_t* shadowHitGroupName = L"ShadowHitGroup";
 const wchar_t* shadowhitname = L"ShadowClosestHit";
 const wchar_t* shadowmissname = L"ShadowMiss";
 
+#pragma pack(push, 1)
 struct HitArg
 {
-	math::vec4 color = { 0.5, 0.5, 0.5, 1 };
-	math::mat4 transform;
-	math::mat4 normalTransform;
+	uint32_t offset;
+	float _padding[3];
 	D3D12_GPU_VIRTUAL_ADDRESS vertexBuffer;
 };
+#pragma pack(pop)
 
 UINT hitRecordSize()
 {
@@ -80,6 +82,8 @@ static struct Resources
 
 	intrusive_ptr<x12::ICoreBuffer> sceneBuffer;
 	intrusive_ptr<x12::ICoreBuffer> cameraBuffer;
+	intrusive_ptr<x12::ICoreBuffer> perInstanceBuffer;
+	engine::StreamPtr<engine::Mesh> planeMesh;
 
 	ComPtr<ID3D12Resource> outputRGBA32f;
 	intrusive_ptr<ICoreTexture> outputRGBA32fcoreWeakPtr;
@@ -128,6 +132,7 @@ namespace GlobalRootSignatureParams {
 		AccelerationStructure,
 		SceneConstants,
 		LightStructuredBuffer,
+		TLASPerInstanceBuffer,
 		Textures,
 		Count
 	};
@@ -258,6 +263,9 @@ void Render()
 
 			dx12buffer = static_cast<x12::Dx12CoreBuffer*>(engine::GetSceneManager()->LightsBuffer());
 			dxrCommandList->SetComputeRootShaderResourceView(GlobalRootSignatureParams::LightStructuredBuffer, dx12buffer->GPUAddress());
+
+			dx12buffer = static_cast<x12::Dx12CoreBuffer*>(res->perInstanceBuffer.get());
+			dxrCommandList->SetComputeRootShaderResourceView(GlobalRootSignatureParams::TLASPerInstanceBuffer, dx12buffer->GPUAddress());
 
 			if (texturesHandle.ptr)
 				dxrCommandList->SetComputeRootDescriptorTable(GlobalRootSignatureParams::Textures, texturesHandle);
@@ -393,6 +401,8 @@ void Init()
 	engine::GetSceneManager()->LoadScene("scene.yaml");
 #endif
 
+	res->planeMesh = engine::GetResourceManager()->CreateStreamMesh("std#plane");
+
 	device = (ID3D12Device*)engine::GetCoreRenderer()->GetNativeDevice();
 
 	D3D12_FEATURE_DATA_D3D12_OPTIONS5 opt5{};
@@ -444,9 +454,10 @@ void Init()
 		rootParameters[GlobalRootSignatureParams::AccelerationStructure].InitAsShaderResourceView(0);
 		rootParameters[GlobalRootSignatureParams::SceneConstants].InitAsConstantBufferView(1);
 		rootParameters[GlobalRootSignatureParams::LightStructuredBuffer].InitAsShaderResourceView(1);
+		rootParameters[GlobalRootSignatureParams::TLASPerInstanceBuffer].InitAsShaderResourceView(3);
 
 		CD3DX12_DESCRIPTOR_RANGE ranges;
-		ranges.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 100, 3);  // array of textures
+		ranges.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 100, 4);  // array of textures
 		rootParameters[GlobalRootSignatureParams::Textures].InitAsDescriptorTable(1, &ranges);
 
 		D3D12_STATIC_SAMPLER_DESC sampler{};
@@ -466,7 +477,7 @@ void Init()
 	// Local Root Signature
 	{
 		CD3DX12_ROOT_PARAMETER rootParameters[LocalRootSignatureParams::Count];
-		rootParameters[LocalRootSignatureParams::InstanceConstants].InitAsConstants(4 + 16 + 16, 2, 0);
+		rootParameters[LocalRootSignatureParams::InstanceConstants].InitAsConstants(sizeof(engine::Shaders::InstancePointer) / 4, 2, 0);
 		rootParameters[LocalRootSignatureParams::VertexBuffer].InitAsShaderResourceView(2, 0);
 
 		CD3DX12_ROOT_SIGNATURE_DESC desc(ARRAYSIZE(rootParameters), rootParameters, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE);
@@ -557,8 +568,17 @@ void Init()
 	std::vector<engine::Model*> models;
 	engine::GetSceneManager()->getObjectsOfType(models, engine::OBJECT_TYPE::MODEL);
 
+	std::vector<engine::Light*> areaLights;
+	engine::GetSceneManager()->getObjectsOfType(areaLights, engine::OBJECT_TYPE::LIGHT);
+	std::remove_if(areaLights.begin(), areaLights.end(), [](const engine::Light* l)-> bool { return l->GetLightType() != engine::LIGHT_TYPE::AREA; });
+
+	const UINT topLevelInstances = models.size() + areaLights.size();
+
 	// BLASes
 	{
+		res->bottomLevelAccelerationStructures[res->planeMesh.get()] =
+			BuildBLASFromMesh(res->planeMesh.get(), m_dxrDevice, res->commandQueue.Get(), dxrCommandList, res->commandAllocators[backBufferIndex].Get());
+
 		for (size_t i = 0; i < models.size(); ++i)
 		{
 			int id = models[i]->GetId();
@@ -585,22 +605,44 @@ void Init()
 				}
 			}
 
-			res->bottomLevelAccelerationStructures[m] = BuildBLAS(models[i], m_dxrDevice, res->commandQueue.Get(), dxrCommandList, res->commandAllocators[backBufferIndex].Get());
+			res->bottomLevelAccelerationStructures[m] = BuildBLASFromMesh(models[i]->GetMesh(), m_dxrDevice, res->commandQueue.Get(), dxrCommandList, res->commandAllocators[backBufferIndex].Get());
 		}
 	}
 
 	// TLAS
-	res->topLevelAccelerationStructure = BuildTLAS(res->bottomLevelAccelerationStructures, m_dxrDevice, res->commandQueue.Get(), dxrCommandList, res->commandAllocators[backBufferIndex].Get());
+	res->topLevelAccelerationStructure = BuildTLAS(res->bottomLevelAccelerationStructures,models, areaLights, res->planeMesh.get(), m_dxrDevice,
+		res->commandQueue.Get(), dxrCommandList, res->commandAllocators[backBufferIndex].Get());
+
+
+	// TLAS instances data
+	{
+		std::vector<engine::Shaders::InstanceData> instancesData(topLevelInstances);
+
+		for (size_t i = 0; i < models.size(); ++i)
+		{
+			math::mat4 transform = models[i]->GetWorldTransform();
+			instancesData[i].transform = transform;
+			instancesData[i].normalTransform = transform.Inverse().Transpose();
+			instancesData[i].emission = 0;
+		}
+
+		for (size_t i = 0; i < areaLights.size(); ++i)
+		{
+			math::mat4 transform = areaLights[i]->GetWorldTransform();
+			instancesData[models.size() + i].transform = transform;
+			instancesData[models.size() + i].normalTransform = transform.Inverse().Transpose();
+			instancesData[models.size() + i].emission = areaLights[i]->GetIntensity();
+		}
+
+		engine::GetCoreRenderer()->CreateStructuredBuffer(res->perInstanceBuffer.getAdressOf(), L"TLAS per-instance data",
+			sizeof(engine::Shaders::InstanceData), topLevelInstances, &instancesData[0], x12::BUFFER_FLAGS::SHADER_RESOURCE);
+	}
 
 	// Scene buffer
 	{
 		engine::Shaders::Scene scene;
-		scene.instanceCount = (uint32_t)models.size();
-
-		std::vector<engine::Model*> lights;
-		engine::GetSceneManager()->getObjectsOfType(lights, engine::OBJECT_TYPE::LIGHT);
-
-		scene.lightCount = (uint32_t)lights.size();
+		scene.instanceCount = (uint32_t)topLevelInstances;
+		scene.lightCount = (uint32_t)areaLights.size();
 
 		engine::GetCoreRenderer()->CreateConstantBuffer(res->sceneBuffer.getAdressOf(), L"Scene data", sizeof(engine::Shaders::Scene), false);
 		res->sceneBuffer->SetData(&scene, sizeof(engine::Shaders::Scene));
@@ -643,30 +685,31 @@ void Init()
 
 		// Hit group shader table
 		{
-			std::vector<engine::Model*> models;
-			engine::GetSceneManager()->getObjectsOfType(models, engine::OBJECT_TYPE::MODEL);
-
-			const UINT numShaderRecords = (UINT)models.size() * 2;
+			const UINT numShaderRecords = (UINT)topLevelInstances * 2;
 			ShaderTable hitGroupShaderTable(device, numShaderRecords, hitRecordSize(), L"HitGroupShaderTable");
 
 			for (size_t i = 0; i < models.size(); ++i)
 			{
 				engine::Mesh* m = models[i]->GetMesh();
-				x12::ICoreBuffer* vb = m->VertexBuffer();
 
 				HitArg args;
-				args.transform = models[i]->GetWorldTransform();
-				args.normalTransform = args.transform.Inverse().Transpose();
+				args.offset = i;
 				args.vertexBuffer = reinterpret_cast<x12::Dx12CoreBuffer*>(m->VertexBuffer())->GPUAddress();
-
-				engine::Material* material = models[i]->GetMaterial();
-				if (material)
-				{
-					args.color = material->GetValue(engine::Material::Params::Albedo);
-				}
 
 				hitGroupShaderTable.push_back(ShaderRecord(hitGroupShaderIdentifier, D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES, &args, sizeof(HitArg)));
 			}
+
+			for (size_t i = 0; i < areaLights.size(); ++i)
+			{
+				engine::Mesh* m = res->planeMesh.get();
+
+				HitArg args;
+				args.offset = i + models.size();
+				args.vertexBuffer = reinterpret_cast<x12::Dx12CoreBuffer*>(m->VertexBuffer())->GPUAddress();
+
+				hitGroupShaderTable.push_back(ShaderRecord(hitGroupShaderIdentifier, D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES, &args, sizeof(HitArg)));
+			}
+
 
 			res->hitGroupShaderTable = hitGroupShaderTable.GetResource();
 		}

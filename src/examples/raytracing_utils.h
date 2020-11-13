@@ -14,14 +14,15 @@ namespace engine
 {
 	class Model;
 	class Mesh;
+	class Light;
 }
 
 void FreeUtils();
 
-Microsoft::WRL::ComPtr<ID3D12Resource> BuildBLAS(engine::Model* model, ID3D12Device5* m_dxrDevice,
+Microsoft::WRL::ComPtr<ID3D12Resource> BuildBLASFromMesh(engine::Mesh* m, ID3D12Device5* m_dxrDevice,
 	ID3D12CommandQueue* commandQueue, ID3D12GraphicsCommandList4* dxrCommandList, ID3D12CommandAllocator* commandAllocator);
 
-Microsoft::WRL::ComPtr<ID3D12Resource> BuildTLAS(std::map<engine::Mesh*, Microsoft::WRL::ComPtr<ID3D12Resource>>& BLASes, ID3D12Device5* m_dxrDevice,
+Microsoft::WRL::ComPtr<ID3D12Resource> BuildTLAS(std::map<engine::Mesh*, Microsoft::WRL::ComPtr<ID3D12Resource>>& BLASes, std::vector<engine::Model*>& models, std::vector<engine::Light*>& areaLights, engine::Mesh* plane, ID3D12Device5* m_dxrDevice,
 	ID3D12CommandQueue* commandQueue, ID3D12GraphicsCommandList4* dxrCommandList, ID3D12CommandAllocator* commandAllocator);
 
 IDxcBlob* CompileShader(LPCWSTR fileName);

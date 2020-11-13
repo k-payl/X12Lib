@@ -6,9 +6,9 @@ namespace engine
 {
 	class Mesh
 	{
-		intrusive_ptr<x12::ICoreBuffer> vertexBuffer;
-		intrusive_ptr<x12::ICoreBuffer> indexBuffer;
-		intrusive_ptr<x12::ICoreVertexBuffer> renderVetexBuffer;
+		intrusive_ptr<x12::ICoreBuffer> vertexBuffer; // for BLAS
+		intrusive_ptr<x12::ICoreBuffer> indexBuffer; // for BLAS
+		intrusive_ptr<x12::ICoreVertexBuffer> renderVetexBuffer; // for graphic pipeline
 
 		std::string path_;
 		math::vec3 center_;
