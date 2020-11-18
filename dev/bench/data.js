@@ -1,44 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1604832372891,
+  "lastUpdate": 1605707674153,
   "repoUrl": "https://github.com/k-payl/X12Lib",
   "entries": {
     "C++ Benchmark": [
-      {
-        "commit": {
-          "author": {
-            "email": "aaa@bbb.com",
-            "name": "k-payl",
-            "username": "xkarlois"
-          },
-          "committer": {
-            "email": "aaa@bbb.com",
-            "name": "k-payl",
-            "username": "xkarlois"
-          },
-          "distinct": true,
-          "id": "4b2ec4729f76bdc09cab617a7bb80ef9c3870195",
-          "message": "appveyor 3",
-          "timestamp": "2020-05-03T14:42:49+07:00",
-          "tree_id": "81a97c9010707ffd7d3d8f704f4b593a23b86fd8",
-          "url": "https://github.com/k-payl/X12Lib/commit/4b2ec4729f76bdc09cab617a7bb80ef9c3870195"
-        },
-        "date": 1588492010706,
-        "tool": "googlecpp",
-        "benches": [
-          {
-            "name": "mat4_mult",
-            "value": 18275218.769230805,
-            "unit": "ns/iter",
-            "extra": "iterations: 39\ncpu: 18266963.051282056 ns\nthreads: 1"
-          },
-          {
-            "name": "mat4_inv",
-            "value": 113154503.83333333,
-            "unit": "ns/iter",
-            "extra": "iterations: 6\ncpu: 113145275.99999999 ns\nthreads: 1"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -1080,6 +1044,42 @@ window.BENCHMARK_DATA = {
             "value": 129805002.39999628,
             "unit": "ns/iter",
             "extra": "iterations: 5\ncpu: 129796219.8 ns\nthreads: 1"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "k-payl@yandex.ru",
+            "name": "Konstantin Pail",
+            "username": "k-payl"
+          },
+          "committer": {
+            "email": "k-payl@yandex.ru",
+            "name": "Konstantin Pail",
+            "username": "k-payl"
+          },
+          "distinct": true,
+          "id": "ddf76f5c555c81c9ca20c2d0c8b4c412f5f7a710",
+          "message": "indirect lighting (1 bounce)",
+          "timestamp": "2020-11-18T16:52:51+04:00",
+          "tree_id": "8267b450630f02fb4ceaf0bbfa10307b1cc63126",
+          "url": "https://github.com/k-payl/X12Lib/commit/ddf76f5c555c81c9ca20c2d0c8b4c412f5f7a710"
+        },
+        "date": 1605707672623,
+        "tool": "googlecpp",
+        "benches": [
+          {
+            "name": "mat4_mult",
+            "value": 21232218.36363641,
+            "unit": "ns/iter",
+            "extra": "iterations: 33\ncpu: 21232292.454545453 ns\nthreads: 1"
+          },
+          {
+            "name": "mat4_inv",
+            "value": 131196185.60000105,
+            "unit": "ns/iter",
+            "extra": "iterations: 5\ncpu: 131186630.00000003 ns\nthreads: 1"
           }
         ]
       }
