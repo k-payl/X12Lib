@@ -158,6 +158,7 @@ x12::Dx12CoreBuffer::Dx12CoreBuffer(size_t size_, const void* data, MEMORY_TYPE 
 	if (flags_ & BUFFER_FLAGS::UNORDERED_ACCESS)
 	{
 		flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+		state = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
 	}
 
 	x12::memory::CreateCommittedBuffer(resource.GetAddressOf(), size, state, heap,

@@ -5,7 +5,7 @@ objects:
     enabled: true
     type: Light
     worldTransform: [0.0, 0.7658789, 0.6431055, 0.4008741, -7.15256e-07, 0.0, 0.7658836, 5.98241, 2.000001, -4.172638e-07, 0.0, 2.915319, 0, 0, 0, 1]
-    intensity: 1.111111
+    intensity: 15.0
     light_type: 1
   - childs: 0
     id: 36578474

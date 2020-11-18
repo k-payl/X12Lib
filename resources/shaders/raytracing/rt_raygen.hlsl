@@ -4,15 +4,19 @@
 [shader("raygeneration")] 
 void RayGen() 
 {
-    uint2 launchIndex = DispatchRaysIndex().xy;
-    float2 dims = float2(DispatchRaysDimensions().xy);
-    float4 color = gOutput.Load(int3(launchIndex, 0));
+    uint pixelNum = DispatchRaysIndex().x;
 
     // Initialize the ray payload
     HitInfo payload;
-    payload.colorAndDistance = float4(0, 0, 0, color.a); // for seed
+    payload.colorAndDistance = float4(0, 0, 0, gFrame.frame); // for seed
 
-    uint frame = uint(color.a) % 9;
+    RayDesc ray;
+
+#if PRIMARY_RAY
+    uint2 launchIndex = uint2(pixelNum % gCamera.width, pixelNum / gCamera.width);
+    float2 dims = uint2(gCamera.width, gCamera.height);
+
+    uint frame = gFrame.frame % 9;
     float2 jitter = float2(float(frame % 3), float(frame / 3));
     jitter /= 2.0f;
     jitter -= float2(0.5, 0.5);
@@ -20,13 +24,19 @@ void RayGen()
     float2 ndc = float2(
         float(launchIndex.x + 0.5f + jitter.x) / dims.x * 2 - 1,
         float(dims.y - launchIndex.y - 1 + 0.5 + jitter.y) / dims.y * 2 - 1);
-
-    RayDesc ray;
+    
     ray.Origin = gCamera.origin.xyz;
     ray.Direction = GetWorldRay(ndc, gCamera.forward.xyz, gCamera.right.xyz, gCamera.up.xyz);
+#else
+    pixelNum = gRegroupedIndexes[pixelNum];
+
+    ray.Origin = gRayInfo[pixelNum].origin.xyz;
+    ray.Direction = gRayInfo[pixelNum].direction.xyz;
+#endif
+
     ray.TMin = 0;
     ray.TMax = 100000;
-    
+
     // Trace the ray
     TraceRay(
         // Parameter name: AccelerationStructure
@@ -80,9 +90,10 @@ void RayGen()
         // between the hit/miss shaders and the raygen
         payload);
 
-    float a = color.a / (color.a + 1.0f);
-    color.rgb = payload.colorAndDistance.rgb * (1-a) + color.rgb * a;
-
-    gOutput[launchIndex] = float4(color.rgb, color.a + 1);
+#if PRIMARY_RAY
+    gOutput[pixelNum] = float4(payload.colorAndDistance.rgb, 0);
+#else
+    gOutput[pixelNum] += float4(payload.colorAndDistance.rgb, 0); // TODO: ideally should "=" because hit can happen multiplies times in same point
+#endif
 }
 

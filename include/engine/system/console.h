@@ -79,6 +79,8 @@ namespace engine
 		void Create();
 		void Destroy();
 
+		X12_API bool IsConsoleVariable(const char* name);
+
 		void log(const char* str);
 		void OutputTxt(const char* pStr);
 		void Show();

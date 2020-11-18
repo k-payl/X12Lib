@@ -64,6 +64,15 @@ void engine::RegisterConsoleVariable(const ConsoleBoolVariable* cmd)
 	ConsoleVariables().push_back(cmd);
 }
 
+X12_API bool engine::Console::IsConsoleVariable(const char* name)
+{
+	if (ConsoleBoolVariable* v = const_cast<ConsoleBoolVariable*>(FindConsoleVariable(name)))
+	{
+		return v->value;
+	}
+	return false;
+}
+
 void engine::RegisterConsoleCommand(const std::string& name, ConsoleCallback callback)
 {
 	if (FindCommand(name) != nullptr)

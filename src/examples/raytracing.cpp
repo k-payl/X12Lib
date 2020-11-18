@@ -63,17 +63,40 @@ static struct Resources
 	ComPtr<ID3D12GraphicsCommandList4> dxrCommandList;
 
 	// DXR resources
-	ComPtr<ID3D12StateObject> dxrStateObject;
+	ComPtr<ID3D12StateObject> dxrPrimaryStateObject;
+	ComPtr<ID3D12StateObject> dxrSecondaryStateObject;
+
+	ComPtr<ID3D12CommandSignature> dxrSecondaryCommandIndirect;
 
 	ComPtr<ID3D12Resource> missShaderTable;
 	ComPtr<ID3D12Resource> hitGroupShaderTable;
 	ComPtr<ID3D12Resource> rayGenShaderTable;
+
+	ComPtr<ID3D12Resource> missShaderTable_secondary;
+	ComPtr<ID3D12Resource> hitGroupShaderTable_secondary;
+	ComPtr<ID3D12Resource> rayGenShaderTable_secondary;
+
 	ComPtr<IDxcBlob> raygen;
 	ComPtr<IDxcBlob> hit;
 	ComPtr<IDxcBlob> miss;
 
+	ComPtr<IDxcBlob> raygen_secondary;
+	ComPtr<IDxcBlob> hit_secondary;
+	ComPtr<IDxcBlob> miss_secondary;
+
 	ComPtr<ID3D12RootSignature> raytracingGlobalRootSignature;
 	ComPtr<ID3D12RootSignature> raytracingLocalRootSignature;
+	ComPtr<ID3D12RootSignature> clearRayInfoRootSignature;
+	ComPtr<ID3D12RootSignature> regroupRayInfoRootSignature;
+	ComPtr<ID3D12RootSignature> clearHitCounterRootSignature;
+	ComPtr<ID3D12RootSignature> accumulationRootSignature;
+	ComPtr<ID3D12RootSignature> copyrHitCounterRootSignature;
+
+	ComPtr<ID3D12PipelineState> clearRayInfoPSO;
+	ComPtr<ID3D12PipelineState> regroupRayInfoPSO;
+	ComPtr<ID3D12PipelineState> clearHitCounterPSO;
+	ComPtr<ID3D12PipelineState> accumulationPSO;
+	ComPtr<ID3D12PipelineState> copyHitCounterPSO;
 
 	std::map<engine::Mesh*, ComPtr<ID3D12Resource>> bottomLevelAccelerationStructures;
 	ComPtr<ID3D12Resource> topLevelAccelerationStructure;
@@ -83,9 +106,14 @@ static struct Resources
 	intrusive_ptr<x12::ICoreBuffer> sceneBuffer;
 	intrusive_ptr<x12::ICoreBuffer> cameraBuffer;
 	intrusive_ptr<x12::ICoreBuffer> perInstanceBuffer;
+	intrusive_ptr<x12::ICoreBuffer> rayInfoBuffer; // w * h * sizeof(RayInfo)
+	intrusive_ptr<x12::ICoreBuffer> regroupedIndexesBuffer; // w * h * sizeof(uint32_t)
+	intrusive_ptr<x12::ICoreBuffer> iterationRGBA32f; // w * h * sizeof(float4). primary + secondary + ... N-th bounce lighting
+	intrusive_ptr<x12::ICoreBuffer> hitCointerBuffer; // 4 byte
+	intrusive_ptr<x12::ICoreBuffer> indirectBuffer; // 4 byte
 	engine::StreamPtr<engine::Mesh> planeMesh;
 
-	ComPtr<ID3D12Resource> outputRGBA32f;
+	ComPtr<ID3D12Resource> outputRGBA32f; // final image accumulation (Texture)
 	intrusive_ptr<ICoreTexture> outputRGBA32fcoreWeakPtr;
 
 	engine::StreamPtr<engine::Shader> copyShader;
@@ -94,6 +122,8 @@ static struct Resources
 
 	engine::StreamPtr<engine::Shader> clearShader;
 	intrusive_ptr<IResourceSet> clearResources;
+
+	engine::StreamPtr<engine::Shader> clearRayInfoBuffer;
 
 	Fence rtToSwapchainFence;
 	Fence clearToRTFence;
@@ -106,6 +136,7 @@ engine::Core* core_;
 HWND hwnd;
 UINT width, height;
 bool needClearBackBuffer = true;
+uint32_t frame;
 
 engine::Camera* cam;
 size_t CameraBuffer;
@@ -114,7 +145,7 @@ math::mat4 cameraTransform;
 ID3D12Device* device;
 ID3D12Device5* m_dxrDevice;
 ID3D12GraphicsCommandList4* dxrCommandList;
-ID3D12StateObject* dxrStateObject;
+ID3D12StateObject* dxrPrimaryStateObject;
 UINT descriptorSize;
 UINT descriptorsAllocated;
 ID3D12CommandQueue *rtxQueue;
@@ -127,12 +158,15 @@ D3D12_GPU_DESCRIPTOR_HANDLE texturesHandle;
 
 namespace GlobalRootSignatureParams {
 	enum {
-		CameraConstantBuffer = 0,
+		FrameConstantBuffer = 0,
+		CameraConstantBuffer,
 		OutputView,
+		RayInfo,
 		AccelerationStructure,
 		SceneConstants,
 		LightStructuredBuffer,
 		TLASPerInstanceBuffer,
+		RegroupedIndexes,
 		Textures,
 		Count
 	};
@@ -146,10 +180,75 @@ namespace LocalRootSignatureParams {
 	};
 }
 
+namespace ClearRayInfoRootSignatureParams {
+	enum {
+		Constant = 0,
+		RayInfoBuffer,
+		IterationColorBuffer,
+		Count
+	};
+}
+
+namespace RegroupRayInfoRootSignatureParams {
+	enum {
+		ConstantIn = 0,
+		RayInfoIn,
+		HitCounterOut,
+		RegroupedIndexesOut,
+		Count
+	};
+}
+
+namespace AccumulationRootSignatureParams {
+	enum {
+		ConstantIn = 0,
+		LightingIn,
+		ResultBufferInOut,
+		Count
+	};
+}
+
 void CreateRaytracingOutputResource(UINT width, UINT height);
 void WaitForGpu();
 void Sync(ID3D12CommandQueue* fromQueue, ID3D12CommandQueue* ToQueue, Fence& fence);
 void SignalFence(ID3D12CommandQueue* ToQueue, Fence& fence);
+
+void BindRaytracingResources()
+{
+	// Bind root signature
+	dxrCommandList->SetComputeRootSignature(res->raytracingGlobalRootSignature.Get());
+
+	// Bind global resources
+	dxrCommandList->SetComputeRoot32BitConstant(GlobalRootSignatureParams::FrameConstantBuffer, frame, 0);
+
+	x12::Dx12CoreBuffer* dx12buffer = static_cast<x12::Dx12CoreBuffer*>(res->cameraBuffer.get());
+	dxrCommandList->SetComputeRootConstantBufferView(GlobalRootSignatureParams::CameraConstantBuffer, dx12buffer->GPUAddress());
+
+	dx12buffer = static_cast<x12::Dx12CoreBuffer*>(res->iterationRGBA32f.get());
+	dxrCommandList->SetComputeRootUnorderedAccessView(GlobalRootSignatureParams::OutputView, dx12buffer->GPUAddress());
+
+	dx12buffer = static_cast<x12::Dx12CoreBuffer*>(res->rayInfoBuffer.get());
+	dxrCommandList->SetComputeRootUnorderedAccessView(GlobalRootSignatureParams::RayInfo, dx12buffer->GPUAddress());
+
+	dxrCommandList->SetComputeRootShaderResourceView(GlobalRootSignatureParams::AccelerationStructure, res->topLevelAccelerationStructure->GetGPUVirtualAddress());
+
+	dx12buffer = static_cast<x12::Dx12CoreBuffer*>(res->sceneBuffer.get());
+	dxrCommandList->SetComputeRootConstantBufferView(GlobalRootSignatureParams::SceneConstants, dx12buffer->GPUAddress());
+
+	dx12buffer = static_cast<x12::Dx12CoreBuffer*>(engine::GetSceneManager()->LightsBuffer());
+	if (dx12buffer)
+	dxrCommandList->SetComputeRootShaderResourceView(GlobalRootSignatureParams::LightStructuredBuffer, dx12buffer->GPUAddress());
+
+	dx12buffer = static_cast<x12::Dx12CoreBuffer*>(res->perInstanceBuffer.get());
+	dxrCommandList->SetComputeRootShaderResourceView(GlobalRootSignatureParams::TLASPerInstanceBuffer, dx12buffer->GPUAddress());
+
+	dx12buffer = static_cast<x12::Dx12CoreBuffer*>(res->regroupedIndexesBuffer.get());
+	dxrCommandList->SetComputeRootShaderResourceView(GlobalRootSignatureParams::RegroupedIndexes, dx12buffer->GPUAddress());
+
+	if (texturesHandle.ptr)
+		dxrCommandList->SetComputeRootDescriptorTable(GlobalRootSignatureParams::Textures, texturesHandle);
+
+}
 
 void Render()
 {
@@ -185,6 +284,9 @@ void Render()
 			memcpy(&cameraData.right.x, &rightWS, sizeof(vec3));
 			memcpy(&cameraData.up.x, &upWS, sizeof(vec3));
 			memcpy(&cameraData.origin.x, &origin, sizeof(vec4));
+			cameraData.width = width;
+			cameraData.height = height;
+
 			res->cameraBuffer->SetData(&cameraData, sizeof(cameraData));
 
 			needClearBackBuffer = true;
@@ -227,8 +329,7 @@ void Render()
 
 		{
 			ID3D12GraphicsCommandList* d3dCmdList = (ID3D12GraphicsCommandList*)cmdList->GetNativeResource();
-			D3D12_RESOURCE_BARRIER preCopyBarriers[] = {
-			CD3DX12_RESOURCE_BARRIER::UAV(res->outputRGBA32f.Get())};
+			D3D12_RESOURCE_BARRIER preCopyBarriers[1] = { CD3DX12_RESOURCE_BARRIER::UAV(res->outputRGBA32f.Get())};
 			d3dCmdList->ResourceBarrier(ARRAYSIZE(preCopyBarriers), preCopyBarriers);
 		}
 
@@ -239,61 +340,199 @@ void Render()
 		Sync(graphicQueue, rtxQueue, res->clearToRTFence);
 	
 		needClearBackBuffer = false;
+		frame = 0;
 	}
 
 	// Raytracing
 	{
-		// Bind root signature
-		dxrCommandList->SetComputeRootSignature(res->raytracingGlobalRootSignature.Get());
-
-		// Bind heaps
+		// Bind heap
 		dxrCommandList->SetDescriptorHeaps(1, res->descriptorHeap.GetAddressOf());
 
-		// Bind global resources
+		// Clear buffers before RT
 		{
-			x12::Dx12CoreBuffer* dx12buffer = static_cast<x12::Dx12CoreBuffer*>(res->cameraBuffer.get());
-			dxrCommandList->SetComputeRootConstantBufferView(GlobalRootSignatureParams::CameraConstantBuffer, dx12buffer->GPUAddress());
+			dxrCommandList->SetPipelineState(res->clearRayInfoPSO.Get());
 
-			dxrCommandList->SetComputeRootDescriptorTable(GlobalRootSignatureParams::OutputView, raytracingOutputResourceUAVGpuDescriptor);
+			dxrCommandList->SetComputeRootSignature(res->clearRayInfoRootSignature.Get());
 
-			dxrCommandList->SetComputeRootShaderResourceView(GlobalRootSignatureParams::AccelerationStructure, res->topLevelAccelerationStructure->GetGPUVirtualAddress());
+			auto dx12buffer = static_cast<x12::Dx12CoreBuffer*>(res->rayInfoBuffer.get());
+			dxrCommandList->SetComputeRootUnorderedAccessView(ClearRayInfoRootSignatureParams::RayInfoBuffer, dx12buffer->GPUAddress());
 
-			dx12buffer = static_cast<x12::Dx12CoreBuffer*>(res->sceneBuffer.get());
-			dxrCommandList->SetComputeRootConstantBufferView(GlobalRootSignatureParams::SceneConstants, dx12buffer->GPUAddress());
+			dx12buffer = static_cast<x12::Dx12CoreBuffer*>(res->iterationRGBA32f.get());
+			dxrCommandList->SetComputeRootUnorderedAccessView(ClearRayInfoRootSignatureParams::IterationColorBuffer, dx12buffer->GPUAddress());
 
-			dx12buffer = static_cast<x12::Dx12CoreBuffer*>(engine::GetSceneManager()->LightsBuffer());
-			dxrCommandList->SetComputeRootShaderResourceView(GlobalRootSignatureParams::LightStructuredBuffer, dx12buffer->GPUAddress());
+			dxrCommandList->SetComputeRoot32BitConstant(ClearRayInfoRootSignatureParams::Constant, width * height, 0);
 
-			dx12buffer = static_cast<x12::Dx12CoreBuffer*>(res->perInstanceBuffer.get());
-			dxrCommandList->SetComputeRootShaderResourceView(GlobalRootSignatureParams::TLASPerInstanceBuffer, dx12buffer->GPUAddress());
+			constexpr int warpSize = 256;
+			int numGroupsX = (width * height + (warpSize - 1)) / warpSize;
+			dxrCommandList->Dispatch(numGroupsX, 1, 1);
 
-			if (texturesHandle.ptr)
-				dxrCommandList->SetComputeRootDescriptorTable(GlobalRootSignatureParams::Textures, texturesHandle);
+			D3D12_RESOURCE_BARRIER preCopyBarriers[] =
+			{
+				CD3DX12_RESOURCE_BARRIER::UAV(static_cast<x12::Dx12CoreBuffer*>(res->rayInfoBuffer.get())->GetResource()),
+				CD3DX12_RESOURCE_BARRIER::UAV(static_cast<x12::Dx12CoreBuffer*>(res->iterationRGBA32f.get())->GetResource()),
+			};
+			dxrCommandList->ResourceBarrier(ARRAYSIZE(preCopyBarriers), preCopyBarriers);
 		}
 
-		// Bind pipeline
-		dxrCommandList->SetPipelineState1(res->dxrStateObject.Get());
-
-		// Do raytracing
+		// Primary rays
 		{
-			D3D12_DISPATCH_RAYS_DESC dispatchDesc = {};
-			dispatchDesc.HitGroupTable.StartAddress = res->hitGroupShaderTable->GetGPUVirtualAddress();
-			dispatchDesc.HitGroupTable.SizeInBytes = res->hitGroupShaderTable->GetDesc().Width;
-			dispatchDesc.HitGroupTable.StrideInBytes = hitRecordSize();
-			dispatchDesc.MissShaderTable.StartAddress = res->missShaderTable->GetGPUVirtualAddress();
-			dispatchDesc.MissShaderTable.SizeInBytes = res->missShaderTable->GetDesc().Width;
-			dispatchDesc.MissShaderTable.StrideInBytes = 32;
-			dispatchDesc.RayGenerationShaderRecord.StartAddress = res->rayGenShaderTable->GetGPUVirtualAddress();
-			dispatchDesc.RayGenerationShaderRecord.SizeInBytes = res->rayGenShaderTable->GetDesc().Width;
-			dispatchDesc.Width = width;
-			dispatchDesc.Height = height;
-			dispatchDesc.Depth = 1;
-			dxrCommandList->DispatchRays(&dispatchDesc);
+			// Bind pipeline
+			dxrCommandList->SetPipelineState1(res->dxrPrimaryStateObject.Get());
+
+			BindRaytracingResources();
+
+			// Do raytracing
+			{
+				D3D12_DISPATCH_RAYS_DESC dispatchDesc = {};
+				dispatchDesc.HitGroupTable.StartAddress = res->hitGroupShaderTable->GetGPUVirtualAddress();
+				dispatchDesc.HitGroupTable.SizeInBytes = res->hitGroupShaderTable->GetDesc().Width;
+				dispatchDesc.HitGroupTable.StrideInBytes = hitRecordSize();
+				dispatchDesc.MissShaderTable.StartAddress = res->missShaderTable->GetGPUVirtualAddress();
+				dispatchDesc.MissShaderTable.SizeInBytes = res->missShaderTable->GetDesc().Width;
+				dispatchDesc.MissShaderTable.StrideInBytes = 32;
+				dispatchDesc.RayGenerationShaderRecord.StartAddress = res->rayGenShaderTable->GetGPUVirtualAddress();
+				dispatchDesc.RayGenerationShaderRecord.SizeInBytes = res->rayGenShaderTable->GetDesc().Width;
+				dispatchDesc.Width = width * height;
+				dispatchDesc.Height = 1;
+				dispatchDesc.Depth = 1;
+				dxrCommandList->DispatchRays(&dispatchDesc);
+			}
 		}
+
+		// Indirect lighting
+		if (1)
+		for (int i = 0; i < 1; ++i)
+		{
+			// Clear hits
+			{
+				dxrCommandList->SetPipelineState(res->clearHitCounterPSO.Get());
+
+				dxrCommandList->SetComputeRootSignature(res->clearHitCounterRootSignature.Get());
+
+				auto dx12buffer = static_cast<x12::Dx12CoreBuffer*>(res->hitCointerBuffer.get());
+				dxrCommandList->SetComputeRootUnorderedAccessView(0, dx12buffer->GPUAddress());
+
+				dxrCommandList->Dispatch(1, 1, 1);
+
+				// hitCointerBuffer Write->Read
+				{
+					auto dx12buffer = static_cast<x12::Dx12CoreBuffer*>(res->hitCointerBuffer.get());
+					D3D12_RESOURCE_BARRIER preCopyBarriers[1] = { CD3DX12_RESOURCE_BARRIER::UAV(dx12buffer->GetResource()) };
+					dxrCommandList->ResourceBarrier(ARRAYSIZE(preCopyBarriers), preCopyBarriers);
+				}
+			}
+
+			// Hit rays sorting
+			{
+				// RayInfo Write->Read
+				{
+					auto dx12buffer = static_cast<x12::Dx12CoreBuffer*>(res->rayInfoBuffer.get());
+					D3D12_RESOURCE_BARRIER preCopyBarriers[1] = { CD3DX12_RESOURCE_BARRIER::UAV(dx12buffer->GetResource()) };
+					dxrCommandList->ResourceBarrier(ARRAYSIZE(preCopyBarriers), preCopyBarriers);
+				}
+
+				dxrCommandList->SetPipelineState(res->regroupRayInfoPSO.Get());
+
+				dxrCommandList->SetComputeRootSignature(res->regroupRayInfoRootSignature.Get());
+
+				dxrCommandList->SetComputeRoot32BitConstant(RegroupRayInfoRootSignatureParams::ConstantIn, width * height, 0);
+
+				auto dx12buffer = static_cast<x12::Dx12CoreBuffer*>(res->rayInfoBuffer.get());
+				dxrCommandList->SetComputeRootShaderResourceView(RegroupRayInfoRootSignatureParams::RayInfoIn, dx12buffer->GPUAddress());
+
+				dx12buffer = static_cast<x12::Dx12CoreBuffer*>(res->hitCointerBuffer.get());
+				dxrCommandList->SetComputeRootUnorderedAccessView(RegroupRayInfoRootSignatureParams::HitCounterOut, dx12buffer->GPUAddress());
+
+				dx12buffer = static_cast<x12::Dx12CoreBuffer*>(res->regroupedIndexesBuffer.get());
+				dxrCommandList->SetComputeRootUnorderedAccessView(RegroupRayInfoRootSignatureParams::RegroupedIndexesOut, dx12buffer->GPUAddress());
+
+				constexpr int warpSize = 256;
+				int numGroupsX = (width * height + (warpSize - 1)) / warpSize;
+				dxrCommandList->Dispatch(numGroupsX, 1, 1);
+
+				// RegroupedIndexes, Hit count Write->Read
+				{
+					auto dx12buffer = static_cast<x12::Dx12CoreBuffer*>(res->regroupedIndexesBuffer.get());
+					auto dx12buffer1 = static_cast<x12::Dx12CoreBuffer*>(res->hitCointerBuffer.get());
+					D3D12_RESOURCE_BARRIER preCopyBarriers[2] =
+					{
+						CD3DX12_RESOURCE_BARRIER::UAV(dx12buffer->GetResource()),
+						CD3DX12_RESOURCE_BARRIER::UAV(dx12buffer1->GetResource()),
+					};
+					dxrCommandList->ResourceBarrier(ARRAYSIZE(preCopyBarriers), preCopyBarriers);
+				}
+
+				//std::vector<uint32_t> d(width * height);
+				//res->regroupedIndexesBuffer->GetData(&d[0]);
+				//std::sort(d.begin(), d.end());
+
+				//uint32_t d1;
+				//res->hitCointerBuffer->GetData(&d1);
+				//int y = 0;
+			}
+
+			// Copy hits to indirect arguments buffer
+			{
+				dxrCommandList->SetPipelineState(res->copyHitCounterPSO.Get());
+
+				dxrCommandList->SetComputeRootSignature(res->copyrHitCounterRootSignature.Get());
+
+				auto dx12buffer = static_cast<x12::Dx12CoreBuffer*>(res->hitCointerBuffer.get());
+				dxrCommandList->SetComputeRootShaderResourceView(0, dx12buffer->GPUAddress());
+
+				dx12buffer = static_cast<x12::Dx12CoreBuffer*>(res->indirectBuffer.get());
+				dxrCommandList->SetComputeRootUnorderedAccessView(1, dx12buffer->GPUAddress());
+
+				dxrCommandList->Dispatch(1, 1, 1);
+
+				// indirectBuffer Write->Read
+				{
+					auto dx12buffer = static_cast<x12::Dx12CoreBuffer*>(res->indirectBuffer.get());
+					D3D12_RESOURCE_BARRIER preCopyBarriers[1] = { CD3DX12_RESOURCE_BARRIER::UAV(dx12buffer->GetResource()) };
+					dxrCommandList->ResourceBarrier(ARRAYSIZE(preCopyBarriers), preCopyBarriers);
+				}
+			}
+
+			{
+				// Bind pipeline
+				dxrCommandList->SetPipelineState1(res->dxrSecondaryStateObject.Get());
+
+				BindRaytracingResources();
+
+				auto dx12buffer = static_cast<x12::Dx12CoreBuffer*>(res->indirectBuffer.get());
+				dxrCommandList->ExecuteIndirect(res->dxrSecondaryCommandIndirect.Get(), 1, dx12buffer->GetResource(), 0, nullptr, 0);
+			}
+		}
+
+		{
+			auto dx12buffer = static_cast<x12::Dx12CoreBuffer*>(res->iterationRGBA32f.get());
+			D3D12_RESOURCE_BARRIER preCopyBarriers[1] = { CD3DX12_RESOURCE_BARRIER::UAV(dx12buffer->GetResource()) };
+			dxrCommandList->ResourceBarrier(ARRAYSIZE(preCopyBarriers), preCopyBarriers);
+		}
+
+		// Final accumulation
+		{
+			dxrCommandList->SetPipelineState(res->accumulationPSO.Get());
+
+			dxrCommandList->SetComputeRootSignature(res->accumulationRootSignature.Get());
+
+			uint32_t consts[2] = { width * height, width };
+			dxrCommandList->SetComputeRoot32BitConstants(AccumulationRootSignatureParams::ConstantIn, 2, consts, 0);
+
+			dxrCommandList->SetComputeRootDescriptorTable(AccumulationRootSignatureParams::ResultBufferInOut, raytracingOutputResourceUAVGpuDescriptor);
+
+			auto dx12buffer = static_cast<x12::Dx12CoreBuffer*>(res->iterationRGBA32f.get());
+			dxrCommandList->SetComputeRootShaderResourceView(AccumulationRootSignatureParams::LightingIn, dx12buffer->GPUAddress());
+
+			constexpr int warpSize = 256;
+			int numGroupsX = (width * height + (warpSize - 1)) / warpSize;
+			dxrCommandList->Dispatch(numGroupsX, 1, 1);
+		}
+
+		throwIfFailed(dxrCommandList->Close());
+		ID3D12CommandList* commandLists[] = { dxrCommandList };
+		rtxQueue->ExecuteCommandLists(ARRAYSIZE(commandLists), commandLists);
 	}
-	throwIfFailed(dxrCommandList->Close());
-	ID3D12CommandList* commandLists[] = { dxrCommandList };
-	res->commandQueue->ExecuteCommandLists(ARRAYSIZE(commandLists), commandLists);
 
 	// Sync RT with swapchain copy
 	Sync(rtxQueue, graphicQueue, res->rtToSwapchainFence);
@@ -352,6 +591,7 @@ void Render()
 	}
 
 	backBufferIndex = (backBufferIndex + 1) % engine::DeferredBuffers;
+	frame++;
 }
 
 void InitFence(Fence& fence)
@@ -442,22 +682,34 @@ void Init()
 	throwIfFailed(res->commandList->QueryInterface(IID_PPV_ARGS(&res->dxrCommandList)));
 	dxrCommandList = res->dxrCommandList.Get();
 
+	{
+		res->copyShader = engine::GetResourceManager()->CreateGraphicShader("../resources/shaders/copy.hlsl", nullptr, 0);
+		res->copyShader.get();
+
+		const x12::ConstantBuffersDesc buffersdesc[1] =
+		{
+			"CameraBuffer",	CONSTANT_BUFFER_UPDATE_FRIQUENCY::PER_DRAW
+		};
+		res->clearShader = engine::GetResourceManager()->CreateComputeShader("../resources/shaders/clear.hlsl", &buffersdesc[0], 1);
+		res->clearShader.get();
+	}
+
 	// Global Root Signature
 	{
 		CD3DX12_ROOT_PARAMETER rootParameters[GlobalRootSignatureParams::Count];
 
-		CD3DX12_DESCRIPTOR_RANGE UAVDescriptor;
-		UAVDescriptor.Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0);
-
-		rootParameters[GlobalRootSignatureParams::OutputView].InitAsDescriptorTable(1, &UAVDescriptor);
+		rootParameters[GlobalRootSignatureParams::FrameConstantBuffer].InitAsConstants(1, 3);
+		rootParameters[GlobalRootSignatureParams::OutputView].InitAsUnorderedAccessView(0);
+		rootParameters[GlobalRootSignatureParams::RayInfo].InitAsUnorderedAccessView(1);
 		rootParameters[GlobalRootSignatureParams::CameraConstantBuffer].InitAsConstantBufferView(0);
 		rootParameters[GlobalRootSignatureParams::AccelerationStructure].InitAsShaderResourceView(0);
 		rootParameters[GlobalRootSignatureParams::SceneConstants].InitAsConstantBufferView(1);
 		rootParameters[GlobalRootSignatureParams::LightStructuredBuffer].InitAsShaderResourceView(1);
 		rootParameters[GlobalRootSignatureParams::TLASPerInstanceBuffer].InitAsShaderResourceView(3);
+		rootParameters[GlobalRootSignatureParams::RegroupedIndexes].InitAsShaderResourceView(4);
 
 		CD3DX12_DESCRIPTOR_RANGE ranges;
-		ranges.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 100, 4);  // array of textures
+		ranges.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 100, 5);  // array of textures
 		rootParameters[GlobalRootSignatureParams::Textures].InitAsDescriptorTable(1, &ranges);
 
 		D3D12_STATIC_SAMPLER_DESC sampler{};
@@ -486,28 +738,30 @@ void Init()
 	}
 
 	{
+		std::vector<std::pair<std::wstring, std::wstring>> defines_primary;
+		defines_primary.emplace_back(L"PRIMARY_RAY", L"1");
+
+		res->raygen = CompileShader(RAYTRACING_SHADER_DIR "rt_raygen.hlsl", false, defines_primary);
+		res->hit = CompileShader(RAYTRACING_SHADER_DIR "rt_hit.hlsl", false, defines_primary);
+		res->miss = CompileShader(RAYTRACING_SHADER_DIR "rt_miss.hlsl", false, defines_primary);
+
+		res->raygen_secondary = CompileShader(RAYTRACING_SHADER_DIR "rt_raygen.hlsl");
+		res->hit_secondary = CompileShader(RAYTRACING_SHADER_DIR "rt_hit.hlsl");
+		res->miss_secondary = CompileShader(RAYTRACING_SHADER_DIR "rt_miss.hlsl");
+	}
+
+	auto CreatePSO = [](ComPtr<IDxcBlob> r, ComPtr<IDxcBlob> h, ComPtr<IDxcBlob> m) -> ComPtr<ID3D12StateObject>
+	{
+		ComPtr<ID3D12StateObject> RTXPSO;
+
 		// Create subobjects that combine into a RTPSO
 		CD3DX12_STATE_OBJECT_DESC raytracingPipeline{ D3D12_STATE_OBJECT_TYPE_RAYTRACING_PIPELINE };
-
-		res->raygen = CompileShader(RAYTRACING_SHADER_DIR "rt_raygen.hlsl");
-		res->hit = CompileShader(RAYTRACING_SHADER_DIR "rt_hit.hlsl");
-		res->miss = CompileShader(RAYTRACING_SHADER_DIR "rt_miss.hlsl");
-
-		res->copyShader = engine::GetResourceManager()->CreateGraphicShader("../resources/shaders/copy.hlsl", nullptr, 0);
-		res->copyShader.get();
-
-		const x12::ConstantBuffersDesc buffersdesc[1] =
-		{
-			"CameraBuffer",	CONSTANT_BUFFER_UPDATE_FRIQUENCY::PER_DRAW
-		};
-		res->clearShader = engine::GetResourceManager()->CreateComputeShader("../resources/shaders/clear.hlsl", &buffersdesc[0], 1);
-		res->clearShader.get();
 
 		// DXIL library
 		// This contains the shaders and their entrypoints for the state object.
 		// Since shaders are not considered a subobject, they need to be passed in via DXIL library subobjects.
 
-		auto addLibrary = [&raytracingPipeline](ComPtr<IDxcBlob> s, const std::vector<const wchar_t*>& export_)
+		auto addLibrary = [](CD3DX12_STATE_OBJECT_DESC& raytracingPipeline, ComPtr<IDxcBlob> s, const std::vector<const wchar_t*>& export_)
 		{
 			auto raygen_lib = raytracingPipeline.CreateSubobject<CD3DX12_DXIL_LIBRARY_SUBOBJECT>();
 			D3D12_SHADER_BYTECODE shaderBytecode;
@@ -519,9 +773,9 @@ void Init()
 				raygen_lib->DefineExport(e);
 		};
 
-		addLibrary(res->raygen, { raygenname });
-		addLibrary(res->hit, { hitname });
-		addLibrary(res->miss, { missname });
+		addLibrary(raytracingPipeline, r, { raygenname });
+		addLibrary(raytracingPipeline, h, { hitname });
+		addLibrary(raytracingPipeline, m, { missname });
 
 		// Triangle hit group
 		{
@@ -552,16 +806,20 @@ void Init()
 		auto pipelineConfig = raytracingPipeline.CreateSubobject<CD3DX12_RAYTRACING_PIPELINE_CONFIG_SUBOBJECT>();
 		// PERFOMANCE TIP: Set max recursion depth as low as needed 
 		// as drivers may apply optimization strategies for low recursion depths. 
-		UINT maxRecursionDepth = 2; // ~ primary rays only. 
+		UINT maxRecursionDepth = 2; // ~ primary rays only + TraceRayInline(). 
 		pipelineConfig->Config(maxRecursionDepth);
 
 #if _DEBUG
 		PrintStateObjectDesc(raytracingPipeline);
 #endif
 		// Create the state object.
-		throwIfFailed(m_dxrDevice->CreateStateObject(raytracingPipeline, IID_PPV_ARGS(&res->dxrStateObject)));
-		dxrStateObject = res->dxrStateObject.Get();
-	}
+		throwIfFailed(m_dxrDevice->CreateStateObject(raytracingPipeline, IID_PPV_ARGS(&RTXPSO)));
+
+		return RTXPSO;
+	};
+
+	res->dxrPrimaryStateObject = CreatePSO(res->raygen, res->hit, res->miss);
+	res->dxrSecondaryStateObject = CreatePSO(res->raygen_secondary, res->hit_secondary, res->miss_secondary);
 
 	descriptorSize = CreateDescriptorHeap(device, res->descriptorHeap.GetAddressOf());
 
@@ -649,6 +907,7 @@ void Init()
 	}
 
 	// Build Shader Tables
+	auto CreateShaderBindingTable = [&](ComPtr<ID3D12StateObject> state, ComPtr<ID3D12Resource>& r, ComPtr<ID3D12Resource>& h, ComPtr<ID3D12Resource>& m)
 	{
 		void* rayGenShaderIdentifier;
 		void* missShaderIdentifier;
@@ -657,7 +916,7 @@ void Init()
 		// Get shader identifiers
 		{
 			ComPtr<ID3D12StateObjectProperties> stateObjectProperties;
-			throwIfFailed(res->dxrStateObject.As(&stateObjectProperties));
+			throwIfFailed(state.As(&stateObjectProperties));
 
 			rayGenShaderIdentifier = stateObjectProperties->GetShaderIdentifier(raygenname);
 			missShaderIdentifier = stateObjectProperties->GetShaderIdentifier(missname);
@@ -670,22 +929,22 @@ void Init()
 
 			ShaderTable rayGenShaderTable(device, numShaderRecords, D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES, L"RayGenShaderTable");
 			rayGenShaderTable.push_back(ShaderRecord(rayGenShaderIdentifier, D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES));
-			res->rayGenShaderTable = rayGenShaderTable.GetResource();
+			r = rayGenShaderTable.GetResource();
 		}
 
 		// Miss shader table
 		{
-			UINT numShaderRecords = 2;
+			UINT numShaderRecords = 1;
 
 			UINT shaderRecordSize = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
 			ShaderTable missShaderTable(device, numShaderRecords, shaderRecordSize, L"MissShaderTable");
 			missShaderTable.push_back(ShaderRecord(missShaderIdentifier, shaderRecordSize));
-			res->missShaderTable = missShaderTable.GetResource();
+			m = missShaderTable.GetResource();
 		}
 
 		// Hit group shader table
 		{
-			const UINT numShaderRecords = (UINT)topLevelInstances * 2;
+			const UINT numShaderRecords = (UINT)topLevelInstances * 1;
 			ShaderTable hitGroupShaderTable(device, numShaderRecords, hitRecordSize(), L"HitGroupShaderTable");
 
 			for (size_t i = 0; i < models.size(); ++i)
@@ -710,10 +969,12 @@ void Init()
 				hitGroupShaderTable.push_back(ShaderRecord(hitGroupShaderIdentifier, D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES, &args, sizeof(HitArg)));
 			}
 
-
-			res->hitGroupShaderTable = hitGroupShaderTable.GetResource();
+			h = hitGroupShaderTable.GetResource();
 		}
-	}
+	};
+
+	CreateShaderBindingTable(res->dxrPrimaryStateObject, res->rayGenShaderTable, res->hitGroupShaderTable, res->missShaderTable);
+	CreateShaderBindingTable(res->dxrSecondaryStateObject, res->rayGenShaderTable_secondary, res->hitGroupShaderTable_secondary, res->missShaderTable_secondary);
 
 	engine::MainWindow* window = core_->GetWindow();
 
@@ -723,7 +984,170 @@ void Init()
 	height = h;
 	CreateRaytracingOutputResource(w, h);
 
-	engine::GetCoreRenderer()->CreateConstantBuffer(res->cameraBuffer.getAdressOf(), L"camera constant buffer", sizeof(engine::Shaders::Camera), false);
+	engine::GetCoreRenderer()->CreateStructuredBuffer(res->rayInfoBuffer.getAdressOf(), L"Ray info",
+		sizeof(engine::Shaders::RayInfo), w * h, nullptr, x12::BUFFER_FLAGS::UNORDERED_ACCESS);
+
+	engine::GetCoreRenderer()->CreateStructuredBuffer(res->regroupedIndexesBuffer.getAdressOf(), L"Regrouped indexes for secondary rays",
+		sizeof(uint32_t), w * h, nullptr, x12::BUFFER_FLAGS::UNORDERED_ACCESS);
+
+	engine::GetCoreRenderer()->CreateStructuredBuffer(res->iterationRGBA32f.getAdressOf(), L"iterationRGBA32f",
+		sizeof(float[4]), w * h, nullptr, x12::BUFFER_FLAGS::UNORDERED_ACCESS);
+
+	engine::GetCoreRenderer()->CreateStructuredBuffer(res->hitCointerBuffer.getAdressOf(), L"Hits count",
+		sizeof(uint32_t), 1, nullptr, x12::BUFFER_FLAGS::UNORDERED_ACCESS);
+
+	engine::GetCoreRenderer()->CreateConstantBuffer(res->cameraBuffer.getAdressOf(), L"camera constant buffer",
+		sizeof(engine::Shaders::Camera), false);
+
+	// Clear RayInfo
+	{
+		// Shader
+		IDxcBlob* v = CompileShader(RAYTRACING_SHADER_DIR "rt_clear_rtinfo.hlsl", true); // TODO: dec reference
+
+		// Root signature
+		{
+			CD3DX12_ROOT_PARAMETER rootParameters[ClearRayInfoRootSignatureParams::Count];
+			rootParameters[ClearRayInfoRootSignatureParams::RayInfoBuffer].InitAsUnorderedAccessView(0);
+			rootParameters[ClearRayInfoRootSignatureParams::IterationColorBuffer].InitAsUnorderedAccessView(1);
+			rootParameters[ClearRayInfoRootSignatureParams::Constant].InitAsConstants(1, 0);
+		
+			CD3DX12_ROOT_SIGNATURE_DESC desc(ARRAYSIZE(rootParameters), rootParameters);
+			SerializeAndCreateRaytracingRootSignature(device, desc, &res->clearRayInfoRootSignature);
+		}
+
+		// Create PSO
+		D3D12_COMPUTE_PIPELINE_STATE_DESC desc = {};
+		desc.pRootSignature = res->clearRayInfoRootSignature.Get();
+		desc.CS = CD3DX12_SHADER_BYTECODE(v->GetBufferPointer(), v->GetBufferSize());
+
+		throwIfFailed(device->CreateComputePipelineState(&desc, IID_PPV_ARGS(res->clearRayInfoPSO.GetAddressOf())));
+	}
+
+	// Regroup RayInfo
+	{
+		// Shader
+		IDxcBlob* v = CompileShader(RAYTRACING_SHADER_DIR "rt_regroup_rays.hlsl", true); // TODO: dec reference
+
+		// Root signature
+		{
+			CD3DX12_ROOT_PARAMETER rootParameters[RegroupRayInfoRootSignatureParams::Count];
+			rootParameters[RegroupRayInfoRootSignatureParams::RayInfoIn].InitAsShaderResourceView(0);
+			rootParameters[RegroupRayInfoRootSignatureParams::ConstantIn].InitAsConstants(1, 0);
+			rootParameters[RegroupRayInfoRootSignatureParams::HitCounterOut].InitAsUnorderedAccessView(0);
+			rootParameters[RegroupRayInfoRootSignatureParams::RegroupedIndexesOut].InitAsUnorderedAccessView(1);
+
+			CD3DX12_ROOT_SIGNATURE_DESC desc(ARRAYSIZE(rootParameters), rootParameters);
+			SerializeAndCreateRaytracingRootSignature(device, desc, &res->regroupRayInfoRootSignature);
+		}
+
+		// Create PSO
+		D3D12_COMPUTE_PIPELINE_STATE_DESC desc = {};
+		desc.pRootSignature = res->regroupRayInfoRootSignature.Get();
+		desc.CS = CD3DX12_SHADER_BYTECODE(v->GetBufferPointer(), v->GetBufferSize());
+
+		throwIfFailed(device->CreateComputePipelineState(&desc, IID_PPV_ARGS(res->regroupRayInfoPSO.GetAddressOf())));
+	}
+
+	// Clear hit counter
+	{
+		// Shader
+		IDxcBlob* v = CompileShader(RAYTRACING_SHADER_DIR "rt_clear_hits.hlsl", true); // TODO: dec reference
+
+		// Root signature
+		{
+			CD3DX12_ROOT_PARAMETER rootParameters[1];
+			rootParameters[0].InitAsUnorderedAccessView(0);
+
+			CD3DX12_ROOT_SIGNATURE_DESC desc(ARRAYSIZE(rootParameters), rootParameters);
+			SerializeAndCreateRaytracingRootSignature(device, desc, &res->clearHitCounterRootSignature);
+		}
+
+		// Create PSO
+		D3D12_COMPUTE_PIPELINE_STATE_DESC desc = {};
+		desc.pRootSignature = res->clearHitCounterRootSignature.Get();
+		desc.CS = CD3DX12_SHADER_BYTECODE(v->GetBufferPointer(), v->GetBufferSize());
+
+		throwIfFailed(device->CreateComputePipelineState(&desc, IID_PPV_ARGS(res->clearHitCounterPSO.GetAddressOf())));
+	}
+
+	// Accumulation
+	{
+		// Shader
+		IDxcBlob* v = CompileShader(RAYTRACING_SHADER_DIR "rt_accumulate.hlsl", true); // TODO: dec reference
+
+		// Root signature
+		{
+			CD3DX12_ROOT_PARAMETER rootParameters[AccumulationRootSignatureParams::Count];
+			rootParameters[AccumulationRootSignatureParams::ConstantIn].InitAsConstants(2, 0);
+			rootParameters[AccumulationRootSignatureParams::LightingIn].InitAsShaderResourceView(0);
+
+			CD3DX12_DESCRIPTOR_RANGE UAVDescriptor;
+			UAVDescriptor.Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0);
+			rootParameters[AccumulationRootSignatureParams::ResultBufferInOut].InitAsDescriptorTable(1, &UAVDescriptor);
+
+			CD3DX12_ROOT_SIGNATURE_DESC desc(ARRAYSIZE(rootParameters), rootParameters);
+			SerializeAndCreateRaytracingRootSignature(device, desc, &res->accumulationRootSignature);
+		}
+
+		// Create PSO
+		D3D12_COMPUTE_PIPELINE_STATE_DESC desc = {};
+		desc.pRootSignature = res->accumulationRootSignature.Get();
+		desc.CS = CD3DX12_SHADER_BYTECODE(v->GetBufferPointer(), v->GetBufferSize());
+
+		throwIfFailed(device->CreateComputePipelineState(&desc, IID_PPV_ARGS(res->accumulationPSO.GetAddressOf())));
+	}
+
+	// Hits copy
+	{
+		// Shader
+		IDxcBlob* v = CompileShader(RAYTRACING_SHADER_DIR "rt_copy_hits.hlsl", true); // TODO: dec reference
+
+		// Root signature
+		{
+			CD3DX12_ROOT_PARAMETER rootParameters[2];
+			rootParameters[0].InitAsShaderResourceView(0);
+			rootParameters[1].InitAsUnorderedAccessView(0);
+
+			CD3DX12_ROOT_SIGNATURE_DESC desc(ARRAYSIZE(rootParameters), rootParameters);
+			SerializeAndCreateRaytracingRootSignature(device, desc, &res->copyrHitCounterRootSignature);
+		}
+
+		// Create PSO
+		D3D12_COMPUTE_PIPELINE_STATE_DESC desc = {};
+		desc.pRootSignature = res->copyrHitCounterRootSignature.Get();
+		desc.CS = CD3DX12_SHADER_BYTECODE(v->GetBufferPointer(), v->GetBufferSize());
+
+		throwIfFailed(device->CreateComputePipelineState(&desc, IID_PPV_ARGS(res->copyHitCounterPSO.GetAddressOf())));
+	}
+
+
+	{
+		D3D12_INDIRECT_ARGUMENT_DESC arg{};
+		arg.Type = D3D12_INDIRECT_ARGUMENT_TYPE::D3D12_INDIRECT_ARGUMENT_TYPE_DISPATCH_RAYS;
+
+		D3D12_COMMAND_SIGNATURE_DESC desc{};
+		desc.NumArgumentDescs = 1;
+		desc.pArgumentDescs = &arg;
+		desc.ByteStride = sizeof(D3D12_DISPATCH_RAYS_DESC);
+
+		throwIfFailed(device->CreateCommandSignature(&desc, nullptr, IID_PPV_ARGS(res->dxrSecondaryCommandIndirect.GetAddressOf())));
+
+		D3D12_DISPATCH_RAYS_DESC indirectData;
+		indirectData.HitGroupTable.StartAddress = res->hitGroupShaderTable_secondary->GetGPUVirtualAddress();
+		indirectData.HitGroupTable.SizeInBytes = res->hitGroupShaderTable_secondary->GetDesc().Width;
+		indirectData.HitGroupTable.StrideInBytes = hitRecordSize();
+		indirectData.MissShaderTable.StartAddress = res->missShaderTable_secondary->GetGPUVirtualAddress();
+		indirectData.MissShaderTable.SizeInBytes = res->missShaderTable_secondary->GetDesc().Width;
+		indirectData.MissShaderTable.StrideInBytes = 32;
+		indirectData.RayGenerationShaderRecord.StartAddress = res->rayGenShaderTable_secondary->GetGPUVirtualAddress();
+		indirectData.RayGenerationShaderRecord.SizeInBytes = res->rayGenShaderTable_secondary->GetDesc().Width;
+		indirectData.Width = width * height;
+		indirectData.Height = 1;
+		indirectData.Depth = 1;
+
+		engine::GetCoreRenderer()->CreateStructuredBuffer(res->indirectBuffer.getAdressOf(), L"D3D12_DISPATCH_RAYS_DESC",
+			sizeof(D3D12_DISPATCH_RAYS_DESC), 1, &indirectData, x12::BUFFER_FLAGS::UNORDERED_ACCESS);
+	}
 
 	{
 		float planeVert[6 * 2] =
@@ -760,7 +1184,7 @@ void CreateRaytracingOutputResource(UINT width, UINT height)
 	res->outputRGBA32f->SetName(L"raytracingOutput");
 
 	UINT m_raytracingOutputResourceUAVDescriptorHeapIndex = 0;// AllocateDescriptor(&uavDescriptorHandle);
-	D3D12_CPU_DESCRIPTOR_HANDLE uavDescriptorHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(res->descriptorHeap->GetCPUDescriptorHandleForHeapStart(), m_raytracingOutputResourceUAVDescriptorHeapIndex, descriptorSize);	
+	D3D12_CPU_DESCRIPTOR_HANDLE uavDescriptorHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(res->descriptorHeap->GetCPUDescriptorHandleForHeapStart(), m_raytracingOutputResourceUAVDescriptorHeapIndex, descriptorSize);
 
 	D3D12_UNORDERED_ACCESS_VIEW_DESC UAVDesc = {};
 	UAVDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;

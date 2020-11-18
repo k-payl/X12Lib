@@ -25,7 +25,7 @@ Microsoft::WRL::ComPtr<ID3D12Resource> BuildBLASFromMesh(engine::Mesh* m, ID3D12
 Microsoft::WRL::ComPtr<ID3D12Resource> BuildTLAS(std::map<engine::Mesh*, Microsoft::WRL::ComPtr<ID3D12Resource>>& BLASes, std::vector<engine::Model*>& models, std::vector<engine::Light*>& areaLights, engine::Mesh* plane, ID3D12Device5* m_dxrDevice,
 	ID3D12CommandQueue* commandQueue, ID3D12GraphicsCommandList4* dxrCommandList, ID3D12CommandAllocator* commandAllocator);
 
-IDxcBlob* CompileShader(LPCWSTR fileName);
+IDxcBlob* CompileShader(LPCWSTR fileName, bool compute = false, const std::vector<std::pair<std::wstring, std::wstring>>& defines = std::vector<std::pair<std::wstring, std::wstring>>());
 void PrintStateObjectDesc(const D3D12_STATE_OBJECT_DESC* desc);
 void AllocateUAVBuffer(ID3D12Device* pDevice, UINT64 bufferSize, ID3D12Resource** ppResource,
 	D3D12_RESOURCE_STATES initialResourceState = D3D12_RESOURCE_STATE_COMMON, const wchar_t* resourceName = nullptr);

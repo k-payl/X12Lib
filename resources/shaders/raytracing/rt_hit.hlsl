@@ -17,7 +17,7 @@ uint wang_hash(uint seed)
 
 void ComputeRngSeed(uint index, uint iteration, uint depth)
 {
-	rng_state = uint(wang_hash((1 << 31) /*| (depth << 22)*/ | iteration) ^ wang_hash(index));
+	rng_state = uint(wang_hash((1 << 31) | (depth << 22) | iteration) ^ wang_hash(index));
 }
 
 uint rand_xorshift()
@@ -43,16 +43,60 @@ float goldenRatioU2()
 	return frac(Uniform01() / (fi * fi));
 }
 
+float rnd(inout uint seed)
+{
+	seed = (1664525u * seed + 1013904223u);
+	return ((float)(seed & 0x00FFFFFF) / (float)0x01000000);
+}
+
+float3 rayUniform(float3 N, float u1, float u2, out float pdf)
+{
+	float3 UpVector = abs(N.z) < 0.9999 ? float3(0, 0, 1) : float3(1, 0, 0);
+	float3 TangentX = normalize(cross(UpVector, N));
+	float3 TangentY = cross(N, TangentX);
+
+	float z = u1;
+	float r = sqrt(max(0.f, 1.0 - z * z));
+	float phi = _2PI * u2;
+	float x = r * cos(phi);
+	float y = r * sin(phi);
+
+	pdf = 1 / (2 * PI);
+
+	float3 H = normalize(TangentX * x + TangentY * y + N * z);
+
+	return H;
+}
+
+float3 rayCosine(float3 N, float u1, float u2, out float pdf)
+{
+	float3 UpVector = abs(N.z) < 0.9999 ? float3(0, 0, 1) : float3(1, 0, 0);
+	float3 TangentX = normalize(cross(UpVector, N));
+	float3 TangentY = cross(N, TangentX);
+
+	float3 dir;
+	float r = sqrt(u1);
+	float phi = 2.0 * PI * u2;
+	dir.x = r * cos(phi);
+	dir.y = r * sin(phi);
+	dir.z = sqrt(max(0.0, 1.0 - dir.x * dir.x - dir.y * dir.y));
+
+	pdf = dir.z / PI;
+
+	float3 H = normalize(TangentX * dir.x + TangentY * dir.y + N * dir.z);
+
+	return H;
+}
+
 [shader("closesthit")] 
 void ClosestHit(inout HitInfo payload, Attributes attrib)
 {
-	uint pixelNum = DispatchRaysIndex().y * DispatchRaysDimensions().x + DispatchRaysIndex().x;
+	uint pixelNum = DispatchRaysIndex().x;
 	ComputeRngSeed(pixelNum, uint(payload.colorAndDistance.w), 0);
 
 	float3 barycentrics = float3(1.f - attrib.bary.x - attrib.bary.y, attrib.bary.x, attrib.bary.y);
 
 #if 0 // Indexing
-	// Get the base index of the triangle's first 16 bit index.
 	const uint indexSizeInBytes = 2;
 	const uint indicesPerTriangle = 3;
 	uint triangleIndexStride = indicesPerTriangle * indexSizeInBytes;
@@ -96,17 +140,20 @@ void ClosestHit(inout HitInfo payload, Attributes attrib)
 		vertexUV[1] * barycentrics.y +
 		vertexUV[2] * barycentrics.z;
 
-	objectPosition += objectNormal * 0.002f;
+	objectPosition += objectNormal * 0.005f;
 
 	float4 worldPosition = mul(float4(objectPosition, 1), gInstances[lInstanceData.offset].transform);
 	float4 worldNormal =  mul(gInstances[lInstanceData.offset].normalTransform, float4(objectNormal, 0));
-	float3 V = worldPosition.xyz - gCamera.origin.xyz;
+	worldNormal.xyz = normalize(worldNormal.xyz);
 
 	float3 directLighting = 0;
 
-	float tt = lerp(-1, 1, goldenRatioU1());
-	float bb = lerp(-1, 1, goldenRatioU2());
+	float u1 = goldenRatioU1();
+	float u2 = goldenRatioU2();
+	float tt = lerp(-1, 1, u1);
+	float bb = lerp(-1, 1, u2);
 
+	// Shadow rays (Next event estimation)
 	for (int i = 0; i < gScene.lightCount; ++i)
 	{
 		float3 lightSample = gLights[i].center_world.xyz + gLights[i].T_world.xyz * tt + gLights[i].B_world.xyz * bb;
@@ -115,13 +162,13 @@ void ClosestHit(inout HitInfo payload, Attributes attrib)
 		L /= L_len;
 		float brdf = INVPI;
 		float areaLightFactor = max(dot(gLights[i].normal, -L), 0) / (L_len * L_len);
-		float3 directRadiance = /*WTF*/20 * areaLightFactor * brdf * max(dot(L, worldNormal.xyz), 0) * gLights[i].color;
+		float3 directRadiance = areaLightFactor * brdf * max(dot(L, worldNormal.xyz), 0) * gLights[i].color;
 
 		RayDesc ray;
 		ray.Origin = worldPosition.xyz;
 		ray.Direction = L;
 		ray.TMin = 0;
-		ray.TMax = max(L_len - 0.001, 0);
+		ray.TMax = max(L_len - 0.001, 0); // 0.001 for case when Area light is in TLAS
 
 		RayQuery<RAY_FLAG_CULL_NON_OPAQUE |
 			RAY_FLAG_SKIP_PROCEDURAL_PRIMITIVES |
@@ -134,7 +181,7 @@ void ClosestHit(inout HitInfo payload, Attributes attrib)
 			0xFF,
 			ray);
 
-		// trace ray
+		// Trace ray
 		q.Proceed();
 
 		// Examine and act on the result of the traversal.
@@ -147,18 +194,36 @@ void ClosestHit(inout HitInfo payload, Attributes attrib)
 	//float3 textureAlbedo = gTxMats[0].SampleLevel(gSampler, UV, 0).rgb; // TODO texture index
 	//directLighting *= textureAlbedo;
 
-	//const float3 light1 = float3(5, -4, 10);
-	//const float3 Ln = normalize(light1 - worldPosition.xyz);
-	//directLighting = max(0, dot(objectNormal, Ln)) * float3(1,1,1) + float3(0.3, 0.3, 0.3);
-
 	// Add area light emission for primary rays
-	directLighting += float3(1, 1, 1) * gInstances[lInstanceData.offset].emission * sign(dot(worldNormal.xyz, V)); // TODO: handle back face. need only for primary visibility
+	#if PRIMARY_RAY
+		float3 V = normalize(worldPosition.xyz - gCamera.origin.xyz);
+		if (gInstances[lInstanceData.offset].emission != 0)
+			directLighting = float3(1, 1, 1) * gInstances[lInstanceData.offset].emission/* * saturate(dot(worldNormal.xyz, V))*/;
+	#endif
 
-	payload.colorAndDistance = float4(/*lInstanceData.color.rgb **/ directLighting, RayTCurrent());
+#if !PRIMARY_RAY
+	float throughput = gRayInfo[gRegroupedIndexes[pixelNum]].direction.w;
+	directLighting *= throughput;
+#endif
+
+	//payload.colorAndDistance.xyz = float3(0.5, 0.5f, 0.5) * worldNormal.xyz + float3(0.5, 0.5f, 0.5);
+	payload.colorAndDistance.xyz = directLighting;
+
+	// Prepare new ray after first bounce
+	// TODO: second bounce
+#if PRIMARY_RAY
+	gRayInfo[pixelNum].origin.xyz = worldPosition.xyz;
+	gRayInfo[pixelNum].origin.w = 1.0f; // hit
+
+	float pdf;
+	float3 nextDirection = rayCosine(worldNormal, Uniform01(), Uniform01(), pdf);
+	gRayInfo[pixelNum].direction.xyz = nextDirection;
+	gRayInfo[pixelNum].direction.w = INVPI /*brdf*/ * max(dot(nextDirection, worldNormal.xyz), 0) / pdf; // throughput
+#endif
 }
 
 [shader("closesthit")] 
 void ShadowClosestHit(inout HitInfo payload, Attributes attrib)
 {
-	payload.colorAndDistance = float4(0, 0, 0, 1);
+	payload.colorAndDistance.xyz = 0;
 }

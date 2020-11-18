@@ -15,6 +15,17 @@ namespace engine
 {
 	namespace Shaders
 	{
+		struct RayInfo
+		{
+			float4 origin;
+			float4 direction;
+		};
+
+		struct Frame
+		{
+			uint frame;
+		};
+
 #pragma pack(push, 1)
 		// For graphic
 		struct VertexIn
@@ -70,6 +81,9 @@ namespace engine
 			float4 right;
 			float4 up;
 			float4 origin;
+			uint width; // move to separate buffer
+			uint height;
+			uint _padding[2];
 		};
 #pragma pack(pop)
 	}

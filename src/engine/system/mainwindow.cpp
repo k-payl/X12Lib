@@ -238,7 +238,7 @@ void engine::MainWindow::Create()
 	assert(registered != FALSE);
 
 	hwnd = CreateWindow(TEXT("Simple class name"), TEXT("Test"), WS_OVERLAPPEDWINDOW,
-		250, 200, 1024, 768, nullptr, nullptr, GetModuleHandle(nullptr), nullptr);
+		250, 200, 1920, 1080, nullptr, nullptr, GetModuleHandle(nullptr), nullptr);
 
 	ShowWindow(hwnd, SW_SHOW);
 	UpdateWindow(hwnd);

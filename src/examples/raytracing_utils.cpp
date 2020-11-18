@@ -40,7 +40,7 @@ void FreeUtils()
 	SAFE_RELEASE(dxcIncludeHandler)
 }
 
-IDxcBlob* CompileShader(LPCWSTR fileName)
+IDxcBlob* CompileShader(LPCWSTR fileName, bool compute, const std::vector<std::pair<std::wstring, std::wstring>>& defines)
 {
 
 	HRESULT hr;
@@ -67,9 +67,17 @@ IDxcBlob* CompileShader(LPCWSTR fileName)
 	throwIfFailed(pLibrary->CreateBlobWithEncodingFromPinned(
 		(LPBYTE)sShader.c_str(), (uint32_t)sShader.size(), 0, &pTextBlob));
 
+	std::vector<DxcDefine> dxDefines(defines.size());
+	for (int i = 0; i < defines.size(); i++)
+	{
+		dxDefines[i].Name = defines[i].first.c_str();
+		dxDefines[i].Value = defines[i].second.c_str();
+
+	}
+
 	// Compile
 	IDxcOperationResult* pResult;
-	throwIfFailed(pCompiler->Compile(pTextBlob, fileName, L"", L"lib_6_5", nullptr, 0, nullptr, 0,
+	throwIfFailed(pCompiler->Compile(pTextBlob, fileName, compute ? L"main" : L"", compute ? L"cs_6_5" : L"lib_6_5", nullptr, 0, dxDefines.empty() ? nullptr : &dxDefines[0], dxDefines.size(),
 		dxcIncludeHandler, &pResult));
 
 	// Verify the result

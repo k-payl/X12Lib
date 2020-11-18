@@ -302,6 +302,7 @@ void engine::SceneManager::createLightsGPUBuffer()
 		lightsData[i].normal = math::triangle_normal(p0, p1, p2);
 	}
 
+	if (!lights.empty())
 	GetCoreRenderer()->CreateStructuredBuffer(lightsBuffer.getAdressOf(), L"Lights buffer",
 		sizeof(engine::Shaders::Light), lights.size(), &lightsData[0], x12::BUFFER_FLAGS::SHADER_RESOURCE);
 }
