@@ -209,6 +209,7 @@ void Core::Init(const char *rootPath, INIT_FLAGS flags, GpuProfiler* gpuprofiler
 	if (renderer)
 		renderer->Init();
 
+	matManager = std::make_unique<MaterialManager>();
 	matManager->Init();
 
 	if (renderer && FLAG(INIT_FLAGS::DIRECTX12_RENDERER))
@@ -293,6 +294,7 @@ void Core::Free()
 		memoryprofiler->Free();
 		memoryprofiler = nullptr;
 	}
+	sceneManager = nullptr;
 
 	if (renderer)
 	{
@@ -322,7 +324,7 @@ void Core::Free()
 	input = nullptr;
 
 	fs = nullptr;
-	sceneManager = nullptr;
+	
 }
 
 void Core::setWindowCaption(int is_paused, int fps)

@@ -1,0 +1,6 @@
+name: sponza\0.yaml
+parameters:
+  - name: base_color
+    value: [1, 0, 0, 1]
+  - name: roughness
+    value: [1, 1, 1, 1]

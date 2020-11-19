@@ -1,8 +1,9 @@
 #pragma once
 #include <dxcapi.h>
 #include <d3d12.h>
-#include "raytracing_d3dx12.h"
 #include <map>
+#include "vmath.h"
+#include "raytracing_d3dx12.h"
 
 namespace math
 {
@@ -15,17 +16,28 @@ namespace engine
 	class Model;
 	class Mesh;
 	class Light;
+	class Material;
 }
+
+struct BLAS
+{
+	math::mat4 transform;
+	UINT instances;
+	Microsoft::WRL::ComPtr<ID3D12Resource> resource;
+	std::vector<D3D12_GPU_VIRTUAL_ADDRESS> vbs;
+	std::vector<engine::Material*> materials;
+};
+
 
 void FreeUtils();
 
-Microsoft::WRL::ComPtr<ID3D12Resource> BuildBLASFromMesh(engine::Mesh* m, ID3D12Device5* m_dxrDevice,
+Microsoft::WRL::ComPtr<ID3D12Resource> BuildBLAS(const std::vector<engine::Mesh*>& ms, ID3D12Device5* m_dxrDevice,
 	ID3D12CommandQueue* commandQueue, ID3D12GraphicsCommandList4* dxrCommandList, ID3D12CommandAllocator* commandAllocator);
 
-Microsoft::WRL::ComPtr<ID3D12Resource> BuildTLAS(std::map<engine::Mesh*, Microsoft::WRL::ComPtr<ID3D12Resource>>& BLASes, std::vector<engine::Model*>& models, std::vector<engine::Light*>& areaLights, engine::Mesh* plane, ID3D12Device5* m_dxrDevice,
+Microsoft::WRL::ComPtr<ID3D12Resource> BuildTLAS(std::vector<BLAS>& blases, ID3D12Device5* m_dxrDevice,
 	ID3D12CommandQueue* commandQueue, ID3D12GraphicsCommandList4* dxrCommandList, ID3D12CommandAllocator* commandAllocator);
 
-IDxcBlob* CompileShader(LPCWSTR fileName, bool compute = false, const std::vector<std::pair<std::wstring, std::wstring>>& defines = std::vector<std::pair<std::wstring, std::wstring>>());
+Microsoft::WRL::ComPtr<IDxcBlob> CompileShader(LPCWSTR fileName, bool compute = false, const std::vector<std::pair<std::wstring, std::wstring>>& defines = std::vector<std::pair<std::wstring, std::wstring>>());
 void PrintStateObjectDesc(const D3D12_STATE_OBJECT_DESC* desc);
 void AllocateUAVBuffer(ID3D12Device* pDevice, UINT64 bufferSize, ID3D12Resource** ppResource,
 	D3D12_RESOURCE_STATES initialResourceState = D3D12_RESOURCE_STATE_COMMON, const wchar_t* resourceName = nullptr);

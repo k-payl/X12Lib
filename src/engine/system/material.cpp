@@ -17,21 +17,22 @@ using std::string;
 
 struct ParamInfo
 {
+	std::string name;
 	engine::Material::Params index;
 	vec4 defaultValue;
 };
 
-std::map<std::string, ParamInfo> nameToIndex =
+std::vector<ParamInfo> nameToIndex =
 {
-	{"base_color", {engine::Material::Params::Albedo, vec4(1,1,1,1)}},
-	{"roughness", {engine::Material::Params::Roughness, vec4(0,0,0,0)}},
+	{"base_color", engine::Material::Params::Albedo, vec4(1, 1, 1, 1)},
+	{"roughness", engine::Material::Params::Roughness, vec4(0, 0, 0, 0)},
 };
 
-engine::Material::Material(const std::string& path) : path_(path)
+engine::Material::Material(const std::string& path) : path_(path), name_(path)
 {
-	for (auto& a : nameToIndex)
+	for (int i = 0; i < nameToIndex.size(); i++)
 	{
-		parameters[a.second.index].value = a.second.defaultValue;
+		parameters[i].value = nameToIndex[i].defaultValue;
 	}
 }
 
@@ -40,7 +41,7 @@ void engine::Material::LoadYAML()
 	using namespace YAML;
 	using namespace math;
 
-	engine::File f = GetFS()->OpenFile("materials//mesh.yaml", FILE_OPEN_MODE::READ | FILE_OPEN_MODE::BINARY);
+	engine::File f = GetFS()->OpenFile(path_.c_str(), FILE_OPEN_MODE::READ | FILE_OPEN_MODE::BINARY);
 
 	size_t fileSize = f.FileSize();
 
@@ -76,12 +77,12 @@ void engine::Material::LoadYAML()
 			continue;
 
 		std::string n = obj_yaml["name"].as<string>();
-		auto it = nameToIndex.find(n);
+		auto it = std::find_if(nameToIndex.begin(), nameToIndex.end(), [n](const ParamInfo& v) -> bool { return v.name == n; });
 
 		if (it == nameToIndex.end())
 			continue;
 
-		int index = it->second.index;
+		int index = it - nameToIndex.begin();
 
 		if (obj_yaml["value"])
 		{
@@ -103,6 +104,49 @@ void engine::Material::LoadYAML()
 	}
 }
 
+void engine::Material::SetTexture(Params p, const char* path)
+{
+	parameters[p].texture = engine::GetResourceManager()->CreateStreamTexture(path, x12::TEXTURE_CREATE_FLAGS::NONE);
+}
+
+void engine::Material::SaveYAML()
+{
+	using namespace YAML;
+	YAML::Emitter out;
+
+	out << YAML::BeginMap;
+
+	if (!name_.empty())
+		out << Key << "name" << Value << name_;
+
+	out << Key << "parameters" << Value;
+	out << YAML::BeginSeq;
+
+	for (int i = 0; i < Params::Num; i++)
+	{
+		out << YAML::BeginMap;
+
+		out << YAML::Key << "name" << YAML::Value << nameToIndex[i].name;
+
+		//if (nameToIndex[i].defaultValue.Aproximately(parameters[i].value))
+		//{
+			out << YAML::Key << "value" << YAML::Value << parameters[i].value;
+		//}
+
+		if (!parameters[i].texture.path().empty())
+			out << YAML::Key << "texture" << YAML::Value << parameters[i].texture.path();
+
+		out << YAML::EndMap;
+	}
+
+	out << YAML::EndSeq;
+	out << YAML::EndMap;
+
+	File f = GetFS()->OpenFile(path_.c_str(), engine::FILE_OPEN_MODE::WRITE | engine::FILE_OPEN_MODE::BINARY);
+
+	f.WriteStr(out.c_str());
+}
+
 math::vec4 engine::Material::GetValue(Params p)
 {
 	return parameters[p].value;
@@ -112,8 +156,3 @@ engine::Texture* engine::Material::GetTexture(Params p)
 {
 	return parameters[p].texture.get();
 }
-
-void engine::Material::SaveYAML()
-{
-}
-

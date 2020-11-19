@@ -447,6 +447,14 @@ namespace math
 			return ret;
 		}
 
+		bool operator<(const mat4& v) const
+		{
+			for (int i = 0; i < 16; ++i)
+				if (el_1D[i] != v.el_1D[i])
+					return el_1D[i] < v.el_1D[i];
+			return false;
+		}
+
 		mat4 operator*(const mat4& m) const
 		{
 			mat4 res;
@@ -966,13 +974,13 @@ namespace math
 	}
 
 	template<typename T>
-	inline T max(T a, T b)
+	inline T max_(T a, T b)
 	{
 		return a > b ? a : b;
 	}
 
 	template<typename T>
-	inline T min(T a, T b)
+	inline T min_(T a, T b)
 	{
 		return a > b ? b : a;
 	}
@@ -990,7 +998,7 @@ namespace math
 
 	inline float saturate(float a)
 	{
-		return max(min(a, 1.0f), 0.0f);
+		return max_(min_(a, 1.0f), 0.0f);
 	}
 	inline vec3 triangle_normal(vec4 p0, vec4 p1, vec4 p2)
 	{

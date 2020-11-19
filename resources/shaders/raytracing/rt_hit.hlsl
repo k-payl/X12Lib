@@ -191,8 +191,16 @@ void ClosestHit(inout HitInfo payload, Attributes attrib)
 		directLighting += directRadiance * (1 - isShadow);
 	}
 
-	//float3 textureAlbedo = gTxMats[0].SampleLevel(gSampler, UV, 0).rgb; // TODO texture index
-	//directLighting *= textureAlbedo;
+	engine::Shaders::Material mat = gMaterials[gInstances[lInstanceData.offset].materialIndex];
+	float3 albedo = mat.albedo;
+
+	if (mat.albedoIndex != uint(-1))
+	{
+		float3 textureAlbedo = gTxMats[mat.albedoIndex].SampleLevel(gSampler, UV, 0).rgb;
+		albedo *= textureAlbedo;
+	}
+
+	directLighting *= albedo;
 
 	// Add area light emission for primary rays
 	#if PRIMARY_RAY
@@ -201,9 +209,10 @@ void ClosestHit(inout HitInfo payload, Attributes attrib)
 			directLighting = float3(1, 1, 1) * gInstances[lInstanceData.offset].emission/* * saturate(dot(worldNormal.xyz, V))*/;
 	#endif
 
+	// BRDF multiplication for secondary hit
 #if !PRIMARY_RAY
-	float throughput = gRayInfo[gRegroupedIndexes[pixelNum]].direction.w;
-	directLighting *= throughput;
+	float3 brdf = gRayInfo[gRegroupedIndexes[pixelNum]].hitbrdf.xyz;
+	directLighting *= brdf;
 #endif
 
 	//payload.colorAndDistance.xyz = float3(0.5, 0.5f, 0.5) * worldNormal.xyz + float3(0.5, 0.5f, 0.5);
@@ -213,17 +222,15 @@ void ClosestHit(inout HitInfo payload, Attributes attrib)
 	// TODO: second bounce
 #if PRIMARY_RAY
 	gRayInfo[pixelNum].origin.xyz = worldPosition.xyz;
-	gRayInfo[pixelNum].origin.w = 1.0f; // hit
+
+	// Hit
+	gRayInfo[pixelNum].origin.w = 1.0f;
 
 	float pdf;
 	float3 nextDirection = rayCosine(worldNormal, Uniform01(), Uniform01(), pdf);
 	gRayInfo[pixelNum].direction.xyz = nextDirection;
-	gRayInfo[pixelNum].direction.w = INVPI /*brdf*/ * max(dot(nextDirection, worldNormal.xyz), 0) / pdf; // throughput
-#endif
-}
 
-[shader("closesthit")] 
-void ShadowClosestHit(inout HitInfo payload, Attributes attrib)
-{
-	payload.colorAndDistance.xyz = 0;
+	// Save BRDF
+	gRayInfo[pixelNum].hitbrdf.xyz = albedo * INVPI /*brdf*/ * max(dot(nextDirection, worldNormal.xyz), 0) / pdf;
+#endif
 }

@@ -44,6 +44,8 @@ namespace x12
 		x12::descriptorheap::Alloc DSVdescriptor;
 		x12::descriptorheap::Alloc UAVdescriptor;
 
+		std::wstring name;
+
 		void _GPUCopyToStaging(ICoreGraphicCommandList* cmdList);
 		void _GetStagingData(void* data);
 	};

@@ -4,6 +4,16 @@
 
 namespace engine
 {
+	struct TextureData
+	{
+		uint8_t *rgbaBuffer;
+		uint32_t mipmaps;
+		int width, height;
+		size_t bufferInBytes;
+	};
+
+	X12_API void saveDDS(const TextureData& data, const char* path);
+
 	class Texture final
 	{
 		intrusive_ptr<x12::ICoreTexture> coreTexture_;
@@ -16,18 +26,6 @@ namespace engine
 		~Texture();
 
 		bool Load();
-
-		
 		auto X12_API GetCoreTexture()->x12::ICoreTexture*;
-
-		/*
-		auto X12_API GetVideoMemoryUsage()->size_t;
-		auto X12_API GetWidth() -> int;
-		auto X12_API GetHeight() -> int;
-		auto X12_API GetMipmaps() -> int;
-		auto X12_API ReadPixel2D(void* data, int x, int y) -> int;
-		auto X12_API GetData(uint8_t* pDataOut, size_t length) -> void;
-		auto X12_API CreateMipmaps() -> void;
-		*/
 	};
 }

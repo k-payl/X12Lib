@@ -30,10 +30,11 @@ static HRESULT FillInitData(_In_ size_t width,
 	_Out_ size_t& skipMip,
 	std::vector<D3D12_SUBRESOURCE_DATA>& initData);
 
-void x12::Dx12CoreTexture::InitFromExisting(LPCWSTR name, ID3D12Resource* resource_)
+void x12::Dx12CoreTexture::InitFromExisting(LPCWSTR name_, ID3D12Resource* resource_)
 {
+	name = name_;
 	resource.Attach(resource_);
-	x12::d3d12::set_name(resource.Get(), name);
+	x12::d3d12::set_name(resource.Get(), name_);
 
 	desc = resource->GetDesc();
 
@@ -208,9 +209,10 @@ void x12::Dx12CoreTexture::InitDSV()
 	}
 }
 
-void x12::Dx12CoreTexture::Init(LPCWSTR name, const uint8_t* data, size_t size,
+void x12::Dx12CoreTexture::Init(LPCWSTR name_, const uint8_t* data, size_t size,
 	int32_t width, int32_t height, uint32_t mipCount, TEXTURE_TYPE type, TEXTURE_FORMAT format, TEXTURE_CREATE_FLAGS flags)
 {
+	name = name_;
 	flags_ = flags;
 	format_ = format;
 
@@ -259,7 +261,7 @@ void x12::Dx12CoreTexture::Init(LPCWSTR name, const uint8_t* data, size_t size,
 		state,
 		IsDepthStencil(format) ? &optimizedClearValue : nullptr,
 		IID_ID3D12Resource, reinterpret_cast<void**>(resource.GetAddressOf())));
-	x12::d3d12::set_name(resource.Get(), name);
+	x12::d3d12::set_name(resource.Get(), name_);
 	
 	if (flags_ & TEXTURE_CREATE_FLAGS::USAGE_SHADER_RESOURCE && data)
 	{

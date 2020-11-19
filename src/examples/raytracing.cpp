@@ -13,13 +13,13 @@
 #include "gameobject.h"
 #include "scenemanager.h"
 #include "resourcemanager.h"
+#include "materialmanager.h"
 #include "mesh.h"
 #include "d3d12/dx12buffer.h"
 #include "d3d12/dx12texture.h"
 #include "cpp_hlsl_shared.h"
 using namespace x12;
 
-#define RAYTRACING_SHADER_DIR L"../resources/shaders/raytracing/"
 #define SizeOfInUint32(obj) ((sizeof(obj) - 1) / sizeof(UINT32) + 1)
 
 const wchar_t* raygenname = L"RayGen";
@@ -98,7 +98,6 @@ static struct Resources
 	ComPtr<ID3D12PipelineState> accumulationPSO;
 	ComPtr<ID3D12PipelineState> copyHitCounterPSO;
 
-	std::map<engine::Mesh*, ComPtr<ID3D12Resource>> bottomLevelAccelerationStructures;
 	ComPtr<ID3D12Resource> topLevelAccelerationStructure;
 
 	ComPtr<ID3D12DescriptorHeap> descriptorHeap;
@@ -106,13 +105,13 @@ static struct Resources
 	intrusive_ptr<x12::ICoreBuffer> sceneBuffer;
 	intrusive_ptr<x12::ICoreBuffer> cameraBuffer;
 	intrusive_ptr<x12::ICoreBuffer> perInstanceBuffer;
+	intrusive_ptr<x12::ICoreBuffer> materialsBuffer;
 	intrusive_ptr<x12::ICoreBuffer> rayInfoBuffer; // w * h * sizeof(RayInfo)
 	intrusive_ptr<x12::ICoreBuffer> regroupedIndexesBuffer; // w * h * sizeof(uint32_t)
-	intrusive_ptr<x12::ICoreBuffer> iterationRGBA32f; // w * h * sizeof(float4). primary + secondary + ... N-th bounce lighting
+	intrusive_ptr<x12::ICoreBuffer> iterationRGBA32f; // w * h * sizeof(float4). primary + secondary + ... + N-th bounce
 	intrusive_ptr<x12::ICoreBuffer> hitCointerBuffer; // 4 byte
-	intrusive_ptr<x12::ICoreBuffer> indirectBuffer; // 4 byte
+	intrusive_ptr<x12::ICoreBuffer> indirectBuffer; // sizeof(D3D12_DISPATCH_RAYS_DESC)
 	engine::StreamPtr<engine::Mesh> planeMesh;
-
 	ComPtr<ID3D12Resource> outputRGBA32f; // final image accumulation (Texture)
 	intrusive_ptr<ICoreTexture> outputRGBA32fcoreWeakPtr;
 
@@ -124,6 +123,8 @@ static struct Resources
 	intrusive_ptr<IResourceSet> clearResources;
 
 	engine::StreamPtr<engine::Shader> clearRayInfoBuffer;
+
+	std::vector<BLAS> blases;
 
 	Fence rtToSwapchainFence;
 	Fence clearToRTFence;
@@ -166,6 +167,7 @@ namespace GlobalRootSignatureParams {
 		SceneConstants,
 		LightStructuredBuffer,
 		TLASPerInstanceBuffer,
+		Materials,
 		RegroupedIndexes,
 		Textures,
 		Count
@@ -241,6 +243,9 @@ void BindRaytracingResources()
 
 	dx12buffer = static_cast<x12::Dx12CoreBuffer*>(res->perInstanceBuffer.get());
 	dxrCommandList->SetComputeRootShaderResourceView(GlobalRootSignatureParams::TLASPerInstanceBuffer, dx12buffer->GPUAddress());
+
+	dx12buffer = static_cast<x12::Dx12CoreBuffer*>(res->materialsBuffer.get());
+	dxrCommandList->SetComputeRootShaderResourceView(GlobalRootSignatureParams::Materials, dx12buffer->GPUAddress());
 
 	dx12buffer = static_cast<x12::Dx12CoreBuffer*>(res->regroupedIndexesBuffer.get());
 	dxrCommandList->SetComputeRootShaderResourceView(GlobalRootSignatureParams::RegroupedIndexes, dx12buffer->GPUAddress());
@@ -611,7 +616,7 @@ void SignalFence(ID3D12CommandQueue* ToQueue, Fence& fence)
 
 void Sync(ID3D12CommandQueue* fromQueue, ID3D12CommandQueue* ToQueue, Fence& fence)
 {
-	ToQueue->Signal(fence.fence[backBufferIndex].Get(), fence.fenceValues[backBufferIndex]);	
+	ToQueue->Signal(fence.fence[backBufferIndex].Get(), fence.fenceValues[backBufferIndex]);
 	ToQueue->Wait(fence.fence[backBufferIndex].Get(), fence.fenceValues[backBufferIndex]);
 	fence.fenceValues[backBufferIndex]++;
 }
@@ -706,10 +711,11 @@ void Init()
 		rootParameters[GlobalRootSignatureParams::SceneConstants].InitAsConstantBufferView(1);
 		rootParameters[GlobalRootSignatureParams::LightStructuredBuffer].InitAsShaderResourceView(1);
 		rootParameters[GlobalRootSignatureParams::TLASPerInstanceBuffer].InitAsShaderResourceView(3);
-		rootParameters[GlobalRootSignatureParams::RegroupedIndexes].InitAsShaderResourceView(4);
+		rootParameters[GlobalRootSignatureParams::Materials].InitAsShaderResourceView(4);
+		rootParameters[GlobalRootSignatureParams::RegroupedIndexes].InitAsShaderResourceView(5);
 
 		CD3DX12_DESCRIPTOR_RANGE ranges;
-		ranges.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 100, 5);  // array of textures
+		ranges.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 100, 6);  // array of textures
 		rootParameters[GlobalRootSignatureParams::Textures].InitAsDescriptorTable(1, &ranges);
 
 		D3D12_STATIC_SAMPLER_DESC sampler{};
@@ -741,13 +747,13 @@ void Init()
 		std::vector<std::pair<std::wstring, std::wstring>> defines_primary;
 		defines_primary.emplace_back(L"PRIMARY_RAY", L"1");
 
-		res->raygen = CompileShader(RAYTRACING_SHADER_DIR "rt_raygen.hlsl", false, defines_primary);
-		res->hit = CompileShader(RAYTRACING_SHADER_DIR "rt_hit.hlsl", false, defines_primary);
-		res->miss = CompileShader(RAYTRACING_SHADER_DIR "rt_miss.hlsl", false, defines_primary);
+		res->raygen = CompileShader(L"rt_raygen.hlsl", false, defines_primary);
+		res->hit = CompileShader(L"rt_hit.hlsl", false, defines_primary);
+		res->miss = CompileShader(L"rt_miss.hlsl", false, defines_primary);
 
-		res->raygen_secondary = CompileShader(RAYTRACING_SHADER_DIR "rt_raygen.hlsl");
-		res->hit_secondary = CompileShader(RAYTRACING_SHADER_DIR "rt_hit.hlsl");
-		res->miss_secondary = CompileShader(RAYTRACING_SHADER_DIR "rt_miss.hlsl");
+		res->raygen_secondary = CompileShader(L"rt_raygen.hlsl");
+		res->hit_secondary = CompileShader(L"rt_hit.hlsl");
+		res->miss_secondary = CompileShader(L"rt_miss.hlsl");
 	}
 
 	auto CreatePSO = [](ComPtr<IDxcBlob> r, ComPtr<IDxcBlob> h, ComPtr<IDxcBlob> m) -> ComPtr<ID3D12StateObject>
@@ -830,76 +836,164 @@ void Init()
 	engine::GetSceneManager()->getObjectsOfType(areaLights, engine::OBJECT_TYPE::LIGHT);
 	std::remove_if(areaLights.begin(), areaLights.end(), [](const engine::Light* l)-> bool { return l->GetLightType() != engine::LIGHT_TYPE::AREA; });
 
-	const UINT topLevelInstances = models.size() + areaLights.size();
+	UINT totalInstances = 0;
 
 	// BLASes
 	{
-		res->bottomLevelAccelerationStructures[res->planeMesh.get()] =
-			BuildBLASFromMesh(res->planeMesh.get(), m_dxrDevice, res->commandQueue.Get(), dxrCommandList, res->commandAllocators[backBufferIndex].Get());
+		struct BLASmesh
+		{
+			engine::Mesh* mesh;
+			Microsoft::WRL::ComPtr<ID3D12Resource> resource;
+			math::mat4 transform;
+			engine::Material* material;
+		};
+
+		std::vector<BLASmesh> ms;
+		std::vector<engine::Material*> sceneMaterials;
 
 		for (size_t i = 0; i < models.size(); ++i)
 		{
-			int id = models[i]->GetId();
-
 			engine::Mesh* m = models[i]->GetMesh();
-			if (res->bottomLevelAccelerationStructures[m])
-				continue;
+			ms.push_back({m, nullptr, models[i]->GetWorldTransform(), models[i]->GetMaterial() });
+		}
 
-			// TODO: prepare array of textures
-			engine::Material* mat = models[i]->GetMaterial();
-			if (mat)
+		std::sort(ms.begin(), ms.end(), [](const BLASmesh& l , const BLASmesh& r) -> bool { return l.transform < r.transform; });
+
+		// Parallel arrays
+		std::vector<engine::Mesh*> blas_meshes;
+		std::vector<engine::Material*> blas_materials;
+		std::vector<D3D12_GPU_VIRTUAL_ADDRESS> blas_meshesh_vb;
+
+		blas_meshes.push_back(ms[0].mesh);
+		blas_meshesh_vb.push_back(reinterpret_cast<x12::Dx12CoreBuffer*>(ms[0].mesh->VertexBuffer())->GPUAddress());
+		blas_materials.push_back(ms[0].material ? ms[0].material : engine::GetMaterialManager()->GetDefaultMaterial());
+
+		assert(ms.size() > 0);
+
+		math::mat4 t = ms[0].transform;
+
+		for (int i = 0; i < ms.size(); i++)
+		{
+			if (i == ms.size() - 1 || ms[i + 1].transform < t || t < ms[i + 1].transform)
 			{
-				engine::Texture * t = mat->GetTexture(engine::Material::Params::Albedo);
-				if (t)
-				{
-					auto coreTexture = t->GetCoreTexture();
-					Dx12CoreTexture* dx12CoreTexure = static_cast<x12::Dx12CoreTexture*>(coreTexture);
-					D3D12_CPU_DESCRIPTOR_HANDLE cputextureHandle = dx12CoreTexure->GetSRV();
-					D3D12_CPU_DESCRIPTOR_HANDLE destCPU = CD3DX12_CPU_DESCRIPTOR_HANDLE(res->descriptorHeap->GetCPUDescriptorHandleForHeapStart(), 1, descriptorSize);
+				// Create BLAS
+				auto resource = BuildBLAS(blas_meshes, m_dxrDevice, res->commandQueue.Get(), dxrCommandList, res->commandAllocators[backBufferIndex].Get());
 
-					device->CopyDescriptorsSimple(1, destCPU, cputextureHandle, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+				res->blases.push_back({ ms[i].transform, (UINT)blas_meshes.size(), resource, blas_meshesh_vb, blas_materials });
+				totalInstances += (UINT)blas_meshes.size();
 
-					texturesHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(res->descriptorHeap->GetGPUDescriptorHandleForHeapStart(), 1, descriptorSize);
-				}
+				blas_meshes.clear();
+				blas_meshesh_vb.clear();
+				blas_materials.clear();
 			}
 
-			res->bottomLevelAccelerationStructures[m] = BuildBLASFromMesh(models[i]->GetMesh(), m_dxrDevice, res->commandQueue.Get(), dxrCommandList, res->commandAllocators[backBufferIndex].Get());
+			if (i < ms.size() - 1)
+			{
+				engine::Mesh* mesh = ms[i + 1].mesh;
+
+				blas_meshes.push_back(mesh);
+				blas_meshesh_vb.push_back(reinterpret_cast<x12::Dx12CoreBuffer*>(mesh->VertexBuffer())->GPUAddress());
+				blas_materials.push_back(ms[i + 1].material ? ms[i + 1].material : engine::GetMaterialManager()->GetDefaultMaterial());
+			}
 		}
 	}
 
 	// TLAS
-	res->topLevelAccelerationStructure = BuildTLAS(res->bottomLevelAccelerationStructures,models, areaLights, res->planeMesh.get(), m_dxrDevice,
+	res->topLevelAccelerationStructure = BuildTLAS(res->blases, m_dxrDevice,
 		res->commandQueue.Get(), dxrCommandList, res->commandAllocators[backBufferIndex].Get());
 
-
-	// TLAS instances data
+	// Materials
 	{
-		std::vector<engine::Shaders::InstanceData> instancesData(topLevelInstances);
+		std::vector<engine::Texture*> sceneTextures;
+		std::unordered_map<engine::Texture*, UINT> textureToIndex;
 
-		for (size_t i = 0; i < models.size(); ++i)
+		std::vector<engine::Material*> sceneMaterial;
+		std::vector<engine::Shaders::Material> sceneMaterialGPU;
+		std::unordered_map<engine::Material*, UINT> materialToIndex;
+
+		for (size_t i = 0; i < res->blases.size(); ++i)
 		{
-			math::mat4 transform = models[i]->GetWorldTransform();
-			instancesData[i].transform = transform;
-			instancesData[i].normalTransform = transform.Inverse().Transpose();
-			instancesData[i].emission = 0;
+			for (size_t j = 0; j < res->blases[i].instances; ++j)
+			{
+				engine::Material* mat = res->blases[i].materials[j];
+
+				auto it = materialToIndex.find(mat);
+				if (it == materialToIndex.end())
+				{
+					materialToIndex[mat] = sceneMaterial.size();
+					sceneMaterial.push_back(mat);
+
+					engine::Shaders::Material gpuMaterial{};
+					gpuMaterial.albedo = mat->GetValue(engine::Material::Params::Albedo);
+					gpuMaterial.shading.x = mat->GetValue(engine::Material::Params::Roughness).x;
+
+					engine::Texture * texture = mat->GetTexture(engine::Material::Params::Albedo);
+
+					if (texture)
+					{
+						auto itt = textureToIndex.find(texture);
+						if (itt == textureToIndex.end())
+						{
+							textureToIndex[texture] = sceneTextures.size();
+							sceneTextures.push_back(texture);
+						}
+						gpuMaterial.albedoIndex = textureToIndex[texture];
+					}
+					else
+					{
+						gpuMaterial.albedoIndex = UINT(-1);
+					}
+					
+					sceneMaterialGPU.push_back(gpuMaterial);
+				}
+			}
 		}
 
-		for (size_t i = 0; i < areaLights.size(); ++i)
+		engine::GetCoreRenderer()->CreateStructuredBuffer(res->materialsBuffer.getAdressOf(), L"Materials",
+			sizeof(engine::Shaders::Material), sceneMaterialGPU.size(), &sceneMaterialGPU[0], x12::BUFFER_FLAGS::SHADER_RESOURCE);
+
+		// Textures
 		{
-			math::mat4 transform = areaLights[i]->GetWorldTransform();
-			instancesData[models.size() + i].transform = transform;
-			instancesData[models.size() + i].normalTransform = transform.Inverse().Transpose();
-			instancesData[models.size() + i].emission = areaLights[i]->GetIntensity();
+			for (int i = 0; i < sceneTextures.size(); i++)
+			{
+				auto coreTexture = sceneTextures[i]->GetCoreTexture();
+				Dx12CoreTexture* dx12CoreTexure = static_cast<x12::Dx12CoreTexture*>(coreTexture);
+				D3D12_CPU_DESCRIPTOR_HANDLE cputextureHandle = dx12CoreTexure->GetSRV();
+				D3D12_CPU_DESCRIPTOR_HANDLE destCPU = CD3DX12_CPU_DESCRIPTOR_HANDLE(res->descriptorHeap->GetCPUDescriptorHandleForHeapStart(), 1 + i, descriptorSize);
+
+				device->CopyDescriptorsSimple(1, destCPU, cputextureHandle, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+				if (!texturesHandle.ptr)
+					texturesHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(res->descriptorHeap->GetGPUDescriptorHandleForHeapStart(), 1, descriptorSize);
+
+			}
+		}
+
+		// Instances Data
+		std::vector<engine::Shaders::InstanceData> instancesData(totalInstances);
+
+		UINT offset = 0;
+		for (size_t i = 0; i < res->blases.size(); ++i)
+		{
+			for (size_t j = 0; j < res->blases[i].instances; ++j)
+			{
+				math::mat4 transform = res->blases[i].transform;
+				instancesData[offset].transform = transform;
+				instancesData[offset].normalTransform = transform.Inverse().Transpose();
+				instancesData[offset].emission = 0;
+				instancesData[offset].materialIndex = materialToIndex[res->blases[i].materials[j]];
+				offset++;
+			}
 		}
 
 		engine::GetCoreRenderer()->CreateStructuredBuffer(res->perInstanceBuffer.getAdressOf(), L"TLAS per-instance data",
-			sizeof(engine::Shaders::InstanceData), topLevelInstances, &instancesData[0], x12::BUFFER_FLAGS::SHADER_RESOURCE);
+			sizeof(engine::Shaders::InstanceData), instancesData.size(), &instancesData[0], x12::BUFFER_FLAGS::SHADER_RESOURCE);
 	}
 
 	// Scene buffer
 	{
 		engine::Shaders::Scene scene;
-		scene.instanceCount = (uint32_t)topLevelInstances;
+		scene.instanceCount = totalInstances;
 		scene.lightCount = (uint32_t)areaLights.size();
 
 		engine::GetCoreRenderer()->CreateConstantBuffer(res->sceneBuffer.getAdressOf(), L"Scene data", sizeof(engine::Shaders::Scene), false);
@@ -944,29 +1038,22 @@ void Init()
 
 		// Hit group shader table
 		{
-			const UINT numShaderRecords = (UINT)topLevelInstances * 1;
+			const UINT numShaderRecords = totalInstances;
 			ShaderTable hitGroupShaderTable(device, numShaderRecords, hitRecordSize(), L"HitGroupShaderTable");
 
-			for (size_t i = 0; i < models.size(); ++i)
+			UINT offset = 0;
+			for (size_t i = 0; i < res->blases.size(); ++i)
 			{
-				engine::Mesh* m = models[i]->GetMesh();
+				for (size_t j = 0; j < res->blases[i].instances; ++j)
+				{
+					HitArg args;
+					args.offset = offset;
+					args.vertexBuffer = res->blases[i].vbs[j];
 
-				HitArg args;
-				args.offset = i;
-				args.vertexBuffer = reinterpret_cast<x12::Dx12CoreBuffer*>(m->VertexBuffer())->GPUAddress();
+					hitGroupShaderTable.push_back(ShaderRecord(hitGroupShaderIdentifier, D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES, &args, sizeof(HitArg)));
 
-				hitGroupShaderTable.push_back(ShaderRecord(hitGroupShaderIdentifier, D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES, &args, sizeof(HitArg)));
-			}
-
-			for (size_t i = 0; i < areaLights.size(); ++i)
-			{
-				engine::Mesh* m = res->planeMesh.get();
-
-				HitArg args;
-				args.offset = i + models.size();
-				args.vertexBuffer = reinterpret_cast<x12::Dx12CoreBuffer*>(m->VertexBuffer())->GPUAddress();
-
-				hitGroupShaderTable.push_back(ShaderRecord(hitGroupShaderIdentifier, D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES, &args, sizeof(HitArg)));
+					offset++;
+				}
 			}
 
 			h = hitGroupShaderTable.GetResource();
@@ -1002,7 +1089,7 @@ void Init()
 	// Clear RayInfo
 	{
 		// Shader
-		IDxcBlob* v = CompileShader(RAYTRACING_SHADER_DIR "rt_clear_rtinfo.hlsl", true); // TODO: dec reference
+		auto v = CompileShader(L"rt_clear_rtinfo.hlsl", true);
 
 		// Root signature
 		{
@@ -1026,7 +1113,7 @@ void Init()
 	// Regroup RayInfo
 	{
 		// Shader
-		IDxcBlob* v = CompileShader(RAYTRACING_SHADER_DIR "rt_regroup_rays.hlsl", true); // TODO: dec reference
+		auto v = CompileShader(L"rt_regroup_rays.hlsl", true);
 
 		// Root signature
 		{
@@ -1051,7 +1138,7 @@ void Init()
 	// Clear hit counter
 	{
 		// Shader
-		IDxcBlob* v = CompileShader(RAYTRACING_SHADER_DIR "rt_clear_hits.hlsl", true); // TODO: dec reference
+		auto v = CompileShader(L"rt_clear_hits.hlsl", true);
 
 		// Root signature
 		{
@@ -1073,7 +1160,7 @@ void Init()
 	// Accumulation
 	{
 		// Shader
-		IDxcBlob* v = CompileShader(RAYTRACING_SHADER_DIR "rt_accumulate.hlsl", true); // TODO: dec reference
+		auto v = CompileShader(L"rt_accumulate.hlsl", true);
 
 		// Root signature
 		{
@@ -1100,7 +1187,7 @@ void Init()
 	// Hits copy
 	{
 		// Shader
-		IDxcBlob* v = CompileShader(RAYTRACING_SHADER_DIR "rt_copy_hits.hlsl", true); // TODO: dec reference
+		auto v = CompileShader(L"rt_copy_hits.hlsl", true);
 
 		// Root signature
 		{

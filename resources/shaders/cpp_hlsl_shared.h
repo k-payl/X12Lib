@@ -19,6 +19,7 @@ namespace engine
 		{
 			float4 origin;
 			float4 direction;
+			float4 hitbrdf;
 		};
 
 		struct Frame
@@ -54,7 +55,15 @@ namespace engine
 			float4x4 transform;
 			float4x4 normalTransform;
 			float emission; // For area light
-			float __padding[3];
+			uint materialIndex;
+			float __padding[2];
+		};
+
+		struct Material
+		{
+			float4 albedo;
+			float4 shading; // roughness
+			uint albedoIndex;
 		};
 
 		struct Light

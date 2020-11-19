@@ -8,8 +8,9 @@ RaytracingAccelerationStructure					gSceneBVH		: register(t0);
 StructuredBuffer<engine::Shaders::Light>		gLights			: register(t1);
 StructuredBuffer<engine::Shaders::Vertex>		lVertices		: register(t2); // local
 StructuredBuffer<engine::Shaders::InstanceData>	gInstances		: register(t3);
-StructuredBuffer<uint>							gRegroupedIndexes : register(t4);
-Texture2D										gTxMats[]		: register(t5);
+StructuredBuffer<engine::Shaders::Material>		gMaterials		: register(t4);
+StructuredBuffer<uint>							gRegroupedIndexes : register(t5);
+Texture2D										gTxMats[]		: register(t6);
 
 SamplerState									gSampler		: register(s0);
 

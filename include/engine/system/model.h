@@ -31,6 +31,7 @@ namespace engine
 
 		auto GetMesh() -> Mesh* { return meshPtr.get(); };
 		auto GetMaterial() -> Material* { return mat_; }
+		auto SetMaterial(Material* mat) -> void { mat_ = mat; }
 		//auto GetMeshPath() -> const char*;
 		//auto SetMaterial(Material *mat) -> void { mat_ = mat; }
 		//auto GetMaterial() -> Material* { return mat_; }

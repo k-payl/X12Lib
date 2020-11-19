@@ -1,5 +1,6 @@
 
 #include "model.h"
+#include "material.h"
 #include "core.h"
 #include "resourcemanager.h"
 #include "materialmanager.h"
@@ -38,8 +39,8 @@ void engine::Model::SaveYAML(void * yaml)
 	if (!meshPtr.path().empty())
 		n << YAML::Key << "mesh" << YAML::Value << meshPtr.path();
 
-	//if (mat_)
-	//	n << YAML::Key << "material" << YAML::Value << mat_->GetId();
+	if (mat_)
+		n << YAML::Key << "material" << YAML::Value << mat_->GetName();
 }
 
 void engine::Model::LoadYAML(void * yaml)

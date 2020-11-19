@@ -3,8 +3,11 @@
 #include "mesh.h"
 #include "filesystem.h"
 #include "scenemanager.h"
+#include "materialmanager.h"
 #include "model.h"
+#include "material.h"
 #include "light.h"
+#include "texture.h"
 #include "cpp_hlsl_shared.h"
 
 #include <set>
@@ -20,14 +23,14 @@
 
 int APIENTRY wWinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPWSTR, _In_ int)
 {
-	std::string path = "..\\..\\sponza-gltf-pbr\\sponza.glb";
+	std::string path = "..//..//sponza-gltf-pbr//sponza.glb";
 
 	engine::Core* core = engine::CreateCore();
 	core->Init("", engine::INIT_FLAGS::NONE);
 
 	std::string ext = engine::GetFS()->FileExtension(path.c_str());
-	std::string name = engine::GetFS()->GetFileName(path.c_str(), false);
-	engine::GetFS()->CreateDirectory_(name.c_str());
+	std::string directory = engine::GetFS()->GetFileName(path.c_str(), false);
+	engine::GetFS()->CreateDirectory_(directory.c_str());
 
 	bool binary = ext == "glb";
 
@@ -97,8 +100,58 @@ int APIENTRY wWinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPWSTR, _In_ int)
 			meshes.emplace(node.mesh, math::mat4());
 	}
 
-	std::set<size_t> bufferViews;
+	/*
+	* Materials
+	*/
+	std::set<size_t> usedTextures;
+	std::vector<engine::Material*> materials(model.materials.size());
+	for (size_t i = 0; i < model.materials.size(); i++)
+	{
+		const tinygltf::Material& mat = model.materials[i];
 
+		engine::Material * material = engine::GetMaterialManager()->CreateMaterial((directory + "//" + std::to_string(i) + ".mat").c_str());
+		materials[i] = material;
+
+		const math::vec4 albedo = math::vec4((float)mat.pbrMetallicRoughness.baseColorFactor[0],
+			(float)mat.pbrMetallicRoughness.baseColorFactor[1],
+			(float)mat.pbrMetallicRoughness.baseColorFactor[2],
+			(float)mat.pbrMetallicRoughness.baseColorFactor[3]);
+		material->SetValue(engine::Material::Params::Albedo, albedo);
+
+		if (mat.pbrMetallicRoughness.baseColorTexture.index != -1)
+			usedTextures.insert(mat.pbrMetallicRoughness.baseColorTexture.index);
+
+		material->SetValue(engine::Material::Params::Roughness, math::vec4((float)mat.pbrMetallicRoughness.roughnessFactor));
+
+		auto path = (directory + "//" + std::to_string(mat.pbrMetallicRoughness.baseColorTexture.index)) + ".dds";
+		material->SetTexture(engine::Material::Params::Albedo, path.c_str());
+
+		material->SaveYAML();
+	}
+
+	/*
+	* Textures
+	*/
+	for (auto &t : usedTextures)
+	{
+		const tinygltf::Texture& tex = model.textures[t];
+		tinygltf::Image& img = model.images[tex.source];
+
+		auto path = (directory + "//" + std::to_string(t));
+
+		engine::TextureData dds;
+		dds.height = img.width;
+		dds.width = img.height;
+		dds.mipmaps = 1;
+		dds.bufferInBytes = img.image.size();
+		dds.rgbaBuffer = reinterpret_cast<uint8_t*>(&img.image[0]);
+		engine::saveDDS(dds, path.c_str());
+	}
+
+	/*
+	* Meshes
+	*/
+	std::set<size_t> bufferViews;
 	for (auto& m : meshes)
 	{
 		const tinygltf::Mesh& mesh = model.meshes[m.first];
@@ -127,7 +180,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPWSTR, _In_ int)
 			{
 				tinygltf::Accessor accessor = model.accessors[attrib.second];
 				int byteStride =
-					accessor.ByteStride(model.bufferViews[accessor.bufferView]);				
+					accessor.ByteStride(model.bufferViews[accessor.bufferView]);
 
 				tinygltf::BufferView& view = model.bufferViews[accessor.bufferView];
 				tinygltf::Buffer& buffer = model.buffers[view.buffer];
@@ -233,10 +286,11 @@ int APIENTRY wWinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPWSTR, _In_ int)
 
 			header.numberOfVertex = vertecies;
 
-			std::string p = name + "//" + (mesh.name.empty() ? std::to_string(i) + ".mesh" : +".mesh");
+			std::string p = directory + "//" + (mesh.name.empty() ? std::to_string(i) + ".mesh" : +".mesh");
 
 			engine::Model* modelPtr = engine::GetSceneManager()->CreateModel(p.c_str());
 			modelPtr->SetWorldTransform(m.second);
+			modelPtr->SetMaterial(materials[primitive.material]);
 
 			engine::File f = engine::GetFS()->OpenFile(p.c_str(), engine::FILE_OPEN_MODE::WRITE | engine::FILE_OPEN_MODE::BINARY);
 			f.Write(reinterpret_cast<uint8_t*>(&header), sizeof(engine::MeshHeader));
@@ -295,7 +349,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPWSTR, _In_ int)
 
 	}
 
-	std::string sceneName = name + "//" + (scene.name.empty() ? name : scene.name);
+	std::string sceneName = directory + "//" + (scene.name.empty() ? directory : scene.name);
 	sceneName += ".yaml";
 
 	engine::GetSceneManager()->SaveScene(sceneName.c_str());

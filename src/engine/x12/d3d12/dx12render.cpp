@@ -188,16 +188,12 @@ void x12::Dx12CoreRenderer::DescriptorHeap::Init(D3D12_DESCRIPTOR_HEAP_TYPE type
 
 void x12::Dx12CoreRenderer::Free()
 {
-	WaitGPUAll();
-
 	PresentSurfaces();
-	surfaces.clear();
+	WaitGPUAll();
 
 	commandLists.clear();
 
 	copyCommandContext->Free();
-
-	IResourceUnknown::CheckResources();
 
 	delete copyCommandContext;
 	copyCommandContext = nullptr;
@@ -216,6 +212,10 @@ void x12::Dx12CoreRenderer::Free()
 	psoMap.clear();
 
 	srv.Free();
+
+	surfaces.clear();
+
+	IResourceUnknown::CheckResources();
 
 	delete SRVdescriptorAllocator;
 	SRVdescriptorAllocator = nullptr;

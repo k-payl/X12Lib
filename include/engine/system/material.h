@@ -26,10 +26,12 @@ namespace engine
 			Num
 		};
 
-		virtual void SaveYAML();
-		virtual void LoadYAML();
-		std::string GetName() const { return name_; }
+		X12_API virtual void SaveYAML();
+		X12_API virtual void LoadYAML();
+		X12_API std::string GetName() const { return name_; }
 		X12_API math::vec4 GetValue(Params p);
+		X12_API void SetValue(Params p, const math::vec4& value) { parameters[p].value = value; }
+		X12_API void SetTexture(Params p, const char* path);
 		X12_API engine::Texture* GetTexture(Params p);
 
 	private:

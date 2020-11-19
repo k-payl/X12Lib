@@ -18,6 +18,8 @@
 #include <fstream>
 #include <algorithm>
 
+#define RAYTRACING_SHADER_DIR L"../resources/shaders/raytracing/"
+
 
 void WaitForGpu();
 
@@ -40,9 +42,8 @@ void FreeUtils()
 	SAFE_RELEASE(dxcIncludeHandler)
 }
 
-IDxcBlob* CompileShader(LPCWSTR fileName, bool compute, const std::vector<std::pair<std::wstring, std::wstring>>& defines)
+Microsoft::WRL::ComPtr<IDxcBlob> CompileShader(LPCWSTR fileName, bool compute, const std::vector<std::pair<std::wstring, std::wstring>>& defines)
 {
-
 	HRESULT hr;
 
 	// Initialize the DXC compiler and compiler helper
@@ -52,8 +53,12 @@ IDxcBlob* CompileShader(LPCWSTR fileName, bool compute, const std::vector<std::p
 		throwIfFailed(DxcCreateInstance(CLSID_DxcLibrary, __uuidof(IDxcLibrary), (void**)&pLibrary));
 		throwIfFailed(pLibrary->CreateIncludeHandler(&dxcIncludeHandler));
 	}
+
+	const static auto dir = std::wstring(RAYTRACING_SHADER_DIR);
+	const auto path = dir + fileName;
+
 	// Open and read the file
-	std::ifstream shaderFile(fileName);
+	std::ifstream shaderFile(path);
 	if (shaderFile.good() == false)
 	{
 		throw std::logic_error("Cannot find shader file");
@@ -63,30 +68,37 @@ IDxcBlob* CompileShader(LPCWSTR fileName, bool compute, const std::vector<std::p
 	std::string sShader = strStream.str();
 
 	// Create blob from the string
-	IDxcBlobEncoding* pTextBlob;
-	throwIfFailed(pLibrary->CreateBlobWithEncodingFromPinned(
-		(LPBYTE)sShader.c_str(), (uint32_t)sShader.size(), 0, &pTextBlob));
+	ComPtr<IDxcBlobEncoding> pTextBlob;
+	throwIfFailed(pLibrary->CreateBlobWithEncodingFromPinned((LPBYTE)sShader.c_str(), (uint32_t)sShader.size(), 0, pTextBlob.GetAddressOf()));
 
 	std::vector<DxcDefine> dxDefines(defines.size());
 	for (int i = 0; i < defines.size(); i++)
 	{
 		dxDefines[i].Name = defines[i].first.c_str();
 		dxDefines[i].Value = defines[i].second.c_str();
-
 	}
 
 	// Compile
-	IDxcOperationResult* pResult;
-	throwIfFailed(pCompiler->Compile(pTextBlob, fileName, compute ? L"main" : L"", compute ? L"cs_6_5" : L"lib_6_5", nullptr, 0, dxDefines.empty() ? nullptr : &dxDefines[0], dxDefines.size(),
-		dxcIncludeHandler, &pResult));
+	ComPtr<IDxcOperationResult> pResult;
+
+	throwIfFailed(pCompiler->Compile(
+		pTextBlob.Get(),
+		path.c_str(),
+		compute ? L"main" : L"",
+		compute ? L"cs_6_5" : L"lib_6_5",
+		nullptr, 0,
+		dxDefines.empty() ? nullptr : &dxDefines[0], dxDefines.size(),
+		dxcIncludeHandler,
+		pResult.GetAddressOf()));
 
 	// Verify the result
 	HRESULT resultCode;
 	throwIfFailed(pResult->GetStatus(&resultCode));
+
 	if (FAILED(resultCode))
 	{
-		IDxcBlobEncoding* pError;
-		hr = pResult->GetErrorBuffer(&pError);
+		ComPtr<IDxcBlobEncoding> pError;
+		hr = pResult->GetErrorBuffer(pError.GetAddressOf());
 		if (FAILED(hr))
 		{
 			throw std::logic_error("Failed to get shader compiler error");
@@ -104,8 +116,9 @@ IDxcBlob* CompileShader(LPCWSTR fileName, bool compute, const std::vector<std::p
 		throw std::logic_error("Failed compile shader");
 	}
 
-	IDxcBlob* pBlob;
-	throwIfFailed(pResult->GetResult(&pBlob));
+	ComPtr<IDxcBlob> pBlob;
+	throwIfFailed(pResult->GetResult(pBlob.GetAddressOf()));
+
 	return pBlob;
 }
 
@@ -299,35 +312,41 @@ void ExpandScratchBuffer(ID3D12Device5* m_dxrDevice, size_t size)
 	}
 }
 
-ComPtr<ID3D12Resource> BuildBLASFromMesh(engine::Mesh* m, ID3D12Device5* m_dxrDevice,
+Microsoft::WRL::ComPtr<ID3D12Resource> BuildBLAS(const std::vector<engine::Mesh*>& ms, ID3D12Device5* m_dxrDevice,
 	ID3D12CommandQueue* commandQueue, ID3D12GraphicsCommandList4* dxrCommandList, ID3D12CommandAllocator* commandAllocator)
 {
-	D3D12_GPU_VIRTUAL_ADDRESS gpuAddress = reinterpret_cast<x12::Dx12CoreBuffer*>(m->VertexBuffer())->GPUAddress();
+	std::vector< D3D12_RAYTRACING_GEOMETRY_DESC> geometryDesc(ms.size());
 
-	D3D12_RAYTRACING_GEOMETRY_DESC geometryDesc = {};
-	geometryDesc.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
-	geometryDesc.Triangles.IndexBuffer = 0;// reinterpret_cast<x12::Dx12CoreBuffer*>(res->m_indexBuffer.get())->GPUAddress();
-	geometryDesc.Triangles.IndexCount = 0;
-	geometryDesc.Triangles.IndexFormat; // DXGI_FORMAT_R16_UINT;
-	geometryDesc.Triangles.Transform3x4 = 0;
-	geometryDesc.Triangles.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
-	geometryDesc.Triangles.VertexCount = m->GetVertexCount();
-	geometryDesc.Triangles.VertexBuffer.StartAddress = gpuAddress;
-	geometryDesc.Triangles.VertexBuffer.StrideInBytes = sizeof(engine::Shaders::Vertex);
+	for (int i = 0; i < ms.size(); i++)
+	{
+		D3D12_GPU_VIRTUAL_ADDRESS gpuAddress = reinterpret_cast<x12::Dx12CoreBuffer*>(ms[i]->VertexBuffer())->GPUAddress();
 
-	// Mark the geometry as opaque. 
-	// PERFORMANCE TIP: mark geometry as opaque whenever applicable as it can enable important ray processing optimizations.
-	// Note: When rays encounter opaque geometry an any hit shader will not be executed whether it is present or not.
-	geometryDesc.Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE;
+		geometryDesc[i].Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
+		geometryDesc[i].Triangles.IndexBuffer = 0;// reinterpret_cast<x12::Dx12CoreBuffer*>(res->m_indexBuffer.get())->GPUAddress();
+		geometryDesc[i].Triangles.IndexCount = 0;
+		geometryDesc[i].Triangles.IndexFormat; // DXGI_FORMAT_R16_UINT;
+		geometryDesc[i].Triangles.Transform3x4 = 0;
+		geometryDesc[i].Triangles.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
+		geometryDesc[i].Triangles.VertexCount = ms[i]->GetVertexCount();
+		geometryDesc[i].Triangles.VertexBuffer.StartAddress = gpuAddress;
+		geometryDesc[i].Triangles.VertexBuffer.StrideInBytes = sizeof(engine::Shaders::Vertex);
 
-	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO bottomLevelPrebuildInfo = {};
+		// Mark the geometry as opaque. 
+		// PERFORMANCE TIP: mark geometry as opaque whenever applicable as it can enable important ray processing optimizations.
+		// Note: When rays encounter opaque geometry an any hit shader will not be executed whether it is present or not.
+		geometryDesc[i].Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE;
+	}
+
 	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS bottomLevelInputs = {};
 	bottomLevelInputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
 	bottomLevelInputs.Flags = acelStructFlags;
 	bottomLevelInputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
-	bottomLevelInputs.pGeometryDescs = &geometryDesc;
-	bottomLevelInputs.NumDescs = 1;
+	bottomLevelInputs.pGeometryDescs = &geometryDesc[0];
+	bottomLevelInputs.NumDescs = ms.size();
+
+	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO bottomLevelPrebuildInfo = {};
 	m_dxrDevice->GetRaytracingAccelerationStructurePrebuildInfo(&bottomLevelInputs, &bottomLevelPrebuildInfo);
+
 	assert(bottomLevelPrebuildInfo.ResultDataMaxSizeInBytes > 0);
 
 	ExpandScratchBuffer(m_dxrDevice, bottomLevelPrebuildInfo.ScratchDataSizeInBytes);
@@ -357,19 +376,17 @@ ComPtr<ID3D12Resource> BuildBLASFromMesh(engine::Mesh* m, ID3D12Device5* m_dxrDe
 	return bottomLevelAccelerationStructure;
 }
 
-ComPtr<ID3D12Resource> BuildTLAS(std::map<engine::Mesh*, ComPtr<ID3D12Resource>>& BLASes,
-	std::vector<engine::Model*>& models, std::vector<engine::Light*>& areaLights, engine::Mesh* plane, ID3D12Device5* m_dxrDevice,
+Microsoft::WRL::ComPtr<ID3D12Resource> BuildTLAS(std::vector<BLAS>& blases,
+	ID3D12Device5* m_dxrDevice,
 	ID3D12CommandQueue* commandQueue, ID3D12GraphicsCommandList4* dxrCommandList, ID3D12CommandAllocator* commandAllocator)
 {
 	ComPtr<ID3D12Resource> TLAS;
-
-	const UINT topLevelInstances = models.size() + areaLights.size();
 
 	// Get required sizes for an acceleration structure.
 	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS topLevelInputs = {};
 	topLevelInputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
 	topLevelInputs.Flags = acelStructFlags;
-	topLevelInputs.NumDescs = topLevelInstances;
+	topLevelInputs.NumDescs = (UINT)blases.size();
 	topLevelInputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
 	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO topLevelPrebuildInfo = {};
 	m_dxrDevice->GetRaytracingAccelerationStructurePrebuildInfo(&topLevelInputs, &topLevelPrebuildInfo);
@@ -379,27 +396,21 @@ ComPtr<ID3D12Resource> BuildTLAS(std::map<engine::Mesh*, ComPtr<ID3D12Resource>>
 
 	// Create an instance desc for the bottom-level acceleration structure.
 	intrusive_ptr<x12::ICoreBuffer> instanceDescsBuffer;
-	std::vector<D3D12_RAYTRACING_INSTANCE_DESC> instanceDesc(topLevelInstances);
+	std::vector<D3D12_RAYTRACING_INSTANCE_DESC> instanceDesc(blases.size());
 
-	for (int i = 0; i < models.size(); ++i)
+	UINT contribIndex = 0;
+	for (int i = 0; i < blases.size(); ++i)
 	{
-		TransformToDxr(instanceDesc[i].Transform, models[i]->GetWorldTransform());
+		TransformToDxr(instanceDesc[i].Transform, blases[i].transform);
 		instanceDesc[i].InstanceMask = 1;
 		instanceDesc[i].InstanceID = 0;
-		instanceDesc[i].InstanceContributionToHitGroupIndex = i;
-		instanceDesc[i].AccelerationStructure = BLASes[models[i]->GetMesh()]->GetGPUVirtualAddress();
+		instanceDesc[i].InstanceContributionToHitGroupIndex = contribIndex;
+		instanceDesc[i].AccelerationStructure = blases[i].resource->GetGPUVirtualAddress();
+
+		contribIndex += blases[i].instances;
 	}
 
-	for (int i = 0; i < areaLights.size(); ++i)
-	{
-		TransformToDxr(instanceDesc[i + models.size()].Transform, areaLights[i]->GetWorldTransform());
-		instanceDesc[i+ models.size()].InstanceMask = 1;
-		instanceDesc[i+ models.size()].InstanceID = 0;
-		instanceDesc[i+ models.size()].InstanceContributionToHitGroupIndex = i + models.size();
-		instanceDesc[i+ models.size()].AccelerationStructure = BLASes[plane]->GetGPUVirtualAddress();
-	}
-
-	engine::GetCoreRenderer()->CreateStructuredBuffer(instanceDescsBuffer.getAdressOf(), L"instance desc for the top-level acceleration structure", sizeof(D3D12_RAYTRACING_INSTANCE_DESC), topLevelInstances, &instanceDesc[0], x12::BUFFER_FLAGS::NONE);
+	engine::GetCoreRenderer()->CreateStructuredBuffer(instanceDescsBuffer.getAdressOf(), L"instance desc for the top-level acceleration structure", sizeof(D3D12_RAYTRACING_INSTANCE_DESC), instanceDesc.size(), &instanceDesc[0], x12::BUFFER_FLAGS::NONE);
 
 	D3D12_RESOURCE_STATES initialResourceState = D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE;
 	AllocateUAVBuffer(m_dxrDevice, topLevelPrebuildInfo.ResultDataMaxSizeInBytes, &TLAS, initialResourceState, L"TopLevelAccelerationStructure");

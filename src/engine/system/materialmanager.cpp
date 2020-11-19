@@ -10,6 +10,9 @@ static std::unordered_map<std::string, engine::Material*> materials;
 
 auto X12_API engine::MaterialManager::LoadMaterial(const char* path) -> Material*
 {
+	if (!engine::GetFS()->FileExist(path))
+		return nullptr;
+
 	auto mat = new Material(path);
 	mat->LoadYAML();
 	materials[mat->GetName()] = mat;
@@ -21,12 +24,22 @@ auto X12_API engine::MaterialManager::FindMaterial(const char* name) -> Material
 	auto it = materials.find(name);
 	if (it != materials.end())
 		return it->second;
-	return nullptr;
+
+	auto l = LoadMaterial(name);
+
+	return l;
 }
 
 auto X12_API engine::MaterialManager::CreateMaterial(const char* path) -> Material*
 {
-	return nullptr;
+	auto mat = new Material(path);
+	materials[mat->GetName()] = mat;
+	return mat;
+}
+
+auto X12_API engine::MaterialManager::GetDefaultMaterial() -> Material*
+{
+	return defaultMat;
 }
 
 auto engine::MaterialManager::Free() -> void
@@ -38,7 +51,10 @@ auto engine::MaterialManager::Free() -> void
 
 void engine::MaterialManager::Init()
 {
-	std::vector<std::string> paths = GetFS()->FilterPaths("materials", ".yaml");
+	defaultMat = CreateMaterial("___default_material");
+	//defaultMat->SetValue(Material::Params::Albedo, math::vec4(1, 0, 0, 1));
+
+	std::vector<std::string> paths = GetFS()->FilterPaths("materials", ".mat");
 
 	for (auto& p : paths)
 	{

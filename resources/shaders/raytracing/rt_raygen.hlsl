@@ -70,7 +70,7 @@ void RayGen()
         // the SBT in the same order as they are added in the AS, in which case
         // the value below represents the stride (4 bits representing the number
         // of hit groups) between two consecutive objects.
-        0,
+        1,
     
         // Parameter name: MissShaderIndex
         // Index of the miss shader to use in case several consecutive miss

@@ -76,52 +76,6 @@ auto X12_API Texture::GetCoreTexture() -> x12::ICoreTexture *
 {
 	return coreTexture_.get();
 }
-/*
-auto X12_API Texture::GetVideoMemoryUsage() -> size_t
-{
-	if (!coreTexture_)
-		return 0;
-
-	return coreTexture_->GetVideoMemoryUsage();
-}
-
-auto X12_API Texture::GetWidth() -> int
-{
-	return coreTexture_->GetWidth();
-}
-
-auto X12_API Texture::GetHeight() -> int
-{
-	return coreTexture_->GetHeight();
-}
-
-auto X12_API Texture::GetMipmaps() -> int
-{
-	return coreTexture_->GetMipmaps();
-}
-
-auto X12_API Texture::ReadPixel2D(void *data, int x, int y) -> int
-{
-	return coreTexture_->ReadPixel2D(data, x, y);
-}
-
-auto X12_API Texture::GetData(uint8_t* pDataOut, size_t length) -> void
-{
-	return coreTexture_->GetData(pDataOut, length);
-}
-
-auto X12_API Texture::CreateMipmaps() -> void
-{
-	coreTexture_->CreateMipmaps();
-}*/
-
-struct MipmapGenerationResult
-{
-	std::unique_ptr<uint8_t[]> rgbaBuffer;
-	uint32_t mipmaps;
-	int width, height;
-	size_t bufferInBytes;
-};
 
 #pragma pack(push,1)
 
@@ -638,12 +592,12 @@ std::unique_ptr<uint8_t[]> convertRGBtoRGBA(const uint8_t* dataIn, uint32_t w, u
 	return std::move(newData);
 }
 /*
-static MipmapGenerationResult generateMipmapsGPU(uint width, uint height, const uint8_t* rbgaBufferIn)
+static TextureData generateMipmapsGPU(uint32_t width, uint32_t height, const uint8_t* rbgaBufferIn)
 {
 	const size_t baseSize = (size_t)width * height * 4;
 
-	uint w = width;
-	uint h = height;
+	uint32_t w = width;
+	uint32_t h = height;
 	size_t offset = baseSize;
 	uint32_t mipmaps = 1;
 
@@ -652,8 +606,8 @@ static MipmapGenerationResult generateMipmapsGPU(uint width, uint height, const 
 
 	while (w > 1 || h > 1)
 	{
-		w = max(1u, w / 2);
-		h = max(1u, h / 2);
+		w = math::max_(1u, w / 2);
+		h = math::max_(1u, h / 2);
 		++mipmaps;
 		bufferInBytes += (size_t)w * h * 4;
 	}
@@ -669,15 +623,15 @@ static MipmapGenerationResult generateMipmapsGPU(uint width, uint height, const 
 
 	const uint8_t* bufferIn = buffer.get();
 
-	for (uint mip = 1; mip < mipmaps; ++mip)
+	for (uint32_t mip = 1; mip < mipmaps; ++mip)
 	{
 		ICoreTexture* coreTexIn = CORE_RENDER->CreateTexture(bufferIn, w, h, TEXTURE_TYPE::TYPE_2D, TEXTURE_FORMAT::RGBA8, TEXTURE_CREATE_FLAGS::NONE, false);
 		unique_ptr<Texture> texIn(new Texture(unique_ptr<ICoreTexture>(coreTexIn)));
 		Texture* texsIn[] = { texIn.get() };
 		CORE_RENDER->BindTextures(1, texsIn, BIND_TETURE_FLAGS::COMPUTE);
 
-		uint newWidth = max(1u, w / 2);
-		uint newHeight = max(1u, h / 2);
+		uint32_t newWidth = max(1u, w / 2);
+		uint32_t newHeight = max(1u, h / 2);
 
 		vector<string> defines;
 
@@ -703,7 +657,7 @@ static MipmapGenerationResult generateMipmapsGPU(uint width, uint height, const 
 			Texture* uavs[] = { texOut.get() };
 			CORE_RENDER->CSBindUnorderedAccessTextures(1, uavs);
 
-			constexpr uint warpSize = 16;
+			constexpr uint32_t warpSize = 16;
 			int numGroupsX = (w + (warpSize - 1)) / warpSize;
 			int numGroupsY = (h + (warpSize - 1)) / warpSize;
 
@@ -724,7 +678,7 @@ static MipmapGenerationResult generateMipmapsGPU(uint width, uint height, const 
 
 	CORE_RENDER->PopStates();
 
-	MipmapGenerationResult ret;
+	TextureData ret;
 	ret.mipmaps = mipmaps;
 	ret.rgbaBuffer = std::move(buffer);
 	ret.width = width;
@@ -733,11 +687,12 @@ static MipmapGenerationResult generateMipmapsGPU(uint width, uint height, const 
 
 	return ret;
 }
+*/
 
-static void saveDDS(const MipmapGenerationResult& mipmaped, const char* fullPathSrc)
+void engine::saveDDS(const engine::TextureData& data, const char* path)
 {
 	size_t headerInBytes = sizeof(uint32_t) + sizeof(DDS_HEADER);
-	size_t ddsFileInBytes = headerInBytes + mipmaped.bufferInBytes;
+	size_t ddsFileInBytes = headerInBytes + data.bufferInBytes;
 
 	unique_ptr<uint8_t[]> ddsImage(new uint8_t[ddsFileInBytes]);
 
@@ -747,9 +702,9 @@ static void saveDDS(const MipmapGenerationResult& mipmaped, const char* fullPath
 	DDS_HEADER* header = reinterpret_cast<DDS_HEADER*>(ddsImage.get() + 4);
 	header->size = sizeof(DDS_HEADER);
 	header->ddspf.size = sizeof(DDS_PIXELFORMAT);
-	header->mipMapCount = mipmaped.mipmaps;
-	header->width = mipmaped.width;
-	header->height = mipmaped.height;
+	header->mipMapCount = data.mipmaps;
+	header->width = data.width;
+	header->height = data.height;
 	header->depth = 1;
 
 	DDS_PIXELFORMAT* ddpf = &header->ddspf;
@@ -760,19 +715,19 @@ static void saveDDS(const MipmapGenerationResult& mipmaped, const char* fullPath
 	ddpf->BBitMask = 0x00FF0000;
 	ddpf->ABitMask = 0xFF000000;
 
-	uint8* imageData = ddsImage.get() + headerInBytes;
-	memcpy(imageData, mipmaped.rgbaBuffer.get(), mipmaped.bufferInBytes);
+	uint8_t* imageData = ddsImage.get() + headerInBytes;
+	memcpy(imageData, data.rgbaBuffer, data.bufferInBytes);
 
-	auto filename = FS->GetFileName(fullPathSrc, false);
-	string p = RES_MAN->GetImportMeshDir() + '\\' + filename + ".dds";
+	//auto filename = GetFS()->GetFileName(path, false);
+	std::string p = std::string(path) + ".dds";
 
-	File f = FS->OpenFile(p.c_str(), FILE_OPEN_MODE::WRITE | FILE_OPEN_MODE::BINARY);
+	File f = GetFS()->OpenFile(p.c_str(), FILE_OPEN_MODE::WRITE | FILE_OPEN_MODE::BINARY);
 
 	f.Write(ddsImage.get(), ddsFileInBytes);
 
 	Log("Saved to '%s'", p.c_str());
 }
-
+/*
 void importJPEG(const char* fullPath)
 {
 	File file = FS->OpenFile(fullPath, FILE_OPEN_MODE::READ | FILE_OPEN_MODE::BINARY);
@@ -805,16 +760,16 @@ void importJPEG(const char* fullPath)
 	jpeg_start_decompress(&cinfo);
 
 	auto rowspan = cinfo.image_width * cinfo.out_color_components;
-	const uint width = cinfo.image_width;
-	const uint height = cinfo.image_height;
+	const uint32_t width = cinfo.image_width;
+	const uint32_t height = cinfo.image_height;
 
 	unique_ptr<uint8_t[]> output(new uint8[rowspan * (size_t)height]);
 	uint8** row_ptr = new uint8 * [height];
 
-	for (uint i = 0; i < height; ++i)
+	for (uint32_t i = 0; i < height; ++i)
 		row_ptr[i] = &output[i * rowspan];
 
-	uint rowsRead = 0;
+	uint32_t rowsRead = 0;
 
 	while (cinfo.output_scanline < cinfo.output_height)
 		rowsRead += jpeg_read_scanlines(&cinfo, &row_ptr[rowsRead], cinfo.output_height - rowsRead);
@@ -829,7 +784,7 @@ void importJPEG(const char* fullPath)
 	unique_ptr<const uint8_t[]> outputRGBA = convertRGBtoRGBA(output.get(), width, height, false, false);
 	output = nullptr;
 
-	MipmapGenerationResult mipmaps = generateMipmapsGPU(width, height, outputRGBA.get());
+	TextureData mipmaps = generateMipmapsGPU(width, height, outputRGBA.get());
 
 	saveDDS(mipmaps, fullPath);
 }
@@ -954,7 +909,7 @@ void importPNG(const char* path)
 	uint8_t* data = new uint8_t[(size_t)height * pitch];
 	uint8_t* offset = data;
 
-	for (uint i = 0; i < height; ++i)
+	for (uint32_t i = 0; i < height; ++i)
 	{
 		row_pointers[i] = offset;
 		offset += pitch;
@@ -975,7 +930,7 @@ void importPNG(const char* path)
 	png_destroy_read_struct(&png_ptr, &info_ptr, 0);
 	delete[] row_pointers;
 
-	MipmapGenerationResult mipmapedBuffer;
+	TextureData mipmapedBuffer;
 
 	// RGB -> RGBA
 	if (color_type == PNG_COLOR_TYPE_RGB)
@@ -990,5 +945,4 @@ void importPNG(const char* path)
 
 	saveDDS(mipmapedBuffer, path);
 }
-
 */
