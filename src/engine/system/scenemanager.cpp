@@ -7,6 +7,8 @@
 #include "light.h"
 #include "filesystem.h"
 #include "cpp_hlsl_shared.h"
+#include "console.h"
+#include "render.h"
 
 #include "yaml-cpp/yaml.h"
 
@@ -14,6 +16,16 @@ using engine::GameObject;
 using engine::Model;
 using engine::Camera;
 using engine::Light;
+
+namespace {
+	static struct CommandEmplacer
+	{
+		CommandEmplacer()
+		{
+			engine::RegisterConsoleCommand("load", engine::SceneManager::LoadSceneCommand);
+		}
+	}c;
+}
 
 
 void engine::SceneManager::Update(float dt)
@@ -93,6 +105,14 @@ engine::SceneManager::~SceneManager()
 	destroyObjects();
 }
 
+void engine::SceneManager::LoadSceneCommand(const char* arg)
+{
+	GetRender()->WaitForGpuAll();
+	engine::GetCoreRenderer()->WaitGPUAll();
+	GetSceneManager()->DestroyObjects();
+	GetSceneManager()->LoadScene(arg);
+}
+
 auto engine::SceneManager::CloneObject(GameObject* obj) -> GameObject*
 {
 	GameObject* ret = obj->Clone();
@@ -166,6 +186,7 @@ auto X12_API engine::SceneManager::LoadScene(const char* name) -> void
 	if (ext == "yaml")
 	{
 		loadSceneYAML(name);
+		onSceneLoaded.Invoke();
 	}
 	else
 	{
@@ -277,7 +298,7 @@ void engine::SceneManager::createLightsGPUBuffer()
 	using namespace math;
 
 	std::vector<Light*> lights;
-	getObjectsOfType(lights, OBJECT_TYPE::LIGHT);
+	GetObjectsOfType(lights, OBJECT_TYPE::LIGHT);
 
 	std::vector<engine::Shaders::Light> lightsData;
 	lightsData.resize(lights.size());

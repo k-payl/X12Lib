@@ -18,6 +18,7 @@ namespace engine
 	X12_API ResourceManager*		GetResourceManager();
 	X12_API MaterialManager*		GetMaterialManager();
 	X12_API Console*				GetConsole();
+	X12_API Render*					GetRender();
 	X12_API void					Log(const char* str);
 
 	enum class INIT_FLAGS
@@ -121,6 +122,7 @@ namespace engine
 		ResourceManager* GetResourceManager() { return resourceManager.get(); }
 		MaterialManager* GetMaterialManager() { return matManager.get(); }
 		Console* GetConsole() { return console.get(); }
+		Render* GetRender() { return render.get(); }
 
 		template<class T, typename... Arguments>
 		void _Log(T a, Arguments ...args)

@@ -4,7 +4,6 @@ cmake_minimum_required (VERSION 3.4.3)
 # "C:\Program Files\CMake\bin\cmake.exe" -G "Visual Studio 16 2019" ../
 
 # Options:
-# RAYTRACING_SAMPLE_ENABLE
 # VK_ENABLE
 # TESTS_ENABLE
 
@@ -118,6 +117,7 @@ endif()
 target_precompile_headers(engine PRIVATE src/engine/system/pch.h)
 target_link_libraries(engine ${ENGINE_LIBS})
 target_link_libraries(engine yaml-cpp)
+target_link_libraries(engine dxcompiler)
 target_compile_definitions(engine PUBLIC _DLL_EXPORTS)
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /SUBSYSTEM:WINDOWS")
 
@@ -133,8 +133,21 @@ target_include_directories(engine_main PRIVATE
 	resources/shaders
 	3rdparty/d3dx12)
 target_link_libraries(engine_main engine)
+target_link_libraries(engine_main dxcompiler)
 target_compile_features(engine_main PRIVATE cxx_std_17)
 set_property(TARGET engine_main PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/build")
+# copy dxcompiler.dll for raytracing
+add_custom_command(TARGET engine_main POST_BUILD
+	COMMAND ${CMAKE_COMMAND} -E copy_if_different
+	"${DXC_PATH}"
+	$<TARGET_FILE_DIR:engine_main>)
+
+# copy dxil.dll for raytracing
+add_custom_command(TARGET engine_main POST_BUILD
+	COMMAND ${CMAKE_COMMAND} -E copy_if_different
+	"${DXIL_PATH}"
+	$<TARGET_FILE_DIR:engine_main>)
+
 
 # constbuffer example
 add_executable(constantbuffers src/examples/constantbuffers.cpp)
@@ -164,34 +177,6 @@ target_include_directories(gltfmeshexporter PRIVATE
 target_link_libraries(gltfmeshexporter yaml-cpp)
 target_link_libraries(gltfmeshexporter engine)
 set_property(TARGET gltfmeshexporter PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/build")
-
-# raytracing
-if (RAYTRACING_SAMPLE_ENABLE)
-	add_executable(raytracing src/examples/raytracing.cpp src/examples/raytracing_utils.cpp)
-	target_include_directories(raytracing PRIVATE
-	include/engine/system
-	include/engine/x12
-	include/engine/x12/d3d12
-	include/math
-	resources/shaders
-	3rdparty/d3dx12)
-	
-	target_link_libraries(raytracing engine)
-	target_link_libraries(raytracing dxcompiler)
-	set_property(TARGET raytracing PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/build")
-
-	# copy dxcompiler.dll for raytracing
-	add_custom_command(TARGET raytracing POST_BUILD
-		COMMAND ${CMAKE_COMMAND} -E copy_if_different
-		"${DXC_PATH}"
-		$<TARGET_FILE_DIR:raytracing>)
-
-	# copy dxil.dll for raytracing
-	add_custom_command(TARGET raytracing POST_BUILD
-		COMMAND ${CMAKE_COMMAND} -E copy_if_different
-		"${DXIL_PATH}"
-		$<TARGET_FILE_DIR:raytracing>)
-endif()
 
 # test
 if (TESTS_ENABLE)

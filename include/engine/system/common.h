@@ -139,10 +139,12 @@ typedef uint64_t psomap_checksum_t;
 typedef void (*WindowCallback)(HWND, engine::WINDOW_MESSAGE, uint32_t, uint32_t, void*);
 typedef void (*RenderProcedure)();
 typedef void (*InitProcedure)();
+typedef void (*VoidProcedure)();
 typedef void (*InitRendererProcedure)(void*);
 typedef void (*UpdateProcedure)(float dt);
 typedef void (*FreeProcedure)();
-typedef void (*ConsoleCallback)();
+typedef void (*ConsoleCallback)(const char *arg);
+typedef void (*ObjectCallback)(engine::GameObject*);
 
 typedef HWND WindowHandle;
 

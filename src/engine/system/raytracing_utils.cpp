@@ -8,6 +8,7 @@
 #include "light.h"
 #include "cpp_hlsl_shared.h"
 #include "scenemanager.h"
+#include "render.h"
 
 #include "d3d12/dx12buffer.h"
 
@@ -19,9 +20,6 @@
 #include <algorithm>
 
 #define RAYTRACING_SHADER_DIR L"../resources/shaders/raytracing/"
-
-
-void WaitForGpu();
 
 static ID3D12Resource* scratchResource;
 static size_t scratchSize;
@@ -322,7 +320,7 @@ Microsoft::WRL::ComPtr<ID3D12Resource> BuildBLAS(const std::vector<engine::Mesh*
 		D3D12_GPU_VIRTUAL_ADDRESS gpuAddress = reinterpret_cast<x12::Dx12CoreBuffer*>(ms[i]->VertexBuffer())->GPUAddress();
 
 		geometryDesc[i].Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
-		geometryDesc[i].Triangles.IndexBuffer = 0;// reinterpret_cast<x12::Dx12CoreBuffer*>(res->m_indexBuffer.get())->GPUAddress();
+		geometryDesc[i].Triangles.IndexBuffer = 0;// reinterpret_cast<x12::Dx12CoreBuffer*>(rtx->m_indexBuffer.get())->GPUAddress();
 		geometryDesc[i].Triangles.IndexCount = 0;
 		geometryDesc[i].Triangles.IndexFormat; // DXGI_FORMAT_R16_UINT;
 		geometryDesc[i].Triangles.Transform3x4 = 0;
@@ -371,7 +369,7 @@ Microsoft::WRL::ComPtr<ID3D12Resource> BuildBLAS(const std::vector<engine::Mesh*
 	ID3D12CommandList* commandLists[] = { dxrCommandList };
 	commandQueue->ExecuteCommandLists(ARRAYSIZE(commandLists), commandLists);
 
-	WaitForGpu();
+	engine::GetRender()->WaitForGpu();
 
 	return bottomLevelAccelerationStructure;
 }
@@ -429,7 +427,8 @@ Microsoft::WRL::ComPtr<ID3D12Resource> BuildTLAS(std::vector<BLAS>& blases,
 	ID3D12CommandList* commandLists[] = { dxrCommandList };
 	commandQueue->ExecuteCommandLists(ARRAYSIZE(commandLists), commandLists);
 
-	WaitForGpu();
+	engine::GetRender()->WaitForGpu();
 
 	return TLAS; 
 }
+

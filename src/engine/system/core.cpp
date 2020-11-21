@@ -511,6 +511,11 @@ X12_API Console* engine::GetConsole()
 	return nullptr;
 }
 
+X12_API Render* engine::GetRender()
+{
+	return core__->GetRender();
+}
+
 X12_API void engine::Log(const char* str)
 {
 	core__->GetConsole()->OutputTxt(str);

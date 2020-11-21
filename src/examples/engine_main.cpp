@@ -13,8 +13,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPWSTR, _In_ int)
 	auto core = engine::CreateCore();
 	core->Init("", engine::INIT_FLAGS::HIGH_LEVEL_RENDER | VIDEO_API);
 
-	engine::GetSceneManager()->LoadScene("scene.yaml");
-	engine::GetMaterialManager()->LoadMaterial("materials//mesh.yaml");
+	engine::GetSceneManager()->LoadScene("sponza//sponza.yaml");
 
 	core->Start();
 	core->Free();

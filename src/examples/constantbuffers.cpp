@@ -25,7 +25,7 @@ static struct Resources
 	engine::StreamPtr<engine::Texture> tex;
 	engine::StreamPtr<engine::Mesh> teapot;
 	engine::StreamPtr<engine::Shader> shader;
-} *res;
+} *rtx;
 
 constexpr inline UINT float4chunks = 10;
 static HWND hwnd;
@@ -46,14 +46,14 @@ int APIENTRY wWinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPWSTR, _In_ int)
 	core->AddRenderProcedure(Render);
 	core->AddInitProcedure(Init);
 
-	res = new Resources();
+	rtx = new Resources();
 	core->Init("", VIDEO_API);
 	cam = engine::GetSceneManager()->CreateCamera();
 	hwnd = *core->GetWindow()->handle();
 
 	core->Start();
 
-	delete res;
+	delete rtx;
 
 	core->Free();
 	engine::DestroyCore(core);
@@ -78,13 +78,13 @@ void Render()
 	cmdList->SetViewport(w, h);
 	cmdList->SetScissor(0, 0, w, h);
 	GraphicPipelineState pso{};
-	pso.shader = res->shader.get()->GetCoreShader();
-	pso.vb = res->teapot.get()->RenderVertexBuffer();
+	pso.shader = rtx->shader.get()->GetCoreShader();
+	pso.vb = rtx->teapot.get()->RenderVertexBuffer();
 	pso.primitiveTopology = PRIMITIVE_TOPOLOGY::TRIANGLE;
 
 	cmdList->SetGraphicPipelineState(pso);
 
-	cmdList->SetVertexBuffer(res->teapot.get()->RenderVertexBuffer());
+	cmdList->SetVertexBuffer(rtx->teapot.get()->RenderVertexBuffer());
 
 	struct CamCB
 	{
@@ -95,19 +95,19 @@ void Render()
 	cam->GetModelViewProjectionMatrix(camc.MVP, aspect);
 	camc.cameraPos = cam->GetWorldPosition();
 
-	res->cameraBuffer->SetData(&camc, sizeof(mat4) + 16);
+	rtx->cameraBuffer->SetData(&camc, sizeof(mat4) + 16);
 
-	if (!res->cubeResources)
+	if (!rtx->cubeResources)
 	{
-		renderer->CreateResourceSet(res->cubeResources.getAdressOf(), res->shader.get()->GetCoreShader());
-		res->cubeResources->BindConstantBuffer("CameraCB", res->cameraBuffer.get());
-		res->cubeResources->BindTextueSRV("texture_", res->tex.get()->GetCoreTexture());
-		cmdList->CompileSet(res->cubeResources.get());
-		transformIdx = res->cubeResources->FindInlineBufferIndex("TransformCB");
-		shadingIdx = res->cubeResources->FindInlineBufferIndex("ShadingCB");
+		renderer->CreateResourceSet(rtx->cubeResources.getAdressOf(), rtx->shader.get()->GetCoreShader());
+		rtx->cubeResources->BindConstantBuffer("CameraCB", rtx->cameraBuffer.get());
+		rtx->cubeResources->BindTextueSRV("texture_", rtx->tex.get()->GetCoreTexture());
+		cmdList->CompileSet(rtx->cubeResources.get());
+		transformIdx = rtx->cubeResources->FindInlineBufferIndex("TransformCB");
+		shadingIdx = rtx->cubeResources->FindInlineBufferIndex("ShadingCB");
 	}
 
-	cmdList->BindResourceSet(res->cubeResources.get());
+	cmdList->BindResourceSet(rtx->cubeResources.get());
 
 	auto drawCubes = [cmdList](float x)
 	{
@@ -130,7 +130,7 @@ void Render()
 
 				cmdList->UpdateInlineConstantBuffer(shadingIdx, &shading, sizeof(vec4));
 
-				cmdList->Draw(res->teapot.get()->RenderVertexBuffer());
+				cmdList->Draw(rtx->teapot.get()->RenderVertexBuffer());
 			}
 		}
 	};
@@ -153,16 +153,16 @@ void Init()
 			"ShadingCB", CONSTANT_BUFFER_UPDATE_FRIQUENCY::PER_DRAW
 		};
 
-		res->shader = engine::GetResourceManager()->CreateGraphicShader(SHADER_DIR "mesh.hlsl", buffersdesc, _countof(buffersdesc));
+		rtx->shader = engine::GetResourceManager()->CreateGraphicShader(SHADER_DIR "mesh.hlsl", buffersdesc, _countof(buffersdesc));
 
 	}
-	renderer->CreateConstantBuffer(res->cameraBuffer.getAdressOf(), L"Camera constant buffer", sizeof(mat4) + 16);
+	renderer->CreateConstantBuffer(rtx->cameraBuffer.getAdressOf(), L"Camera constant buffer", sizeof(mat4) + 16);
 
-	res->tex = engine::GetResourceManager()->CreateStreamTexture(TEXTURES_DIR"chipped-paint-metal-albedo_3_512x512.dds", TEXTURE_CREATE_FLAGS::NONE);
-	res->tex.get(); // force load
+	rtx->tex = engine::GetResourceManager()->CreateStreamTexture(TEXTURES_DIR"chipped-paint-metal-albedo_3_512x512.dds", TEXTURE_CREATE_FLAGS::NONE);
+	rtx->tex.get(); // force load
 
-	res->teapot = engine::GetResourceManager()->CreateStreamMesh(MESH_DIR "Teapot.002.mesh");
-	res->teapot.get();
+	rtx->teapot = engine::GetResourceManager()->CreateStreamMesh(MESH_DIR "Teapot.002.mesh");
+	rtx->teapot.get();
 }
 
 

@@ -3,6 +3,7 @@
 
 #include <string>
 #include <sstream>
+#include <charconv>
 
 using std::string;
 using std::string;
@@ -284,11 +285,14 @@ void engine::Console::ExecuteCommand(const wchar_t* str)
 	OutputTxt(tmp.c_str());
 
 	int value = -1;
+	string valuestring;
 	string name_;
 	std::stringstream ss(tmp);
 
 	ss >> name_;
-	ss >> value;
+	ss >> valuestring;
+
+	std::from_chars(valuestring.data(), valuestring.data() + valuestring.size(), value);
 
 	if (ConsoleBoolVariable* v = const_cast<ConsoleBoolVariable*>(FindConsoleVariable(name_)))
 	{
@@ -296,7 +300,7 @@ void engine::Console::ExecuteCommand(const wchar_t* str)
 	}
 	else if (_ConsoleCommand *cmd = const_cast<_ConsoleCommand*>(FindCommand(name_)))
 	{
-		cmd->callback();
+		cmd->callback(valuestring.c_str());
 	}
 	else
 	{

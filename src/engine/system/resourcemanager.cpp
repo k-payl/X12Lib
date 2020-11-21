@@ -11,7 +11,7 @@ static std::unordered_map<std::string, MeshResource*> streamMeshesMap;
 static std::unordered_map<std::string, TextureResource*> streamTexturesMap;
 static std::unordered_map<std::string, ShaderResource*> shaders;
 
-static void ShadersReloadCommand();
+static void ShadersReloadCommand(const char* arg);
 
 namespace {
 	static struct CommandEmplacer
@@ -78,7 +78,7 @@ public:
 	}
 };
 
-static void ShadersReloadCommand()
+static void ShadersReloadCommand(const char* arg)
 {
 	for (auto& s : shaders)
 		s.second->Reload();
@@ -145,6 +145,6 @@ X12_API StreamPtr<Shader> engine::ResourceManager::CreateComputeShader(const cha
 
 X12_API auto engine::ResourceManager::ReloadShaders() -> void
 {
-	ShadersReloadCommand();
+	ShadersReloadCommand(nullptr);
 }
 

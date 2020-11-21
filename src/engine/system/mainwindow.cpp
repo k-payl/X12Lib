@@ -217,8 +217,20 @@ void engine::MainWindow::SendCloseMesage()
 	::PostMessage(hwnd, WM_CLOSE, 0, 0);
 }
 
+static RECT centerWindow(HWND parent_window, int width, int height)
+{
+	RECT rect;
+	GetClientRect(parent_window, &rect);
+	rect.left = (rect.right / 2) - (width / 2);
+	rect.top = (rect.bottom / 2) - (height / 2);
+	return rect;
+}
+
 void engine::MainWindow::Create()
 {
+	const int width = 1920;
+	const int height = 1080;
+
 	WNDCLASSEXW wcex = {};
 
 	wcex.cbSize = sizeof(WNDCLASSEX);
@@ -237,8 +249,10 @@ void engine::MainWindow::Create()
 	auto registered = RegisterClassExW(&wcex);
 	assert(registered != FALSE);
 
+	RECT rect = centerWindow(GetDesktopWindow(), width, height);
+
 	hwnd = CreateWindow(TEXT("Simple class name"), TEXT("Test"), WS_OVERLAPPEDWINDOW,
-		250, 200, 1920, 1080, nullptr, nullptr, GetModuleHandle(nullptr), nullptr);
+		rect.left, rect.top, width, height, nullptr, nullptr, GetModuleHandle(nullptr), nullptr);
 
 	ShowWindow(hwnd, SW_SHOW);
 	UpdateWindow(hwnd);
