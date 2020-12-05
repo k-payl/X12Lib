@@ -11,7 +11,7 @@ platform:
 - x86
 install:
 - git submodule update --init --recursive
-- ps: Start-FileDownload 'https://vulkan.lunarg.com/sdk/download/1.2.135.0/windows/VulkanSDK-1.2.135.0-Installer.exe?Human=true'
+- ps: Start-FileDownload 'https://sdk.lunarg.com/sdk/download/latest/windows/vulkan_sdk.exe'
 - cmd: VulkanSDK-1.2.135.0-Installer.exe /S
 - cmd: set VULKAN_SDK=C:\VulkanSDK\1.2.135.0
 build_script:
