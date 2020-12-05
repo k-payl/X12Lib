@@ -82,7 +82,7 @@ namespace engine {
 	class Console;
 	class GpuProfiler;
 	class FileSystem;
-	class Render;
+	class Renderer;
 	class SceneManager;
 	class ResourceManager;
 	struct GenericMaterial;

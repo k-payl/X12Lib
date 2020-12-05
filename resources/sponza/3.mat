@@ -1,0 +1,6 @@
+name: sponza//3.mat
+parameters:
+  - name: base_color
+    value: [1, 1, 1, 1]
+  - name: roughness
+    value: [1, 1, 1, 1]

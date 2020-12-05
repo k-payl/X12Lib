@@ -1,19 +1,30 @@
-#include "render.h"
+#include "renderer.h"
 #include "core.h"
+#include "camera.h"
+#include "model.h"
+#include "light.h"
+#include "material.h"
+#include "gameobject.h"
+#include "scenemanager.h"
+#include "resourcemanager.h"
+#include "materialmanager.h"
+#include "mesh.h"
+#include "mainwindow.h"
+#include "cpp_hlsl_shared.h"
+#include "d3d12/dx12buffer.h"
+#include "d3d12/dx12texture.h"
 
 using namespace engine;
 
 #define SizeOfInUint32(obj) ((sizeof(obj) - 1) / sizeof(UINT32) + 1)
 
-const wchar_t* raygenname = L"RayGen";
-
-const wchar_t* hitGroupName = L"HitGroup";
-const wchar_t* hitname = L"ClosestHit";
-const wchar_t* missname = L"Miss";
-
-const wchar_t* shadowHitGroupName = L"ShadowHitGroup";
-const wchar_t* shadowhitname = L"ShadowClosestHit";
-const wchar_t* shadowmissname = L"ShadowMiss";
+static const wchar_t* raygenname = L"RayGen";
+static const wchar_t* hitGroupName = L"HitGroup";
+static const wchar_t* hitname = L"ClosestHit";
+static const wchar_t* missname = L"Miss";
+static const wchar_t* shadowHitGroupName = L"ShadowHitGroup";
+static const wchar_t* shadowhitname = L"ShadowClosestHit";
+static const wchar_t* shadowmissname = L"ShadowMiss";
 
 #pragma pack(push, 1)
 struct HitArg
@@ -24,7 +35,7 @@ struct HitArg
 };
 #pragma pack(pop)
 
-UINT hitRecordSize()
+static UINT hitRecordSize()
 {
 	return x12::Align(D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES + sizeof(HitArg), D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT);
 }
@@ -82,7 +93,7 @@ namespace AccumulationRootSignatureParams {
 	};
 }
 
-void engine::Render::BindRaytracingResources()
+void engine::Renderer::BindRaytracingResources()
 {
 	// Bind root signature
 	dxrCommandList->SetComputeRootSignature(raytracingGlobalRootSignature.Get());
@@ -99,19 +110,19 @@ void engine::Render::BindRaytracingResources()
 	dx12buffer = static_cast<x12::Dx12CoreBuffer*>(rayInfoBuffer.get());
 	dxrCommandList->SetComputeRootUnorderedAccessView(GlobalRootSignatureParams::RayInfo, dx12buffer->GPUAddress());
 
-	dxrCommandList->SetComputeRootShaderResourceView(GlobalRootSignatureParams::AccelerationStructure, rtx->topLevelAccelerationStructure->GetGPUVirtualAddress());
+	dxrCommandList->SetComputeRootShaderResourceView(GlobalRootSignatureParams::AccelerationStructure, rtxScene->topLevelAccelerationStructure->GetGPUVirtualAddress());
 
-	dx12buffer = static_cast<x12::Dx12CoreBuffer*>(rtx->sceneBuffer.get());
+	dx12buffer = static_cast<x12::Dx12CoreBuffer*>(rtxScene->sceneBuffer.get());
 	dxrCommandList->SetComputeRootConstantBufferView(GlobalRootSignatureParams::SceneConstants, dx12buffer->GPUAddress());
 
 	dx12buffer = static_cast<x12::Dx12CoreBuffer*>(engine::GetSceneManager()->LightsBuffer());
 	if (dx12buffer)
 		dxrCommandList->SetComputeRootShaderResourceView(GlobalRootSignatureParams::LightStructuredBuffer, dx12buffer->GPUAddress());
 
-	dx12buffer = static_cast<x12::Dx12CoreBuffer*>(rtx->perInstanceBuffer.get());
+	dx12buffer = static_cast<x12::Dx12CoreBuffer*>(rtxScene->perInstanceBuffer.get());
 	dxrCommandList->SetComputeRootShaderResourceView(GlobalRootSignatureParams::TLASPerInstanceBuffer, dx12buffer->GPUAddress());
 
-	dx12buffer = static_cast<x12::Dx12CoreBuffer*>(rtx->materialsBuffer.get());
+	dx12buffer = static_cast<x12::Dx12CoreBuffer*>(rtxScene->materialsBuffer.get());
 	dxrCommandList->SetComputeRootShaderResourceView(GlobalRootSignatureParams::Materials, dx12buffer->GPUAddress());
 
 	dx12buffer = static_cast<x12::Dx12CoreBuffer*>(regroupedIndexesBuffer.get());
@@ -122,12 +133,68 @@ void engine::Render::BindRaytracingResources()
 
 }
 
-void engine::Render::Update()
+void engine::Renderer::CreateBuffers(UINT w, UINT h)
 {
+	GetCoreRenderer()->CreateStructuredBuffer(rayInfoBuffer.getAdressOf(), L"Ray info",
+		sizeof(Shaders::RayInfo), w * h, nullptr, x12::BUFFER_FLAGS::UNORDERED_ACCESS);
+
+	GetCoreRenderer()->CreateStructuredBuffer(regroupedIndexesBuffer.getAdressOf(), L"Regrouped indexes for secondary rays",
+		sizeof(uint32_t), w * h, nullptr, x12::BUFFER_FLAGS::UNORDERED_ACCESS);
+
+	GetCoreRenderer()->CreateStructuredBuffer(iterationRGBA32f.getAdressOf(), L"iterationRGBA32f",
+		sizeof(float[4]), w * h, nullptr, x12::BUFFER_FLAGS::UNORDERED_ACCESS);
+
+	GetCoreRenderer()->CreateStructuredBuffer(hitCointerBuffer.getAdressOf(), L"Hits count",
+		sizeof(uint32_t), 1, nullptr, x12::BUFFER_FLAGS::UNORDERED_ACCESS);
+
+	GetCoreRenderer()->CreateConstantBuffer(cameraBuffer.getAdressOf(), L"camera constant buffer",
+		sizeof(Shaders::Camera), false);
 }
-void engine::Render::RenderFrame(const ViewportData& viewport, const engine::CameraData& camera)
+
+void engine::Renderer::CreateIndirectBuffer(UINT w, UINT h)
 {
-	if (totalInstances == 0)
+	D3D12_INDIRECT_ARGUMENT_DESC arg{};
+	arg.Type = D3D12_INDIRECT_ARGUMENT_TYPE::D3D12_INDIRECT_ARGUMENT_TYPE_DISPATCH_RAYS;
+
+	D3D12_COMMAND_SIGNATURE_DESC desc{};
+	desc.NumArgumentDescs = 1;
+	desc.pArgumentDescs = &arg;
+	desc.ByteStride = sizeof(D3D12_DISPATCH_RAYS_DESC);
+
+	throwIfFailed(dxrDevice->CreateCommandSignature(&desc, nullptr, IID_PPV_ARGS(rtxScene->dxrSecondaryCommandIndirect.GetAddressOf())));
+
+	D3D12_DISPATCH_RAYS_DESC indirectData;
+	indirectData.HitGroupTable.StartAddress = rtxScene->hitGroupShaderTable_secondary->GetGPUVirtualAddress();
+	indirectData.HitGroupTable.SizeInBytes = rtxScene->hitGroupShaderTable_secondary->GetDesc().Width;
+	indirectData.HitGroupTable.StrideInBytes = hitRecordSize();
+	indirectData.MissShaderTable.StartAddress = rtxScene->missShaderTable_secondary->GetGPUVirtualAddress();
+	indirectData.MissShaderTable.SizeInBytes = rtxScene->missShaderTable_secondary->GetDesc().Width;
+	indirectData.MissShaderTable.StrideInBytes = 32;
+	indirectData.RayGenerationShaderRecord.StartAddress = rtxScene->rayGenShaderTable_secondary->GetGPUVirtualAddress();
+	indirectData.RayGenerationShaderRecord.SizeInBytes = rtxScene->rayGenShaderTable_secondary->GetDesc().Width;
+	indirectData.Width = w * h;
+	indirectData.Height = 1;
+	indirectData.Depth = 1;
+
+	GetCoreRenderer()->CreateStructuredBuffer(rtxScene->indirectArgBuffer.getAdressOf(), L"D3D12_DISPATCH_RAYS_DESC",
+		sizeof(D3D12_DISPATCH_RAYS_DESC), 1, &indirectData, x12::BUFFER_FLAGS::UNORDERED_ACCESS);
+}
+
+void engine::Renderer::Resize(UINT w, UINT h)
+{
+	GetCoreRenderer()->WaitGPUAll();
+	WaitForGpuAll();
+	width = w; height = h;
+	CreateRaytracingOutputResource(width, height);
+	CreateBuffers(width, height);
+	CreateIndirectBuffer(width, height);
+	needClearBackBuffer = true;
+	backBufferIndex = 0;
+}
+
+void engine::Renderer::RenderFrame(const ViewportData& viewport, const CameraData& camera)
+{
+	if (!rtxScene || rtxScene->totalInstances == 0)
 	{
 		x12::ICoreRenderer* renderer = GetCoreRenderer();
 		x12::surface_ptr surface = renderer->GetWindowSurface(*viewport.hwnd);
@@ -141,11 +208,11 @@ void engine::Render::RenderFrame(const ViewportData& viewport, const engine::Cam
 	}
 	else
 	{
-		ICoreRenderer* renderer = engine::GetCoreRenderer();
+		ICoreRenderer* renderer = GetCoreRenderer();
 		ID3D12CommandQueue* graphicQueue = reinterpret_cast<ID3D12CommandQueue*>(renderer->GetNativeGraphicQueue());
 
 		renderer->WaitGPU();
-		WaitForGpu();
+		WaitForGpu(backBufferIndex);
 
 		throwIfFailed(commandAllocators[backBufferIndex]->Reset());
 		throwIfFailed(dxrCommandList->Reset(commandAllocators[backBufferIndex].Get(), nullptr));
@@ -169,7 +236,7 @@ void engine::Render::RenderFrame(const ViewportData& viewport, const engine::Cam
 			{
 				cameraTransform = ViewInvMat_;
 
-				engine::Shaders::Camera cameraData;
+				Shaders::Camera cameraData;
 				memcpy(&cameraData.forward.x, &forwardWS, sizeof(vec3));
 				memcpy(&cameraData.right.x, &rightWS, sizeof(vec3));
 				memcpy(&cameraData.up.x, &upWS, sizeof(vec3));
@@ -202,13 +269,13 @@ void engine::Render::RenderFrame(const ViewportData& viewport, const engine::Cam
 				renderer->CreateResourceSet(clearResources.getAdressOf(), clearShader.get()->GetCoreShader());
 				clearResources->BindTextueSRV("tex", outputRGBA32fcoreWeakPtr.get());
 				cmdList->CompileSet(clearResources.get());
-				CameraBuffer = clearResources->FindInlineBufferIndex("CameraBuffer");
+				cameraBufferIndex = clearResources->FindInlineBufferIndex("CameraBuffer");
 			}
 
 			cmdList->BindResourceSet(clearResources.get());
 
 			uint32_t sizes[2] = { width, height };
-			cmdList->UpdateInlineConstantBuffer(CameraBuffer, &sizes, 8);
+			cmdList->UpdateInlineConstantBuffer(cameraBufferIndex, &sizes, 8);
 
 			{
 				constexpr int warpSize = 16;
@@ -219,7 +286,7 @@ void engine::Render::RenderFrame(const ViewportData& viewport, const engine::Cam
 
 			{
 				ID3D12GraphicsCommandList* d3dCmdList = (ID3D12GraphicsCommandList*)cmdList->GetNativeResource();
-				D3D12_RESOURCE_BARRIER preCopyBarriers[1] = { CD3DX12_RESOURCE_BARRIER::UAV(outputRGBA32f.Get()) };
+				D3D12_RESOURCE_BARRIER preCopyBarriers[1] = { CD3DX12_RESOURCE_BARRIER::UAV(outputTexture.Get()) };
 				d3dCmdList->ResourceBarrier(ARRAYSIZE(preCopyBarriers), preCopyBarriers);
 			}
 
@@ -227,7 +294,7 @@ void engine::Render::RenderFrame(const ViewportData& viewport, const engine::Cam
 			renderer->ExecuteCommandList(cmdList);
 
 			// Sync clear with RT
-			Sync(graphicQueue, rtxQueue, clearToRTFence);
+			Sync(graphicQueue, rtxQueue.Get(), clearToRTFence);
 
 			needClearBackBuffer = false;
 			frame = 0;
@@ -274,14 +341,14 @@ void engine::Render::RenderFrame(const ViewportData& viewport, const engine::Cam
 				// Do raytracing
 				{
 					D3D12_DISPATCH_RAYS_DESC dispatchDesc = {};
-					dispatchDesc.HitGroupTable.StartAddress = rtx->hitGroupShaderTable->GetGPUVirtualAddress();
-					dispatchDesc.HitGroupTable.SizeInBytes = rtx->hitGroupShaderTable->GetDesc().Width;
+					dispatchDesc.HitGroupTable.StartAddress = rtxScene->hitGroupShaderTable->GetGPUVirtualAddress();
+					dispatchDesc.HitGroupTable.SizeInBytes = rtxScene->hitGroupShaderTable->GetDesc().Width;
 					dispatchDesc.HitGroupTable.StrideInBytes = hitRecordSize();
-					dispatchDesc.MissShaderTable.StartAddress = rtx->missShaderTable->GetGPUVirtualAddress();
-					dispatchDesc.MissShaderTable.SizeInBytes = rtx->missShaderTable->GetDesc().Width;
+					dispatchDesc.MissShaderTable.StartAddress = rtxScene->missShaderTable->GetGPUVirtualAddress();
+					dispatchDesc.MissShaderTable.SizeInBytes = rtxScene->missShaderTable->GetDesc().Width;
 					dispatchDesc.MissShaderTable.StrideInBytes = 32;
-					dispatchDesc.RayGenerationShaderRecord.StartAddress = rtx->rayGenShaderTable->GetGPUVirtualAddress();
-					dispatchDesc.RayGenerationShaderRecord.SizeInBytes = rtx->rayGenShaderTable->GetDesc().Width;
+					dispatchDesc.RayGenerationShaderRecord.StartAddress = rtxScene->rayGenShaderTable->GetGPUVirtualAddress();
+					dispatchDesc.RayGenerationShaderRecord.SizeInBytes = rtxScene->rayGenShaderTable->GetDesc().Width;
 					dispatchDesc.Width = width * height;
 					dispatchDesc.Height = 1;
 					dispatchDesc.Depth = 1;
@@ -353,11 +420,11 @@ void engine::Render::RenderFrame(const ViewportData& viewport, const engine::Cam
 						}
 
 						//std::vector<uint32_t> d(width * height);
-						//rtx->regroupedIndexesBuffer->GetData(&d[0]);
+						//rtxScene->regroupedIndexesBuffer->GetData(&d[0]);
 						//std::sort(d.begin(), d.end());
 
 						//uint32_t d1;
-						//rtx->hitCointerBuffer->GetData(&d1);
+						//rtxScene->hitCointerBuffer->GetData(&d1);
 						//int y = 0;
 					}
 
@@ -370,14 +437,14 @@ void engine::Render::RenderFrame(const ViewportData& viewport, const engine::Cam
 						auto dx12buffer = static_cast<x12::Dx12CoreBuffer*>(hitCointerBuffer.get());
 						dxrCommandList->SetComputeRootShaderResourceView(0, dx12buffer->GPUAddress());
 
-						dx12buffer = static_cast<x12::Dx12CoreBuffer*>(rtx->indirectBuffer.get());
+						dx12buffer = static_cast<x12::Dx12CoreBuffer*>(rtxScene->indirectArgBuffer.get());
 						dxrCommandList->SetComputeRootUnorderedAccessView(1, dx12buffer->GPUAddress());
 
 						dxrCommandList->Dispatch(1, 1, 1);
 
-						// indirectBuffer Write->Read
+						// indirectArgBuffer Write->Read
 						{
-							auto dx12buffer = static_cast<x12::Dx12CoreBuffer*>(rtx->indirectBuffer.get());
+							auto dx12buffer = static_cast<x12::Dx12CoreBuffer*>(rtxScene->indirectArgBuffer.get());
 							D3D12_RESOURCE_BARRIER preCopyBarriers[1] = { CD3DX12_RESOURCE_BARRIER::UAV(dx12buffer->GetResource()) };
 							dxrCommandList->ResourceBarrier(ARRAYSIZE(preCopyBarriers), preCopyBarriers);
 						}
@@ -389,8 +456,8 @@ void engine::Render::RenderFrame(const ViewportData& viewport, const engine::Cam
 
 						BindRaytracingResources();
 
-						auto dx12buffer = static_cast<x12::Dx12CoreBuffer*>(rtx->indirectBuffer.get());
-						dxrCommandList->ExecuteIndirect(rtx->dxrSecondaryCommandIndirect.Get(), 1, dx12buffer->GetResource(), 0, nullptr, 0);
+						auto dx12buffer = static_cast<x12::Dx12CoreBuffer*>(rtxScene->indirectArgBuffer.get());
+						dxrCommandList->ExecuteIndirect(rtxScene->dxrSecondaryCommandIndirect.Get(), 1, dx12buffer->GetResource(), 0, nullptr, 0);
 					}
 				}
 
@@ -425,7 +492,7 @@ void engine::Render::RenderFrame(const ViewportData& viewport, const engine::Cam
 		}
 
 		// Sync RT with swapchain copy
-		Sync(rtxQueue, graphicQueue, rtToSwapchainFence);
+		Sync(rtxQueue.Get(), graphicQueue, rtToSwapchainFence);
 
 		// swapchain copy
 		{
@@ -449,7 +516,7 @@ void engine::Render::RenderFrame(const ViewportData& viewport, const engine::Cam
 				ID3D12GraphicsCommandList* d3dCmdList = (ID3D12GraphicsCommandList*)cmdList->GetNativeResource();
 
 				D3D12_RESOURCE_BARRIER preCopyBarriers[] = {
-					CD3DX12_RESOURCE_BARRIER::Transition(outputRGBA32f.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE),
+					CD3DX12_RESOURCE_BARRIER::Transition(outputTexture.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE),
 				};
 
 				d3dCmdList->ResourceBarrier(ARRAYSIZE(preCopyBarriers), preCopyBarriers);
@@ -470,7 +537,7 @@ void engine::Render::RenderFrame(const ViewportData& viewport, const engine::Cam
 				ID3D12GraphicsCommandList* d3dCmdList = (ID3D12GraphicsCommandList*)cmdList->GetNativeResource();
 
 				D3D12_RESOURCE_BARRIER preCopyBarriers[] = {
-					CD3DX12_RESOURCE_BARRIER::Transition(outputRGBA32f.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS),
+					CD3DX12_RESOURCE_BARRIER::Transition(outputTexture.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS),
 				};
 
 				d3dCmdList->ResourceBarrier(ARRAYSIZE(preCopyBarriers), preCopyBarriers);
@@ -480,72 +547,65 @@ void engine::Render::RenderFrame(const ViewportData& viewport, const engine::Cam
 			renderer->ExecuteCommandList(cmdList);
 		}
 
-		backBufferIndex = (backBufferIndex + 1) % engine::DeferredBuffers;
+		backBufferIndex = (backBufferIndex + 1) % DeferredBuffers;
 		frame++;
 	}
 }
 
-void engine::Render::InitFence(engine::Render::Fence& fence)
+void engine::Renderer::InitFence(Renderer::Fence& fence)
 {
-	for (int i = 0; i < engine::DeferredBuffers; i++)
+	for (int i = 0; i < DeferredBuffers; i++)
 	{
-		throwIfFailed(device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence.fence[i])));
+		throwIfFailed(dxrDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence.fence[i])));
 	}
 	fence.fenceValues[0]++;
 }
 
-void engine::Render::SignalFence(ID3D12CommandQueue* ToQueue, engine::Render::Fence& fence)
+void engine::Renderer::SignalFence(ID3D12CommandQueue* ToQueue, Renderer::Fence& fence)
 {
 	ToQueue->Signal(fence.fence[backBufferIndex].Get(), fence.fenceValues[backBufferIndex]);
 	fence.fenceValues[backBufferIndex]++;
 }
 
-void engine::Render::Sync(ID3D12CommandQueue* fromQueue, ID3D12CommandQueue* ToQueue, engine::Render::Fence& fence)
+void engine::Renderer::Sync(ID3D12CommandQueue* fromQueue, ID3D12CommandQueue* ToQueue, Renderer::Fence& fence)
 {
 	ToQueue->Signal(fence.fence[backBufferIndex].Get(), fence.fenceValues[backBufferIndex]);
 	ToQueue->Wait(fence.fence[backBufferIndex].Get(), fence.fenceValues[backBufferIndex]);
 	fence.fenceValues[backBufferIndex]++;
 }
 
-void engine::Render::WaitForGpu()
+void engine::Renderer::WaitForGpuCurrent()
+{
+	WaitForGpu(backBufferIndex);
+}
+
+void engine::Renderer::WaitForGpu(UINT index)
 {
 	// Schedule a Signal command in the GPU queue.
-	UINT64 fenceValue = frameEndFence.fenceValues[backBufferIndex];
-	if (SUCCEEDED(commandQueue->Signal(frameEndFence.fence[backBufferIndex].Get(), fenceValue)))
+	UINT64 fenceValue = frameEndFence.fenceValues[index];
+	if (SUCCEEDED(rtxQueue->Signal(frameEndFence.fence[index].Get(), fenceValue)))
 	{
 		// Wait until the Signal has been processed.
-		if (SUCCEEDED(frameEndFence.fence[backBufferIndex]->SetEventOnCompletion(fenceValue, event)))
+		if (SUCCEEDED(frameEndFence.fence[index]->SetEventOnCompletion(fenceValue, event)))
 		{
 			WaitForSingleObjectEx(event, INFINITE, FALSE);
 
 			// Increment the fence value for the current frame.
-			frameEndFence.fenceValues[backBufferIndex]++;
+			frameEndFence.fenceValues[index]++;
 		}
 	}
 }
 
-void engine::Render::WaitForGpuAll()
+void engine::Renderer::WaitForGpuAll()
 {
-	for (int i = 0; i < 3; i++)
+	for (UINT i = 0; i < DeferredBuffers; i++)
 	{
-		// Schedule a Signal command in the GPU queue.
-		UINT64 fenceValue = frameEndFence.fenceValues[i];
-		if (SUCCEEDED(commandQueue->Signal(frameEndFence.fence[i].Get(), fenceValue)))
-		{
-			// Wait until the Signal has been processed.
-			if (SUCCEEDED(frameEndFence.fence[i]->SetEventOnCompletion(fenceValue, event)))
-			{
-				WaitForSingleObjectEx(event, INFINITE, FALSE);
-
-				// Increment the fence value for the current frame.
-				frameEndFence.fenceValues[i]++;
-			}
-		}
+		WaitForGpu(i);
 	}
 }
 
 // Build Shader Tables
-void engine::Render::CreateShaderBindingTable(ComPtr<ID3D12StateObject> state, UINT totalInstances, ComPtr<ID3D12Resource>& r, ComPtr<ID3D12Resource>& h, ComPtr<ID3D12Resource>& m)
+void engine::Renderer::CreateShaderBindingTable(ComPtr<ID3D12StateObject> state, UINT totalInstances, ComPtr<ID3D12Resource>& r, ComPtr<ID3D12Resource>& h, ComPtr<ID3D12Resource>& m)
 {
 	void* rayGenShaderIdentifier;
 	void* missShaderIdentifier;
@@ -565,7 +625,7 @@ void engine::Render::CreateShaderBindingTable(ComPtr<ID3D12StateObject> state, U
 	{
 		UINT numShaderRecords = 1;
 
-		ShaderTable rayGenShaderTable(device, numShaderRecords, D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES, L"RayGenShaderTable");
+		ShaderTable rayGenShaderTable(dxrDevice.Get(), numShaderRecords, D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES, L"RayGenShaderTable");
 		rayGenShaderTable.push_back(ShaderRecord(rayGenShaderIdentifier, D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES));
 		r = rayGenShaderTable.GetResource();
 	}
@@ -575,7 +635,7 @@ void engine::Render::CreateShaderBindingTable(ComPtr<ID3D12StateObject> state, U
 		UINT numShaderRecords = 1;
 
 		UINT shaderRecordSize = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
-		ShaderTable missShaderTable(device, numShaderRecords, shaderRecordSize, L"MissShaderTable");
+		ShaderTable missShaderTable(dxrDevice.Get(), numShaderRecords, shaderRecordSize, L"MissShaderTable");
 		missShaderTable.push_back(ShaderRecord(missShaderIdentifier, shaderRecordSize));
 		m = missShaderTable.GetResource();
 	}
@@ -583,16 +643,16 @@ void engine::Render::CreateShaderBindingTable(ComPtr<ID3D12StateObject> state, U
 	// Hit group shader table
 	{
 		const UINT numShaderRecords = totalInstances;
-		ShaderTable hitGroupShaderTable(device, numShaderRecords, hitRecordSize(), L"HitGroupShaderTable");
+		ShaderTable hitGroupShaderTable(dxrDevice.Get(), numShaderRecords, hitRecordSize(), L"HitGroupShaderTable");
 
 		UINT offset = 0;
-		for (size_t i = 0; i < rtx->blases.size(); ++i)
+		for (size_t i = 0; i < rtxScene->blases.size(); ++i)
 		{
-			for (size_t j = 0; j < rtx->blases[i].instances; ++j)
+			for (size_t j = 0; j < rtxScene->blases[i].instances; ++j)
 			{
 				HitArg args;
 				args.offset = offset;
-				args.vertexBuffer = rtx->blases[i].vbs[j];
+				args.vertexBuffer = rtxScene->blases[i].vbs[j];
 
 				hitGroupShaderTable.push_back(ShaderRecord(hitGroupShaderIdentifier, D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES, &args, sizeof(HitArg)));
 
@@ -604,55 +664,57 @@ void engine::Render::CreateShaderBindingTable(ComPtr<ID3D12StateObject> state, U
 	}
 };
 
-void engine::Render::Free()
+void engine::Renderer::Free()
 {
-	rtx = nullptr;
-	WaitForGpu();
+	rtxScene = nullptr;
+	WaitForGpu(backBufferIndex);
 	FreeUtils();
 	::CloseHandle(event);
 }
 
-void engine::Render::OnLoadScene()
+void engine::Renderer::OnLoadScene()
 {
-	rtx = std::make_unique<engine::Render::RTXscene>();
+	rtxScene = std::make_unique<Renderer::RTXscene>();
 
-	cam = engine::GetSceneManager()->CreateCamera();
+	cam = GetSceneManager()->CreateCamera();
 
-	std::vector<engine::Model*> models;
-	engine::GetSceneManager()->GetObjectsOfType(models, engine::OBJECT_TYPE::MODEL);
+	needClearBackBuffer = true;
 
-	std::vector<engine::Light*> areaLights;
-	engine::GetSceneManager()->GetAreaLights(areaLights);
+	std::vector<Model*> models;
+	GetSceneManager()->GetObjectsOfType(models, OBJECT_TYPE::MODEL);
+
+	std::vector<Light*> areaLights;
+	GetSceneManager()->GetAreaLights(areaLights);
 
 	// BLASes
 	{
 		struct BLASmesh
 		{
-			engine::Mesh* mesh;
+			Mesh* mesh;
 			Microsoft::WRL::ComPtr<ID3D12Resource> resource;
 			math::mat4 transform;
-			engine::Material* material;
+			Material* material;
 		};
 
 		std::vector<BLASmesh> ms;
-		std::vector<engine::Material*> sceneMaterials;
+		std::vector<Material*> sceneMaterials;
 
 		for (size_t i = 0; i < models.size(); ++i)
 		{
-			engine::Mesh* m = models[i]->GetMesh();
+			Mesh* m = models[i]->GetMesh();
 			ms.push_back({ m, nullptr, models[i]->GetWorldTransform(), models[i]->GetMaterial() });
 		}
 
 		std::sort(ms.begin(), ms.end(), [](const BLASmesh& l, const BLASmesh& r) -> bool { return l.transform < r.transform; });
 
 		// Parallel arrays
-		std::vector<engine::Mesh*> blas_meshes;
-		std::vector<engine::Material*> blas_materials;
+		std::vector<Mesh*> blas_meshes;
+		std::vector<Material*> blas_materials;
 		std::vector<D3D12_GPU_VIRTUAL_ADDRESS> blas_meshesh_vb;
 
 		blas_meshes.push_back(ms[0].mesh);
 		blas_meshesh_vb.push_back(reinterpret_cast<x12::Dx12CoreBuffer*>(ms[0].mesh->VertexBuffer())->GPUAddress());
-		blas_materials.push_back(ms[0].material ? ms[0].material : engine::GetMaterialManager()->GetDefaultMaterial());
+		blas_materials.push_back(ms[0].material ? ms[0].material : GetMaterialManager()->GetDefaultMaterial());
 
 		assert(ms.size() > 0);
 
@@ -663,10 +725,10 @@ void engine::Render::OnLoadScene()
 			if (i == ms.size() - 1 || ms[i + 1].transform < t || t < ms[i + 1].transform)
 			{
 				// Create BLAS
-				auto resource = BuildBLAS(blas_meshes, m_dxrDevice, commandQueue.Get(), dxrCommandList.Get(), commandAllocators[backBufferIndex].Get());
+				auto resource = BuildBLAS(blas_meshes, dxrDevice.Get(), rtxQueue.Get(), dxrCommandList.Get(), commandAllocators[backBufferIndex].Get());
 
-				rtx->blases.push_back({ ms[i].transform, (UINT)blas_meshes.size(), resource, blas_meshesh_vb, blas_materials });
-				totalInstances += (UINT)blas_meshes.size();
+				rtxScene->blases.push_back({ ms[i].transform, (UINT)blas_meshes.size(), resource, blas_meshesh_vb, blas_materials });
+				rtxScene->totalInstances += (UINT)blas_meshes.size();
 
 				blas_meshes.clear();
 				blas_meshesh_vb.clear();
@@ -675,33 +737,33 @@ void engine::Render::OnLoadScene()
 
 			if (i < ms.size() - 1)
 			{
-				engine::Mesh* mesh = ms[i + 1].mesh;
+				Mesh* mesh = ms[i + 1].mesh;
 
 				blas_meshes.push_back(mesh);
 				blas_meshesh_vb.push_back(reinterpret_cast<x12::Dx12CoreBuffer*>(mesh->VertexBuffer())->GPUAddress());
-				blas_materials.push_back(ms[i + 1].material ? ms[i + 1].material : engine::GetMaterialManager()->GetDefaultMaterial());
+				blas_materials.push_back(ms[i + 1].material ? ms[i + 1].material : GetMaterialManager()->GetDefaultMaterial());
 			}
 		}
 	}
 
 	// TLAS
-	rtx->topLevelAccelerationStructure = BuildTLAS(rtx->blases, m_dxrDevice,
-		commandQueue.Get(), dxrCommandList.Get(), commandAllocators[backBufferIndex].Get());
+	rtxScene->topLevelAccelerationStructure = BuildTLAS(rtxScene->blases, dxrDevice.Get(),
+		rtxQueue.Get(), dxrCommandList.Get(), commandAllocators[backBufferIndex].Get());
 
 	// Materials
 	{
-		std::vector<engine::Texture*> sceneTextures;
-		std::unordered_map<engine::Texture*, UINT> textureToIndex;
+		std::vector<Texture*> sceneTextures;
+		std::unordered_map<Texture*, UINT> textureToIndex;
 
-		std::vector<engine::Material*> sceneMaterial;
-		std::vector<engine::Shaders::Material> sceneMaterialGPU;
-		std::unordered_map<engine::Material*, UINT> materialToIndex;
+		std::vector<Material*> sceneMaterial;
+		std::vector<Shaders::Material> sceneMaterialGPU;
+		std::unordered_map<Material*, UINT> materialToIndex;
 
-		for (size_t i = 0; i < rtx->blases.size(); ++i)
+		for (size_t i = 0; i < rtxScene->blases.size(); ++i)
 		{
-			for (size_t j = 0; j < rtx->blases[i].instances; ++j)
+			for (size_t j = 0; j < rtxScene->blases[i].instances; ++j)
 			{
-				engine::Material* mat = rtx->blases[i].materials[j];
+				Material* mat = rtxScene->blases[i].materials[j];
 
 				auto it = materialToIndex.find(mat);
 				if (it == materialToIndex.end())
@@ -709,11 +771,11 @@ void engine::Render::OnLoadScene()
 					materialToIndex[mat] = sceneMaterial.size();
 					sceneMaterial.push_back(mat);
 
-					engine::Shaders::Material gpuMaterial{};
-					gpuMaterial.albedo = mat->GetValue(engine::Material::Params::Albedo);
-					gpuMaterial.shading.x = mat->GetValue(engine::Material::Params::Roughness).x;
+					Shaders::Material gpuMaterial{};
+					gpuMaterial.albedo = mat->GetValue(Material::Params::Albedo);
+					gpuMaterial.shading.x = mat->GetValue(Material::Params::Roughness).x;
 
-					engine::Texture* texture = mat->GetTexture(engine::Material::Params::Albedo);
+					Texture* texture = mat->GetTexture(Material::Params::Albedo);
 
 					if (texture)
 					{
@@ -735,8 +797,8 @@ void engine::Render::OnLoadScene()
 			}
 		}
 
-		engine::GetCoreRenderer()->CreateStructuredBuffer(rtx->materialsBuffer.getAdressOf(), L"Materials",
-			sizeof(engine::Shaders::Material), sceneMaterialGPU.size(), &sceneMaterialGPU[0], x12::BUFFER_FLAGS::SHADER_RESOURCE);
+		GetCoreRenderer()->CreateStructuredBuffer(rtxScene->materialsBuffer.getAdressOf(), L"Materials",
+			sizeof(Shaders::Material), sceneMaterialGPU.size(), &sceneMaterialGPU[0], x12::BUFFER_FLAGS::SHADER_RESOURCE);
 
 		// Textures
 		{
@@ -747,84 +809,56 @@ void engine::Render::OnLoadScene()
 				D3D12_CPU_DESCRIPTOR_HANDLE cputextureHandle = dx12CoreTexure->GetSRV();
 				D3D12_CPU_DESCRIPTOR_HANDLE destCPU = CD3DX12_CPU_DESCRIPTOR_HANDLE(descriptorHeap->GetCPUDescriptorHandleForHeapStart(), 1 + i, descriptorSize);
 
-				device->CopyDescriptorsSimple(1, destCPU, cputextureHandle, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+				dxrDevice->CopyDescriptorsSimple(1, destCPU, cputextureHandle, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
 				if (!texturesHandle.ptr)
 					texturesHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(descriptorHeap->GetGPUDescriptorHandleForHeapStart(), 1, descriptorSize);
-
 			}
 		}
 
 		// Instances Data
-		std::vector<engine::Shaders::InstanceData> instancesData(totalInstances);
+		std::vector<Shaders::InstanceData> instancesData(rtxScene->totalInstances);
 
 		UINT offset = 0;
-		for (size_t i = 0; i < rtx->blases.size(); ++i)
+		for (size_t i = 0; i < rtxScene->blases.size(); ++i)
 		{
-			for (size_t j = 0; j < rtx->blases[i].instances; ++j)
+			for (size_t j = 0; j < rtxScene->blases[i].instances; ++j)
 			{
-				math::mat4 transform = rtx->blases[i].transform;
+				math::mat4 transform = rtxScene->blases[i].transform;
 				instancesData[offset].transform = transform;
 				instancesData[offset].normalTransform = transform.Inverse().Transpose();
 				instancesData[offset].emission = 0;
-				instancesData[offset].materialIndex = materialToIndex[rtx->blases[i].materials[j]];
+				instancesData[offset].materialIndex = materialToIndex[rtxScene->blases[i].materials[j]];
 				offset++;
 			}
 		}
 
-		engine::GetCoreRenderer()->CreateStructuredBuffer(rtx->perInstanceBuffer.getAdressOf(), L"TLAS per-instance data",
-			sizeof(engine::Shaders::InstanceData), instancesData.size(), &instancesData[0], x12::BUFFER_FLAGS::SHADER_RESOURCE);
+		GetCoreRenderer()->CreateStructuredBuffer(rtxScene->perInstanceBuffer.getAdressOf(), L"TLAS per-instance data",
+			sizeof(Shaders::InstanceData), instancesData.size(), &instancesData[0], x12::BUFFER_FLAGS::SHADER_RESOURCE);
 	}
 
 	// Scene buffer
 	{
-		engine::Shaders::Scene scene;
-		scene.instanceCount = totalInstances;
+		Shaders::Scene scene;
+		scene.instanceCount = rtxScene->totalInstances;
 		scene.lightCount = (uint32_t)areaLights.size();
 
-		engine::GetCoreRenderer()->CreateConstantBuffer(rtx->sceneBuffer.getAdressOf(), L"Scene data", sizeof(engine::Shaders::Scene), false);
-		rtx->sceneBuffer->SetData(&scene, sizeof(engine::Shaders::Scene));
+		GetCoreRenderer()->CreateConstantBuffer(rtxScene->sceneBuffer.getAdressOf(), L"Scene data", sizeof(Shaders::Scene), false);
+		rtxScene->sceneBuffer->SetData(&scene, sizeof(Shaders::Scene));
 	}
 
-	CreateShaderBindingTable(dxrPrimaryStateObject, totalInstances, rtx->rayGenShaderTable, rtx->hitGroupShaderTable, rtx->missShaderTable);
-	CreateShaderBindingTable(dxrSecondaryStateObject, totalInstances, rtx->rayGenShaderTable_secondary, rtx->hitGroupShaderTable_secondary, rtx->missShaderTable_secondary);
+	CreateShaderBindingTable(dxrPrimaryStateObject, rtxScene->totalInstances, rtxScene->rayGenShaderTable, rtxScene->hitGroupShaderTable, rtxScene->missShaderTable);
+	CreateShaderBindingTable(dxrSecondaryStateObject, rtxScene->totalInstances, rtxScene->rayGenShaderTable_secondary, rtxScene->hitGroupShaderTable_secondary, rtxScene->missShaderTable_secondary);
 
-
-	{
-		D3D12_INDIRECT_ARGUMENT_DESC arg{};
-		arg.Type = D3D12_INDIRECT_ARGUMENT_TYPE::D3D12_INDIRECT_ARGUMENT_TYPE_DISPATCH_RAYS;
-
-		D3D12_COMMAND_SIGNATURE_DESC desc{};
-		desc.NumArgumentDescs = 1;
-		desc.pArgumentDescs = &arg;
-		desc.ByteStride = sizeof(D3D12_DISPATCH_RAYS_DESC);
-
-		throwIfFailed(device->CreateCommandSignature(&desc, nullptr, IID_PPV_ARGS(rtx->dxrSecondaryCommandIndirect.GetAddressOf())));
-
-		D3D12_DISPATCH_RAYS_DESC indirectData;
-		indirectData.HitGroupTable.StartAddress = rtx->hitGroupShaderTable_secondary->GetGPUVirtualAddress();
-		indirectData.HitGroupTable.SizeInBytes = rtx->hitGroupShaderTable_secondary->GetDesc().Width;
-		indirectData.HitGroupTable.StrideInBytes = hitRecordSize();
-		indirectData.MissShaderTable.StartAddress = rtx->missShaderTable_secondary->GetGPUVirtualAddress();
-		indirectData.MissShaderTable.SizeInBytes = rtx->missShaderTable_secondary->GetDesc().Width;
-		indirectData.MissShaderTable.StrideInBytes = 32;
-		indirectData.RayGenerationShaderRecord.StartAddress = rtx->rayGenShaderTable_secondary->GetGPUVirtualAddress();
-		indirectData.RayGenerationShaderRecord.SizeInBytes = rtx->rayGenShaderTable_secondary->GetDesc().Width;
-		indirectData.Width = width * height;
-		indirectData.Height = 1;
-		indirectData.Depth = 1;
-
-		engine::GetCoreRenderer()->CreateStructuredBuffer(rtx->indirectBuffer.getAdressOf(), L"D3D12_DISPATCH_RAYS_DESC",
-			sizeof(D3D12_DISPATCH_RAYS_DESC), 1, &indirectData, x12::BUFFER_FLAGS::UNORDERED_ACCESS);
-	}
+	CreateIndirectBuffer(width, height);
 }
 
-void engine::Render::OnObjAdded()
+void engine::Renderer::OnSceneLoaded()
 {
 	GetRender()->OnLoadScene();
 }
 
-ComPtr<ID3D12StateObject> engine::Render::CreatePSO(ComPtr<IDxcBlob> r, ComPtr<IDxcBlob> h, ComPtr<IDxcBlob> m)
+ComPtr<ID3D12StateObject> engine::Renderer::CreatePSO(ComPtr<IDxcBlob> r, ComPtr<IDxcBlob> h, ComPtr<IDxcBlob> m)
 {
 	ComPtr<ID3D12StateObject> RTXPSO;
 
@@ -887,26 +921,27 @@ ComPtr<ID3D12StateObject> engine::Render::CreatePSO(ComPtr<IDxcBlob> r, ComPtr<I
 	PrintStateObjectDesc(raytracingPipeline);
 #endif
 	// Create the state object.
-	throwIfFailed(m_dxrDevice->CreateStateObject(raytracingPipeline, IID_PPV_ARGS(&RTXPSO)));
+	throwIfFailed(dxrDevice->CreateStateObject(raytracingPipeline, IID_PPV_ARGS(&RTXPSO)));
 
 	return RTXPSO;
 };
 
-void engine::Render::Init()
+void engine::Renderer::Init()
 {
-	GetSceneManager()->AddCallbackSceneLoaded(OnObjAdded);
+	GetSceneManager()->AddCallbackSceneLoaded(OnSceneLoaded);
 
-	engine::MainWindow* window = core__->GetWindow();
+	MainWindow* window = core__->GetWindow();
 	hwnd = *window->handle();
 
-	rtx = std::make_unique<engine::Render::RTXscene>();
+	planeMesh = GetResourceManager()->CreateStreamMesh("std#plane");
 
-	planeMesh = engine::GetResourceManager()->CreateStreamMesh("std#plane");
-
-	device = (ID3D12Device*)engine::GetCoreRenderer()->GetNativeDevice();
-
+	{
+		auto device = (ID3D12Device*)GetCoreRenderer()->GetNativeDevice();
+		throwIfFailed(device->QueryInterface(IID_PPV_ARGS(&dxrDevice)));
+	}
+	
 	D3D12_FEATURE_DATA_D3D12_OPTIONS5 opt5{};
-	throwIfFailed(device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS5, &opt5, sizeof(opt5)));
+	throwIfFailed(dxrDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS5, &opt5, sizeof(opt5)));
 
 	bool tier11 = opt5.RaytracingTier >= D3D12_RAYTRACING_TIER::D3D12_RAYTRACING_TIER_1_1;
 	if (opt5.RaytracingTier == D3D12_RAYTRACING_TIER_NOT_SUPPORTED)
@@ -916,17 +951,19 @@ void engine::Render::Init()
 	D3D12_COMMAND_QUEUE_DESC queueDesc = {};
 	queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
 	queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
-	throwIfFailed(device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&commandQueue)));
+	ComPtr<ID3D12CommandQueue> commandQueue;
+	throwIfFailed(dxrDevice->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&commandQueue)));
 	rtxQueue = commandQueue.Get();
 
 	// Create a command allocator for each back buffer that will be rendered to.
-	for (UINT n = 0; n < engine::DeferredBuffers; n++)
+	for (UINT n = 0; n < DeferredBuffers; n++)
 	{
-		throwIfFailed(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&commandAllocators[n])));
+		throwIfFailed(dxrDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&commandAllocators[n])));
 	}
 
 	// Create a command list for recording graphics commands.
-	throwIfFailed(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, commandAllocators[0].Get(), nullptr, IID_PPV_ARGS(&commandList)));
+	ComPtr<ID3D12GraphicsCommandList> commandList;
+	throwIfFailed(dxrDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, commandAllocators[0].Get(), nullptr, IID_PPV_ARGS(&commandList)));
 	throwIfFailed(commandList->Close());
 
 	InitFence(rtToSwapchainFence);
@@ -935,21 +972,17 @@ void engine::Render::Init()
 
 	event = CreateEvent(nullptr, FALSE, FALSE, nullptr);
 
-	// DXR interfaces
-	throwIfFailed(device->QueryInterface(IID_PPV_ARGS(&dxrDevice)));
-	m_dxrDevice = dxrDevice.Get();
-
 	throwIfFailed(commandList->QueryInterface(IID_PPV_ARGS(&dxrCommandList)));
 
 	{
-		copyShader = engine::GetResourceManager()->CreateGraphicShader("../resources/shaders/copy.hlsl", nullptr, 0);
+		copyShader = GetResourceManager()->CreateGraphicShader("../resources/shaders/copy.hlsl", nullptr, 0);
 		copyShader.get();
 
 		const x12::ConstantBuffersDesc buffersdesc[1] =
 		{
 			"CameraBuffer",	CONSTANT_BUFFER_UPDATE_FRIQUENCY::PER_DRAW
 		};
-		clearShader = engine::GetResourceManager()->CreateComputeShader("../resources/shaders/clear.hlsl", &buffersdesc[0], 1);
+		clearShader = GetResourceManager()->CreateComputeShader("../resources/shaders/clear.hlsl", &buffersdesc[0], 1);
 		clearShader.get();
 	}
 
@@ -983,18 +1016,18 @@ void engine::Render::Init()
 
 		CD3DX12_ROOT_SIGNATURE_DESC desc(ARRAYSIZE(rootParameters), rootParameters, 1, &sampler);
 
-		SerializeAndCreateRaytracingRootSignature(device, desc, &raytracingGlobalRootSignature);
+		SerializeAndCreateRaytracingRootSignature(dxrDevice.Get(), desc, &raytracingGlobalRootSignature);
 	}
 
 	// Local Root Signature
 	{
 		CD3DX12_ROOT_PARAMETER rootParameters[LocalRootSignatureParams::Count];
-		rootParameters[LocalRootSignatureParams::InstanceConstants].InitAsConstants(sizeof(engine::Shaders::InstancePointer) / 4, 2, 0);
+		rootParameters[LocalRootSignatureParams::InstanceConstants].InitAsConstants(sizeof(Shaders::InstancePointer) / 4, 2, 0);
 		rootParameters[LocalRootSignatureParams::VertexBuffer].InitAsShaderResourceView(2, 0);
 
 		CD3DX12_ROOT_SIGNATURE_DESC desc(ARRAYSIZE(rootParameters), rootParameters, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE);
 
-		SerializeAndCreateRaytracingRootSignature(device, desc, &raytracingLocalRootSignature);
+		SerializeAndCreateRaytracingRootSignature(dxrDevice.Get(), desc, &raytracingLocalRootSignature);
 	}
 
 	{
@@ -1012,28 +1045,14 @@ void engine::Render::Init()
 	dxrPrimaryStateObject = CreatePSO(raygen, hit, miss);
 	dxrSecondaryStateObject = CreatePSO(raygen_secondary, hit_secondary, miss_secondary);
 
-	descriptorSize = CreateDescriptorHeap(device, descriptorHeap.GetAddressOf());
+	descriptorSize = CreateDescriptorHeap(dxrDevice.Get(), descriptorHeap.GetAddressOf());
 
 	int w, h;
 	window->GetClientSize(w, h);
 	width = w;
 	height = h;
 	CreateRaytracingOutputResource(w, h);
-
-	engine::GetCoreRenderer()->CreateStructuredBuffer(rayInfoBuffer.getAdressOf(), L"Ray info",
-		sizeof(engine::Shaders::RayInfo), w* h, nullptr, x12::BUFFER_FLAGS::UNORDERED_ACCESS);
-
-	engine::GetCoreRenderer()->CreateStructuredBuffer(regroupedIndexesBuffer.getAdressOf(), L"Regrouped indexes for secondary rays",
-		sizeof(uint32_t), w* h, nullptr, x12::BUFFER_FLAGS::UNORDERED_ACCESS);
-
-	engine::GetCoreRenderer()->CreateStructuredBuffer(iterationRGBA32f.getAdressOf(), L"iterationRGBA32f",
-		sizeof(float[4]), w* h, nullptr, x12::BUFFER_FLAGS::UNORDERED_ACCESS);
-
-	engine::GetCoreRenderer()->CreateStructuredBuffer(hitCointerBuffer.getAdressOf(), L"Hits count",
-		sizeof(uint32_t), 1, nullptr, x12::BUFFER_FLAGS::UNORDERED_ACCESS);
-
-	engine::GetCoreRenderer()->CreateConstantBuffer(cameraBuffer.getAdressOf(), L"camera constant buffer",
-		sizeof(engine::Shaders::Camera), false);
+	CreateBuffers(w, h);
 
 	// Clear RayInfo
 	{
@@ -1048,7 +1067,7 @@ void engine::Render::Init()
 			rootParameters[ClearRayInfoRootSignatureParams::Constant].InitAsConstants(1, 0);
 
 			CD3DX12_ROOT_SIGNATURE_DESC desc(ARRAYSIZE(rootParameters), rootParameters);
-			SerializeAndCreateRaytracingRootSignature(device, desc, &clearRayInfoRootSignature);
+			SerializeAndCreateRaytracingRootSignature(dxrDevice.Get(), desc, &clearRayInfoRootSignature);
 		}
 
 		// Create PSO
@@ -1056,7 +1075,7 @@ void engine::Render::Init()
 		desc.pRootSignature = clearRayInfoRootSignature.Get();
 		desc.CS = CD3DX12_SHADER_BYTECODE(v->GetBufferPointer(), v->GetBufferSize());
 
-		throwIfFailed(device->CreateComputePipelineState(&desc, IID_PPV_ARGS(clearRayInfoPSO.GetAddressOf())));
+		throwIfFailed(dxrDevice->CreateComputePipelineState(&desc, IID_PPV_ARGS(clearRayInfoPSO.GetAddressOf())));
 	}
 
 	// Regroup RayInfo
@@ -1073,7 +1092,7 @@ void engine::Render::Init()
 			rootParameters[RegroupRayInfoRootSignatureParams::RegroupedIndexesOut].InitAsUnorderedAccessView(1);
 
 			CD3DX12_ROOT_SIGNATURE_DESC desc(ARRAYSIZE(rootParameters), rootParameters);
-			SerializeAndCreateRaytracingRootSignature(device, desc, &regroupRayInfoRootSignature);
+			SerializeAndCreateRaytracingRootSignature(dxrDevice.Get(), desc, &regroupRayInfoRootSignature);
 		}
 
 		// Create PSO
@@ -1081,7 +1100,7 @@ void engine::Render::Init()
 		desc.pRootSignature = regroupRayInfoRootSignature.Get();
 		desc.CS = CD3DX12_SHADER_BYTECODE(v->GetBufferPointer(), v->GetBufferSize());
 
-		throwIfFailed(device->CreateComputePipelineState(&desc, IID_PPV_ARGS(regroupRayInfoPSO.GetAddressOf())));
+		throwIfFailed(dxrDevice->CreateComputePipelineState(&desc, IID_PPV_ARGS(regroupRayInfoPSO.GetAddressOf())));
 	}
 
 	// Clear hit counter
@@ -1095,7 +1114,7 @@ void engine::Render::Init()
 			rootParameters[0].InitAsUnorderedAccessView(0);
 
 			CD3DX12_ROOT_SIGNATURE_DESC desc(ARRAYSIZE(rootParameters), rootParameters);
-			SerializeAndCreateRaytracingRootSignature(device, desc, &clearHitCounterRootSignature);
+			SerializeAndCreateRaytracingRootSignature(dxrDevice.Get(), desc, &clearHitCounterRootSignature);
 		}
 
 		// Create PSO
@@ -1103,7 +1122,7 @@ void engine::Render::Init()
 		desc.pRootSignature = clearHitCounterRootSignature.Get();
 		desc.CS = CD3DX12_SHADER_BYTECODE(v->GetBufferPointer(), v->GetBufferSize());
 
-		throwIfFailed(device->CreateComputePipelineState(&desc, IID_PPV_ARGS(clearHitCounterPSO.GetAddressOf())));
+		throwIfFailed(dxrDevice->CreateComputePipelineState(&desc, IID_PPV_ARGS(clearHitCounterPSO.GetAddressOf())));
 	}
 
 	// Accumulation
@@ -1122,7 +1141,7 @@ void engine::Render::Init()
 			rootParameters[AccumulationRootSignatureParams::ResultBufferInOut].InitAsDescriptorTable(1, &UAVDescriptor);
 
 			CD3DX12_ROOT_SIGNATURE_DESC desc(ARRAYSIZE(rootParameters), rootParameters);
-			SerializeAndCreateRaytracingRootSignature(device, desc, &accumulationRootSignature);
+			SerializeAndCreateRaytracingRootSignature(dxrDevice.Get(), desc, &accumulationRootSignature);
 		}
 
 		// Create PSO
@@ -1130,7 +1149,7 @@ void engine::Render::Init()
 		desc.pRootSignature = accumulationRootSignature.Get();
 		desc.CS = CD3DX12_SHADER_BYTECODE(v->GetBufferPointer(), v->GetBufferSize());
 
-		throwIfFailed(device->CreateComputePipelineState(&desc, IID_PPV_ARGS(accumulationPSO.GetAddressOf())));
+		throwIfFailed(dxrDevice->CreateComputePipelineState(&desc, IID_PPV_ARGS(accumulationPSO.GetAddressOf())));
 	}
 
 	// Hits copy
@@ -1145,7 +1164,7 @@ void engine::Render::Init()
 			rootParameters[1].InitAsUnorderedAccessView(0);
 
 			CD3DX12_ROOT_SIGNATURE_DESC desc(ARRAYSIZE(rootParameters), rootParameters);
-			SerializeAndCreateRaytracingRootSignature(device, desc, &copyrHitCounterRootSignature);
+			SerializeAndCreateRaytracingRootSignature(dxrDevice.Get(), desc, &copyrHitCounterRootSignature);
 		}
 
 		// Create PSO
@@ -1153,7 +1172,7 @@ void engine::Render::Init()
 		desc.pRootSignature = copyrHitCounterRootSignature.Get();
 		desc.CS = CD3DX12_SHADER_BYTECODE(v->GetBufferPointer(), v->GetBufferSize());
 
-		throwIfFailed(device->CreateComputePipelineState(&desc, IID_PPV_ARGS(copyHitCounterPSO.GetAddressOf())));
+		throwIfFailed(dxrDevice->CreateComputePipelineState(&desc, IID_PPV_ARGS(copyHitCounterPSO.GetAddressOf())));
 	}
 
 	{
@@ -1177,26 +1196,26 @@ void engine::Render::Init()
 		desc.attributesCount = 1;
 		desc.attributes = &attr;
 
-		engine::GetCoreRenderer()->CreateVertexBuffer(plane.getAdressOf(), L"plane", planeVert, &desc, nullptr, nullptr, MEMORY_TYPE::GPU_READ);
+		GetCoreRenderer()->CreateVertexBuffer(plane.getAdressOf(), L"plane", planeVert, &desc, nullptr, nullptr, MEMORY_TYPE::GPU_READ);
 	}
 }
 
-void engine::Render::CreateRaytracingOutputResource(UINT width, UINT height)
+void engine::Renderer::CreateRaytracingOutputResource(UINT width, UINT height)
 {
 	// Create the output resource. The dimensions and format should match the swap-chain.
 	auto uavDesc = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R32G32B32A32_FLOAT, width, height, 1, 1, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
 	auto defaultHeapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
-	throwIfFailed(device->CreateCommittedResource(&defaultHeapProperties, D3D12_HEAP_FLAG_NONE, &uavDesc, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, nullptr, IID_PPV_ARGS(&outputRGBA32f)));
-	outputRGBA32f->SetName(L"raytracingOutput");
+	throwIfFailed(dxrDevice.Get()->CreateCommittedResource(&defaultHeapProperties, D3D12_HEAP_FLAG_NONE, &uavDesc, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, nullptr, IID_PPV_ARGS(&outputTexture)));
+	outputTexture->SetName(L"raytracingOutput");
 
 	UINT m_raytracingOutputResourceUAVDescriptorHeapIndex = 0;// AllocateDescriptor(&uavDescriptorHandle);
 	D3D12_CPU_DESCRIPTOR_HANDLE uavDescriptorHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(descriptorHeap->GetCPUDescriptorHandleForHeapStart(), m_raytracingOutputResourceUAVDescriptorHeapIndex, descriptorSize);
 
 	D3D12_UNORDERED_ACCESS_VIEW_DESC UAVDesc = {};
 	UAVDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
-	device->CreateUnorderedAccessView(outputRGBA32f.Get(), nullptr, &UAVDesc, uavDescriptorHandle);
+	dxrDevice.Get()->CreateUnorderedAccessView(outputTexture.Get(), nullptr, &UAVDesc, uavDescriptorHandle);
 	raytracingOutputResourceUAVGpuDescriptor = CD3DX12_GPU_DESCRIPTOR_HANDLE(descriptorHeap->GetGPUDescriptorHandleForHeapStart(), m_raytracingOutputResourceUAVDescriptorHeapIndex, descriptorSize);
 
-	engine::GetCoreRenderer()->CreateTextureFrom(outputRGBA32fcoreWeakPtr.getAdressOf(), L"Raytracing output", outputRGBA32f.Get());
+	GetCoreRenderer()->CreateTextureFrom(outputRGBA32fcoreWeakPtr.getAdressOf(), L"Raytracing output", outputTexture.Get());
 }

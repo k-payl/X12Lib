@@ -1,0 +1,7 @@
+name: sponza//8.mat
+parameters:
+  - name: base_color
+    value: [0.588, 0.588, 0.588, 1]
+    texture: sponza//19.dds
+  - name: roughness
+    value: [1, 1, 1, 1]

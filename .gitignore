@@ -9,7 +9,6 @@
 *.opensdf
 *.opendb
 *.7z
-*.mat
 *.obj
 *.idb
 *.ipdb

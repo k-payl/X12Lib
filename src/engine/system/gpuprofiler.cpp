@@ -67,7 +67,7 @@ void GpuProfiler::ProcessRecords()
 	}
 }
 
-void GpuProfiler::Render(void* c, int width, int height)
+void GpuProfiler::Renderer(void* c, int width, int height)
 {
 	w = width;
 	h = height;
@@ -159,7 +159,7 @@ void GpuProfiler::free()
 
 void GpuProfiler::RenderGraph(GraphRenderer* g, float value, const vec4& color)
 {
-	g->Render(getContext(), color, value, w, h);
+	g->Renderer(getContext(), color, value, w, h);
 
 	g->lastGraphValue = vec4((float)g->graphRingBufferOffset, h - value, 0, 0);
 	g->graphRingBufferOffset++;

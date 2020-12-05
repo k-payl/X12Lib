@@ -5,7 +5,7 @@
 #include "dx12render.h"
 #include "console.h"
 #include "filesystem.h"
-#include "render.h"
+#include "renderer.h"
 #include "scenemanager.h"
 #include "camera.h"
 #include "dx12gpuprofiler.h"
@@ -38,7 +38,7 @@ void Core::mainLoop()
 
 	onUpdate.Invoke(dt);
 
-	// Render code begins here
+	// Renderer code begins here
 
 	int64_t frameEmit = (frame) % QueryNum;
 	int64_t frameGet = (frame + 1) % QueryNum;
@@ -113,6 +113,7 @@ void Core::messageCallback(HWND hwnd, WINDOW_MESSAGE type, uint32_t param1, uint
 	{
 		if (renderer)
 			renderer->RecreateBuffers(hwnd, param1, param2);
+		render->Resize(param1, param2);
 	}
 	else if (type == WINDOW_MESSAGE::KEY_UP)
 	{
@@ -252,7 +253,7 @@ void Core::Init(const char *rootPath, INIT_FLAGS flags, GpuProfiler* gpuprofiler
 
 	if (FLAG(INIT_FLAGS::HIGH_LEVEL_RENDER))
 	{
-		render = std::make_unique<Render>();
+		render = std::make_unique<Renderer>();
 		render->Init();
 	}
 
@@ -412,10 +413,10 @@ void Core::RenderProfiler(float gpu_, float cpu_, int width, int height)
 	cmdList->SetViewport(width, height);
 	cmdList->SetScissor(0, 0, width, height);
 
-	renderprofiler->Render(cmdList, width, height);
+	renderprofiler->Renderer(cmdList, width, height);
 
 	if (memoryprofiler)
-		memoryprofiler->Render(cmdList, width, height);
+		memoryprofiler->Renderer(cmdList, width, height);
 
 	cmdList->CommandsEnd();
 	renderer->ExecuteCommandList(cmdList);
@@ -511,7 +512,7 @@ X12_API Console* engine::GetConsole()
 	return nullptr;
 }
 
-X12_API Render* engine::GetRender()
+X12_API Renderer* engine::GetRender()
 {
 	return core__->GetRender();
 }

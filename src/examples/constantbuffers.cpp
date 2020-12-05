@@ -16,7 +16,7 @@ using namespace x12;
 #define VIDEO_API engine::INIT_FLAGS::DIRECTX12_RENDERER
 
 void Init();
-void Render();
+void Renderer();
 
 static struct Resources
 {
@@ -43,7 +43,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPWSTR, _In_ int)
 {
 	engine::Core *core = engine::CreateCore();
 
-	core->AddRenderProcedure(Render);
+	core->AddRenderProcedure(Renderer);
 	core->AddInitProcedure(Init);
 
 	rtx = new Resources();
@@ -61,7 +61,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPWSTR, _In_ int)
 	return 0;
 }
 
-void Render()
+void Renderer()
 {
 	ICoreRenderer* renderer = engine::GetCoreRenderer();
 	surface_ptr surface = renderer->GetWindowSurface(hwnd);

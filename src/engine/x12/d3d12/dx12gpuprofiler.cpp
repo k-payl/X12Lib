@@ -32,7 +32,7 @@ struct Dx12GraphRenderer : public GraphRenderer
 		GetCoreRender()->CreateConstantBuffer(offsetUniformBuffer.getAdressOf(), L"Dx12GraphRenderer offsetUniformBuffer", 16);
 	}
 
-	void Render(void* c, vec4 color, float value, unsigned w, unsigned h) override
+	void Renderer(void* c, vec4 color, float value, unsigned w, unsigned h) override
 	{
 		Dx12GraphicCommandList* cmdList = (Dx12GraphicCommandList*)c;
 

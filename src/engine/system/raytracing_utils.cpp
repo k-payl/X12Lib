@@ -8,7 +8,7 @@
 #include "light.h"
 #include "cpp_hlsl_shared.h"
 #include "scenemanager.h"
-#include "render.h"
+#include "renderer.h"
 
 #include "d3d12/dx12buffer.h"
 
@@ -369,7 +369,7 @@ Microsoft::WRL::ComPtr<ID3D12Resource> BuildBLAS(const std::vector<engine::Mesh*
 	ID3D12CommandList* commandLists[] = { dxrCommandList };
 	commandQueue->ExecuteCommandLists(ARRAYSIZE(commandLists), commandLists);
 
-	engine::GetRender()->WaitForGpu();
+	engine::GetRender()->WaitForGpuCurrent();
 
 	return bottomLevelAccelerationStructure;
 }
@@ -427,7 +427,7 @@ Microsoft::WRL::ComPtr<ID3D12Resource> BuildTLAS(std::vector<BLAS>& blases,
 	ID3D12CommandList* commandLists[] = { dxrCommandList };
 	commandQueue->ExecuteCommandLists(ARRAYSIZE(commandLists), commandLists);
 
-	engine::GetRender()->WaitForGpu();
+	engine::GetRender()->WaitForGpuCurrent();
 
 	return TLAS; 
 }

@@ -8,7 +8,7 @@
 #include "filesystem.h"
 #include "cpp_hlsl_shared.h"
 #include "console.h"
-#include "render.h"
+#include "renderer.h"
 
 #include "yaml-cpp/yaml.h"
 

@@ -39,7 +39,7 @@ namespace engine
 		math::vec4 lastColor;
 
 		virtual ~GraphRenderer() = default;
-		virtual void Render(void* c, math::vec4 color, float value, unsigned w, unsigned h) = 0;
+		virtual void Renderer(void* c, math::vec4 color, float value, unsigned w, unsigned h) = 0;
 		virtual void RecreateVB(unsigned w) = 0;
 	};
 
@@ -136,7 +136,7 @@ namespace engine
 
 		void ProcessRecords();
 
-		void Render(void* c, int width, int height);
+		void Renderer(void* c, int width, int height);
 
 		virtual void Init() = 0;
 		virtual void Free() = 0;

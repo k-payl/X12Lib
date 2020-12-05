@@ -18,7 +18,7 @@ namespace engine
 	X12_API ResourceManager*		GetResourceManager();
 	X12_API MaterialManager*		GetMaterialManager();
 	X12_API Console*				GetConsole();
-	X12_API Render*					GetRender();
+	X12_API Renderer*					GetRender();
 	X12_API void					Log(const char* str);
 
 	enum class INIT_FLAGS
@@ -50,7 +50,7 @@ namespace engine
 		std::unique_ptr<GpuProfiler> memoryprofiler;
 		std::unique_ptr<FileSystem> fs;
 		std::unique_ptr<x12::ICoreRenderer> renderer;
-		std::unique_ptr<Render> render;
+		std::unique_ptr<Renderer> render;
 		std::unique_ptr<SceneManager> sceneManager;
 		std::unique_ptr<ResourceManager> resourceManager;
 		std::unique_ptr<MaterialManager> matManager;
@@ -122,7 +122,7 @@ namespace engine
 		ResourceManager* GetResourceManager() { return resourceManager.get(); }
 		MaterialManager* GetMaterialManager() { return matManager.get(); }
 		Console* GetConsole() { return console.get(); }
-		Render* GetRender() { return render.get(); }
+		Renderer* GetRender() { return render.get(); }
 
 		template<class T, typename... Arguments>
 		void _Log(T a, Arguments ...args)
