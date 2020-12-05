@@ -1,44 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1607194993975,
+  "lastUpdate": 1607198640711,
   "repoUrl": "https://github.com/k-payl/X12Lib",
   "entries": {
     "C++ Benchmark": [
-      {
-        "commit": {
-          "author": {
-            "email": "aaa@bbb.com",
-            "name": "k-payl",
-            "username": "xkarlois"
-          },
-          "committer": {
-            "email": "aaa@bbb.com",
-            "name": "k-payl",
-            "username": "xkarlois"
-          },
-          "distinct": true,
-          "id": "4fd33df4bc5accf49fe71743f7228fec142c039c",
-          "message": "19",
-          "timestamp": "2020-07-25T04:50:16+03:00",
-          "tree_id": "56d93e769c2c0ed6c78a876a0fe310f6e8806470",
-          "url": "https://github.com/k-payl/X12Lib/commit/4fd33df4bc5accf49fe71743f7228fec142c039c"
-        },
-        "date": 1595641942386,
-        "tool": "googlecpp",
-        "benches": [
-          {
-            "name": "mat4_mult",
-            "value": 19587667.60000036,
-            "unit": "ns/iter",
-            "extra": "iterations: 35\ncpu: 19586006.171428572 ns\nthreads: 1"
-          },
-          {
-            "name": "mat4_inv",
-            "value": 124409850.33333145,
-            "unit": "ns/iter",
-            "extra": "iterations: 6\ncpu: 124396046.66666667 ns\nthreads: 1"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -1080,6 +1044,42 @@ window.BENCHMARK_DATA = {
             "value": 128883197.79999904,
             "unit": "ns/iter",
             "extra": "iterations: 5\ncpu: 128859437.2 ns\nthreads: 1"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aaa@bbb.com",
+            "name": "k-payl",
+            "username": "xkarlois"
+          },
+          "committer": {
+            "email": "aaa@bbb.com",
+            "name": "k-payl",
+            "username": "xkarlois"
+          },
+          "distinct": true,
+          "id": "763a4187b0ce96b98bfa981aa9eeb6c05ddedb70",
+          "message": "readme",
+          "timestamp": "2020-12-05T23:00:25+03:00",
+          "tree_id": "64117eed6291ab66e2167584c183b770799063e6",
+          "url": "https://github.com/k-payl/X12Lib/commit/763a4187b0ce96b98bfa981aa9eeb6c05ddedb70"
+        },
+        "date": 1607198638157,
+        "tool": "googlecpp",
+        "benches": [
+          {
+            "name": "mat4_mult",
+            "value": 17159106.341463894,
+            "unit": "ns/iter",
+            "extra": "iterations: 41\ncpu: 17157189.78048781 ns\nthreads: 1"
+          },
+          {
+            "name": "mat4_inv",
+            "value": 109135092.16666739,
+            "unit": "ns/iter",
+            "extra": "iterations: 6\ncpu: 109122781.00000001 ns\nthreads: 1"
           }
         ]
       }
