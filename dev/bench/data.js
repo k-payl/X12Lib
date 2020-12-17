@@ -1,44 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1607198640711,
+  "lastUpdate": 1608247363232,
   "repoUrl": "https://github.com/k-payl/X12Lib",
   "entries": {
     "C++ Benchmark": [
-      {
-        "commit": {
-          "author": {
-            "email": "aaa@bbb.com",
-            "name": "k-payl",
-            "username": "xkarlois"
-          },
-          "committer": {
-            "email": "aaa@bbb.com",
-            "name": "k-payl",
-            "username": "xkarlois"
-          },
-          "distinct": true,
-          "id": "fe2dff26e125d923b5cd1c0d66cf337cc0a8aefe",
-          "message": "benchmark fix",
-          "timestamp": "2020-07-25T04:54:48+03:00",
-          "tree_id": "af4c76aa5332bc7fdabfc0894fc5e49b51fdd839",
-          "url": "https://github.com/k-payl/X12Lib/commit/fe2dff26e125d923b5cd1c0d66cf337cc0a8aefe"
-        },
-        "date": 1595642215527,
-        "tool": "googlecpp",
-        "benches": [
-          {
-            "name": "mat4_mult",
-            "value": 27834666.279999852,
-            "unit": "ns/iter",
-            "extra": "iterations: 25\ncpu: 27827815.6 ns\nthreads: 1"
-          },
-          {
-            "name": "mat4_inv",
-            "value": 123804076.00000136,
-            "unit": "ns/iter",
-            "extra": "iterations: 6\ncpu: 123749412.50000004 ns\nthreads: 1"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -1080,6 +1044,42 @@ window.BENCHMARK_DATA = {
             "value": 109135092.16666739,
             "unit": "ns/iter",
             "extra": "iterations: 6\ncpu: 109122781.00000001 ns\nthreads: 1"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aaa@bbb.com",
+            "name": "k-payl",
+            "username": "xkarlois"
+          },
+          "committer": {
+            "email": "aaa@bbb.com",
+            "name": "k-payl",
+            "username": "xkarlois"
+          },
+          "distinct": true,
+          "id": "14c3a5248736eab81628a3b7fa2af3fbd361cf6b",
+          "message": "remove useless buffer types",
+          "timestamp": "2020-12-18T02:10:03+03:00",
+          "tree_id": "0d576f408ad472ebf6ccf570a383d1980274840d",
+          "url": "https://github.com/k-payl/X12Lib/commit/14c3a5248736eab81628a3b7fa2af3fbd361cf6b"
+        },
+        "date": 1608247361338,
+        "tool": "googlecpp",
+        "benches": [
+          {
+            "name": "mat4_mult",
+            "value": 20643027.000000097,
+            "unit": "ns/iter",
+            "extra": "iterations: 34\ncpu: 20641935.382352944 ns\nthreads: 1"
+          },
+          {
+            "name": "mat4_inv",
+            "value": 131145526.19999814,
+            "unit": "ns/iter",
+            "extra": "iterations: 5\ncpu: 131109369.8 ns\nthreads: 1"
           }
         ]
       }
