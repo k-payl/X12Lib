@@ -198,7 +198,6 @@ TEST_F(TestX12, X12_Texturing)
 
 			renderer->CreateShader(shader.getAdressOf(), L"test_mesh.hlsl", text.get(), text.get(), buffersdesc, _countof(buffersdesc));
 		}
-		renderer->CreateConstantBuffer(cameraBuffer.getAdressOf(), L"Camera constant buffer", sizeof(math::mat4) + 16);
 
 		ICoreGraphicCommandList* cmdList = renderer->GetGraphicCommandList();
 
@@ -226,7 +225,10 @@ TEST_F(TestX12, X12_Texturing)
 
 		cam->GetModelViewProjectionMatrix(camc.MVP, aspect);
 		camc.cameraPos = cam->GetWorldPosition();
-		cameraBuffer->SetData(&camc, sizeof(math::mat4) + 16);
+
+		renderer->CreateBuffer(cameraBuffer.getAdressOf(),
+			L"Camera constant buffer", sizeof(math::mat4) + 16,
+			x12::BUFFER_FLAGS::CONSTANT_BUFFER_VIEW, x12::MEMORY_TYPE::CPU, &camc);
 
 		if (!resourceSet)
 		{
@@ -324,6 +326,6 @@ int main(int argc, char** argv)
 {
 	::testing::InitGoogleTest(&argc, argv);
 	auto ret =  RUN_ALL_TESTS();
-	//system("pause");
+	system("pause");
 	return ret;
 }
