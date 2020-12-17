@@ -324,8 +324,15 @@ void engine::SceneManager::createLightsGPUBuffer()
 	}
 
 	if (!lights.empty())
-	GetCoreRenderer()->CreateStructuredBuffer(lightsBuffer.getAdressOf(), L"Lights buffer",
-		sizeof(engine::Shaders::Light), lights.size(), &lightsData[0], x12::BUFFER_FLAGS::SHADER_RESOURCE);
+	{
+		GetCoreRenderer()->CreateBuffer(lightsBuffer.getAdressOf(),
+			L"Lights buffer",
+			sizeof(engine::Shaders::Light),
+			x12::BUFFER_FLAGS::SHADER_RESOURCE_VIEW,
+			x12::MEMORY_TYPE::GPU_READ,
+			&lightsData[0],
+			lights.size());
+	}
 }
 
 auto engine::SceneManager::GetNumObjects() -> size_t

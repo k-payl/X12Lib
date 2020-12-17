@@ -29,7 +29,10 @@ struct Dx12GraphRenderer : public GraphRenderer
 		: graphShader(graphShader_),
 		viewportUniformBuffer(viewportUniformBuffer_)
 	{
-		GetCoreRender()->CreateConstantBuffer(offsetUniformBuffer.getAdressOf(), L"Dx12GraphRenderer offsetUniformBuffer", 16);
+		GetCoreRender()->CreateBuffer(offsetUniformBuffer.getAdressOf(),
+			L"Dx12GraphRenderer offsetUniformBuffer", 16,
+			x12::BUFFER_FLAGS::CONSTANT_BUFFER_VIEW,
+			x12::MEMORY_TYPE::CPU);
 	}
 
 	void Renderer(void* c, vec4 color, float value, unsigned w, unsigned h) override
@@ -175,9 +178,13 @@ void Dx12GpuProfiler::Init()
 		GetCoreRender()->CreateShader(graphShader.getAdressOf(), L"gpuprofiler_graph.hlsl", text.get(), text.get(), &buffersdesc[0], _countof(buffersdesc));
 	}
 
-	GetCoreRender()->CreateConstantBuffer(viewportUniformBuffer.getAdressOf(), L"Dx12GpuProfiler viewport", 16);
-	GetCoreRender()->CreateConstantBuffer(COLORCBUniformBuffer.getAdressOf(), L"Dx12GpuProfiler COLORCBUniformBuffer", 16);
-	COLORCBUniformBuffer->SetData(&color, 16);
+	GetCoreRender()->CreateBuffer(viewportUniformBuffer.getAdressOf(),
+		L"Dx12GpuProfiler viewport", 16,
+		x12::BUFFER_FLAGS::CONSTANT_BUFFER_VIEW, x12::MEMORY_TYPE::CPU);
+
+	GetCoreRender()->CreateBuffer(COLORCBUniformBuffer.getAdressOf(),
+		L"Dx12GpuProfiler COLORCBUniformBuffer", 16,
+		x12::BUFFER_FLAGS::CONSTANT_BUFFER_VIEW, x12::MEMORY_TYPE::CPU, &color);
 
 	// Texture
 	std::unique_ptr<uint8_t[]> ddsData;
@@ -189,8 +196,11 @@ void Dx12GpuProfiler::Init()
 
 	// Font
 	loadFont();
-	GetCoreRender()->CreateStructuredBuffer(fontDataStructuredBuffer.getAdressOf(), L"font's data", sizeof(FontChar), fontData.size(), &fontData[0],
-											BUFFER_FLAGS::SHADER_RESOURCE);
+
+	GetCoreRender()->CreateBuffer(fontDataStructuredBuffer.getAdressOf(),
+		L"font's data", sizeof(FontChar),
+		BUFFER_FLAGS::SHADER_RESOURCE_VIEW, x12::MEMORY_TYPE::GPU_READ,
+		&fontData[0], fontData.size());
 
 	// Vertex buffer
 	VertexAttributeDesc attr[1];

@@ -129,11 +129,6 @@ x12::Dx12CoreBuffer::Dx12CoreBuffer(size_t size_, const void* data, MEMORY_TYPE 
 	memoryType = memoryType_;
 	size = size_;
 
-	//if (flags_ & BUFFER_FLAGS::CONSTANT_BUFFER)
-	//	size = alignConstantBufferSize(structureSize);
-	//else
-	//	size = structureSize * num;
-
 	D3D12_HEAP_TYPE heap = D3D12_HEAP_TYPE_DEFAULT;
 	D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE;
 
@@ -155,7 +150,7 @@ x12::Dx12CoreBuffer::Dx12CoreBuffer(size_t size_, const void* data, MEMORY_TYPE 
 		heap = D3D12_HEAP_TYPE_READBACK;
 	}
 
-	if (flags_ & BUFFER_FLAGS::UNORDERED_ACCESS)
+	if (flags_ & BUFFER_FLAGS::UNORDERED_ACCESS_VIEW)
 	{
 		flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 		state = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;

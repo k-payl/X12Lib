@@ -121,8 +121,8 @@ bool engine::Mesh::createStdMesh(const char* path)
 
 		checksStride();
 
-		GetCoreRenderer()->CreateStructuredBuffer(vertexBuffer.getAdressOf(), L"std#plane",
-			sizeof(Shaders::Vertex), desc.numberOfVertex, desc.pData, x12::BUFFER_FLAGS::SHADER_RESOURCE);
+		GetCoreRenderer()->CreateBuffer(vertexBuffer.getAdressOf(), L"std#plane",
+			sizeof(Shaders::Vertex), x12::BUFFER_FLAGS::SHADER_RESOURCE_VIEW, x12::MEMORY_TYPE::GPU_READ, desc.pData, desc.numberOfVertex);
 
 		x12::VertexAttributeDesc attr[3];
 
@@ -172,8 +172,8 @@ bool engine::Mesh::createStdMesh(const char* path)
 
 		checksStride();
 
-		GetCoreRenderer()->CreateStructuredBuffer(vertexBuffer.getAdressOf(), L"std#grid",
-			sizeof(Shaders::Vertex), desc.numberOfVertex, desc.pData, x12::BUFFER_FLAGS::SHADER_RESOURCE);
+		GetCoreRenderer()->CreateBuffer(vertexBuffer.getAdressOf(), L"std#grid",
+			sizeof(Shaders::Vertex), x12::BUFFER_FLAGS::SHADER_RESOURCE_VIEW, x12::MEMORY_TYPE::GPU_READ, desc.pData, desc.numberOfVertex);
 		return true;
 	}
 	else if (!strcmp(path, "std#line"))
@@ -186,8 +186,8 @@ bool engine::Mesh::createStdMesh(const char* path)
 
 		checksStride();
 
-		GetCoreRenderer()->CreateStructuredBuffer(vertexBuffer.getAdressOf(), L"std#line",
-			sizeof(Shaders::Vertex), desc.numberOfVertex, desc.pData, x12::BUFFER_FLAGS::SHADER_RESOURCE);
+		GetCoreRenderer()->CreateBuffer(vertexBuffer.getAdressOf(), L"std#line",
+			sizeof(Shaders::Vertex), x12::BUFFER_FLAGS::SHADER_RESOURCE_VIEW, x12::MEMORY_TYPE::GPU_READ, desc.pData, desc.numberOfVertex);
 		return true;
 	}
 	else if (!strcmp(path, "std#axes_arrows"))
@@ -233,8 +233,8 @@ bool engine::Mesh::createStdMesh(const char* path)
 
 		checksStride();
 
-		GetCoreRenderer()->CreateStructuredBuffer(vertexBuffer.getAdressOf(), L"std#axes",
-			sizeof(Shaders::Vertex), desc.numberOfVertex, desc.pData, x12::BUFFER_FLAGS::SHADER_RESOURCE);
+		GetCoreRenderer()->CreateBuffer(vertexBuffer.getAdressOf(), L"std#axes",
+			sizeof(Shaders::Vertex), x12::BUFFER_FLAGS::SHADER_RESOURCE_VIEW, x12::MEMORY_TYPE::GPU_READ, desc.pData, desc.numberOfVertex);
 		return true;
 	}
 	else if (!strcmp(path, "std#cube"))
@@ -264,8 +264,8 @@ bool engine::Mesh::createStdMesh(const char* path)
 
 		checksStride();
 
-		GetCoreRenderer()->CreateStructuredBuffer(vertexBuffer.getAdressOf(), L"std#cube",
-			sizeof(Shaders::Vertex), desc.numberOfVertex, desc.pData, x12::BUFFER_FLAGS::SHADER_RESOURCE);
+		GetCoreRenderer()->CreateBuffer(vertexBuffer.getAdressOf(), L"std#cube",
+			sizeof(Shaders::Vertex), x12::BUFFER_FLAGS::SHADER_RESOURCE_VIEW, x12::MEMORY_TYPE::GPU_READ, desc.pData, desc.numberOfVertex);
 		return true;
 	}
 	return false;
@@ -337,7 +337,10 @@ bool engine::Mesh::Load()
 		memcpy(&vs[i].UV, &desc.pData[i * header.uvStride + header.uvOffset], sizeof(vec2));
 	}
 
-	GetCoreRenderer()->CreateStructuredBuffer(vertexBuffer.getAdressOf(), ConvertFromUtf8ToUtf16(path_).c_str(), sizeof(Shaders::Vertex), header.numberOfVertex, vs.data(), x12::BUFFER_FLAGS::SHADER_RESOURCE);
+	GetCoreRenderer()->CreateBuffer(vertexBuffer.getAdressOf(),
+		ConvertFromUtf8ToUtf16(path_).c_str(), sizeof(Shaders::Vertex),
+		x12::BUFFER_FLAGS::SHADER_RESOURCE_VIEW, x12::MEMORY_TYPE::GPU_READ,
+		vs.data(), header.numberOfVertex);
 
 	{
 		x12::VertexAttributeDesc attr[3];

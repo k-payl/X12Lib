@@ -467,42 +467,23 @@ bool x12::Dx12CoreRenderer::CreateVertexBuffer(ICoreVertexBuffer** out, LPCWSTR 
 	return ptr != nullptr;
 }
 
-bool x12::Dx12CoreRenderer::CreateConstantBuffer(ICoreBuffer**out, LPCWSTR name, size_t size, bool FastGPUread)
+bool x12::Dx12CoreRenderer::CreateBuffer(ICoreBuffer** out, LPCWSTR name, size_t size, BUFFER_FLAGS flags, MEMORY_TYPE mem, const void* data, size_t num)
 {
-	auto* ptr = new Dx12CoreBuffer(alignConstantBufferSize(size), nullptr, FastGPUread? MEMORY_TYPE::GPU_READ : MEMORY_TYPE::CPU, BUFFER_FLAGS::CONSTANT_BUFFER, name);
-	ptr->initCBV(UINT(size));
-	ptr->AddRef();
-	*out = ptr;
+	if (flags & BUFFER_FLAGS::CONSTANT_BUFFER_VIEW)
+		size = alignConstantBufferSize(size);
 
-	return ptr != nullptr;
-}
+	auto* ptr = new Dx12CoreBuffer(size * num, data, mem, flags, name);
 
-bool x12::Dx12CoreRenderer::CreateStructuredBuffer(ICoreBuffer** out, LPCWSTR name, size_t structureSize,
-											  size_t num, const void* data, BUFFER_FLAGS flags)
-{
-	auto* ptr = new Dx12CoreBuffer(structureSize * num, data, MEMORY_TYPE::GPU_READ, flags, name);
+	const bool rawBuffer = flags & BUFFER_FLAGS::RAW_BUFFER;
 
-	if (flags & BUFFER_FLAGS::SHADER_RESOURCE)
-		ptr->initSRV(UINT(num), UINT(structureSize), false);
+	if (flags & BUFFER_FLAGS::SHADER_RESOURCE_VIEW)
+		ptr->initSRV((UINT)num, size, rawBuffer);
 
-	if (flags & BUFFER_FLAGS::UNORDERED_ACCESS)
-		ptr->initUAV(UINT(num), UINT(structureSize), false);
+	if (flags & BUFFER_FLAGS::UNORDERED_ACCESS_VIEW)
+		ptr->initUAV((UINT)num, size, rawBuffer);
 
-	ptr->AddRef();
-	*out = ptr;
-
-	return ptr != nullptr;
-}
-
-bool x12::Dx12CoreRenderer::CreateRawBuffer(ICoreBuffer** out, LPCWSTR name, size_t size, BUFFER_FLAGS flags)
-{
-	auto* ptr = new Dx12CoreBuffer(size, nullptr, MEMORY_TYPE::GPU_READ, flags, name);
-
-	if (flags & BUFFER_FLAGS::SHADER_RESOURCE)
-		ptr->initSRV((UINT)size, 0, true);
-
-	if (flags & BUFFER_FLAGS::UNORDERED_ACCESS)
-		ptr->initUAV((UINT)size, 0, true);
+	if (flags & BUFFER_FLAGS::CONSTANT_BUFFER_VIEW)
+		ptr->initCBV((UINT)size);
 
 	ptr->AddRef();
 	*out = ptr;

@@ -135,18 +135,18 @@ namespace x12
 	enum class BUFFER_FLAGS
 	{
 		NONE = 0,
-		UNORDERED_ACCESS = 1 << 2,
-		CONSTANT_BUFFER = 1 << 3,
-		RAW_BUFFER = 1 << 4,
-		SHADER_RESOURCE = 1 << 5,
+		UNORDERED_ACCESS_VIEW = 1 << 0,
+		SHADER_RESOURCE_VIEW = 1 << 1,
+		CONSTANT_BUFFER_VIEW = 1 << 2,
+		RAW_BUFFER = 1 << 3
 	};
 	DEFINE_ENUM_OPERATORS(BUFFER_FLAGS)
 
 	enum class MEMORY_TYPE
 	{
 		CPU = 1,
-		GPU_READ = 1 << 2,
-		READBACK = 1 << 3
+		GPU_READ = 1 << 1,
+		READBACK = 1 << 2
 	};
 	DEFINE_ENUM_OPERATORS(MEMORY_TYPE)
 
@@ -193,12 +193,7 @@ namespace x12
 		virtual X12_API bool CreateVertexBuffer(ICoreVertexBuffer** out, LPCWSTR name, const void* vbData, const VeretxBufferDesc* vbDesc,
 										const void* idxData, const IndexBufferDesc* idxDesc, MEMORY_TYPE mem) = 0;
 
-		virtual X12_API bool CreateConstantBuffer(ICoreBuffer** out, LPCWSTR name, size_t size, bool FastGPUread = false) = 0;
-
-		virtual X12_API bool CreateStructuredBuffer(ICoreBuffer** out, LPCWSTR name, size_t structureSize, size_t num,
-											const void* data, BUFFER_FLAGS flags) = 0;
-
-		virtual X12_API bool CreateRawBuffer(ICoreBuffer** out, LPCWSTR name, size_t size, BUFFER_FLAGS flags) = 0;
+		virtual X12_API bool CreateBuffer(ICoreBuffer** out, LPCWSTR name, size_t size, BUFFER_FLAGS flags, MEMORY_TYPE mem, const void* data = nullptr, size_t num = 1) = 0;
 
 		virtual X12_API bool CreateTexture(ICoreTexture** out, LPCWSTR name, const uint8_t* data, size_t size, int32_t width, int32_t height, uint32_t mipCount,
 						   TEXTURE_TYPE type, TEXTURE_FORMAT format, TEXTURE_CREATE_FLAGS flags) = 0;
@@ -335,7 +330,7 @@ namespace x12
 
 	enum class CONSTANT_BUFFER_UPDATE_FRIQUENCY
 	{
-		PER_FRAME = 0,
+		PER_FRAME,
 		PER_DRAW
 	};
 
@@ -427,7 +422,7 @@ namespace x12
 
 	enum class PRIMITIVE_TOPOLOGY
 	{
-		UNDEFINED = 0,
+		UNDEFINED,
 		POINT = 1,
 		LINE = 2,
 		TRIANGLE = 3,
@@ -436,7 +431,7 @@ namespace x12
 
 	enum class BLEND_FACTOR
 	{
-		NONE = 0,
+		NONE,
 		ZERO,
 		ONE,
 		SRC_COLOR,
@@ -472,28 +467,29 @@ namespace x12
 		NUM
 	};
 
+	// TODO: move to private d3d namespace
 	enum RESOURCE_DEFINITION
 	{
-		RBF_NO_RESOURCE = 0,
+		RBF_NO_RESOURCE,
 
 		// Shader constants
-		RBF_UNIFORM_BUFFER = 1 << 1,
+		RBF_UNIFORM_BUFFER = 1 << 0,
 
 		// Shader read-only resources
-		RBF_TEXTURE_SRV = 1 << 2,
-		RBF_BUFFER_SRV = 1 << 3,
+		RBF_TEXTURE_SRV = 1 << 1,
+		RBF_BUFFER_SRV = 1 << 2,
 		RBF_SRV = RBF_TEXTURE_SRV | RBF_BUFFER_SRV,
 
 		// Shader unordered access resources
-		RBF_TEXTURE_UAV = 1 << 4,
-		RBF_BUFFER_UAV = 1 << 5,
+		RBF_TEXTURE_UAV = 1 << 3,
+		RBF_BUFFER_UAV = 1 << 4,
 		RBF_UAV = RBF_TEXTURE_UAV | RBF_BUFFER_UAV,
 
-		RBF_SAMPLER = 1 << 6,
+		RBF_SAMPLER = 1 << 5,
 	};
 	DEFINE_ENUM_OPERATORS(RESOURCE_DEFINITION)
 
-		static UINT formatInBytes(VERTEX_BUFFER_FORMAT format)
+	static UINT formatInBytes(VERTEX_BUFFER_FORMAT format)
 	{
 		switch (format)
 		{

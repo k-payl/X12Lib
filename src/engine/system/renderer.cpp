@@ -135,20 +135,34 @@ void engine::Renderer::BindRaytracingResources()
 
 void engine::Renderer::CreateBuffers(UINT w, UINT h)
 {
-	GetCoreRenderer()->CreateStructuredBuffer(rayInfoBuffer.getAdressOf(), L"Ray info",
-		sizeof(Shaders::RayInfo), w * h, nullptr, x12::BUFFER_FLAGS::UNORDERED_ACCESS);
+	GetCoreRenderer()->CreateBuffer(rayInfoBuffer.getAdressOf(), L"Ray info",
+		sizeof(Shaders::RayInfo), x12::BUFFER_FLAGS::UNORDERED_ACCESS_VIEW,
+		x12::MEMORY_TYPE::GPU_READ,
+		nullptr, w * h);
 
-	GetCoreRenderer()->CreateStructuredBuffer(regroupedIndexesBuffer.getAdressOf(), L"Regrouped indexes for secondary rays",
-		sizeof(uint32_t), w * h, nullptr, x12::BUFFER_FLAGS::UNORDERED_ACCESS);
+	GetCoreRenderer()->CreateBuffer(regroupedIndexesBuffer.getAdressOf(),
+		L"Regrouped indexes for secondary rays",
+		sizeof(uint32_t), x12::BUFFER_FLAGS::UNORDERED_ACCESS_VIEW,
+		x12::MEMORY_TYPE::GPU_READ,
+		nullptr, w * h);
 
-	GetCoreRenderer()->CreateStructuredBuffer(iterationRGBA32f.getAdressOf(), L"iterationRGBA32f",
-		sizeof(float[4]), w * h, nullptr, x12::BUFFER_FLAGS::UNORDERED_ACCESS);
+	GetCoreRenderer()->CreateBuffer(iterationRGBA32f.getAdressOf(),
+		L"iterationRGBA32f",
+		sizeof(float[4]), x12::BUFFER_FLAGS::UNORDERED_ACCESS_VIEW,
+		x12::MEMORY_TYPE::GPU_READ,
+		nullptr, w * h);
 
-	GetCoreRenderer()->CreateStructuredBuffer(hitCointerBuffer.getAdressOf(), L"Hits count",
-		sizeof(uint32_t), 1, nullptr, x12::BUFFER_FLAGS::UNORDERED_ACCESS);
+	GetCoreRenderer()->CreateBuffer(hitCointerBuffer.getAdressOf(),
+		L"Hits count",
+		sizeof(uint32_t), x12::BUFFER_FLAGS::UNORDERED_ACCESS_VIEW,
+		x12::MEMORY_TYPE::GPU_READ,
+		nullptr, 1);
 
-	GetCoreRenderer()->CreateConstantBuffer(cameraBuffer.getAdressOf(), L"camera constant buffer",
-		sizeof(Shaders::Camera), false);
+	GetCoreRenderer()->CreateBuffer(cameraBuffer.getAdressOf(),
+		L"camera constant buffer",
+		sizeof(Shaders::Camera), x12::BUFFER_FLAGS::CONSTANT_BUFFER_VIEW,
+		x12::MEMORY_TYPE::CPU,
+		nullptr);
 }
 
 void engine::Renderer::CreateIndirectBuffer(UINT w, UINT h)
@@ -176,8 +190,11 @@ void engine::Renderer::CreateIndirectBuffer(UINT w, UINT h)
 	indirectData.Height = 1;
 	indirectData.Depth = 1;
 
-	GetCoreRenderer()->CreateStructuredBuffer(rtxScene->indirectArgBuffer.getAdressOf(), L"D3D12_DISPATCH_RAYS_DESC",
-		sizeof(D3D12_DISPATCH_RAYS_DESC), 1, &indirectData, x12::BUFFER_FLAGS::UNORDERED_ACCESS);
+	GetCoreRenderer()->CreateBuffer(rtxScene->indirectArgBuffer.getAdressOf(),
+		L"D3D12_DISPATCH_RAYS_DESC",
+		sizeof(D3D12_DISPATCH_RAYS_DESC), x12::BUFFER_FLAGS::UNORDERED_ACCESS_VIEW,
+		x12::MEMORY_TYPE::GPU_READ,
+		&indirectData, 1);
 }
 
 void engine::Renderer::Resize(UINT w, UINT h)
@@ -797,8 +814,11 @@ void engine::Renderer::OnLoadScene()
 			}
 		}
 
-		GetCoreRenderer()->CreateStructuredBuffer(rtxScene->materialsBuffer.getAdressOf(), L"Materials",
-			sizeof(Shaders::Material), sceneMaterialGPU.size(), &sceneMaterialGPU[0], x12::BUFFER_FLAGS::SHADER_RESOURCE);
+		GetCoreRenderer()->CreateBuffer(rtxScene->materialsBuffer.getAdressOf(),
+			L"Materials",
+			sizeof(Shaders::Material), x12::BUFFER_FLAGS::SHADER_RESOURCE_VIEW,
+			x12::MEMORY_TYPE::GPU_READ,
+			&sceneMaterialGPU[0], sceneMaterialGPU.size());
 
 		// Textures
 		{
@@ -833,8 +853,11 @@ void engine::Renderer::OnLoadScene()
 			}
 		}
 
-		GetCoreRenderer()->CreateStructuredBuffer(rtxScene->perInstanceBuffer.getAdressOf(), L"TLAS per-instance data",
-			sizeof(Shaders::InstanceData), instancesData.size(), &instancesData[0], x12::BUFFER_FLAGS::SHADER_RESOURCE);
+		GetCoreRenderer()->CreateBuffer(rtxScene->perInstanceBuffer.getAdressOf(),
+			L"TLAS per-instance data",
+			sizeof(Shaders::InstanceData), 
+			x12::BUFFER_FLAGS::SHADER_RESOURCE_VIEW, x12::MEMORY_TYPE::GPU_READ,
+			&instancesData[0], instancesData.size());
 	}
 
 	// Scene buffer
@@ -843,8 +866,11 @@ void engine::Renderer::OnLoadScene()
 		scene.instanceCount = rtxScene->totalInstances;
 		scene.lightCount = (uint32_t)areaLights.size();
 
-		GetCoreRenderer()->CreateConstantBuffer(rtxScene->sceneBuffer.getAdressOf(), L"Scene data", sizeof(Shaders::Scene), false);
-		rtxScene->sceneBuffer->SetData(&scene, sizeof(Shaders::Scene));
+		GetCoreRenderer()->CreateBuffer(rtxScene->sceneBuffer.getAdressOf(),
+			L"Scene constant buffer",
+			sizeof(Shaders::Scene),
+			x12::BUFFER_FLAGS::CONSTANT_BUFFER_VIEW, x12::MEMORY_TYPE::GPU_READ,
+			&scene, 1);
 	}
 
 	CreateShaderBindingTable(dxrPrimaryStateObject, rtxScene->totalInstances, rtxScene->rayGenShaderTable, rtxScene->hitGroupShaderTable, rtxScene->missShaderTable);

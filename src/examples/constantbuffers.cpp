@@ -156,7 +156,9 @@ void Init()
 		rtx->shader = engine::GetResourceManager()->CreateGraphicShader(SHADER_DIR "mesh.hlsl", buffersdesc, _countof(buffersdesc));
 
 	}
-	renderer->CreateConstantBuffer(rtx->cameraBuffer.getAdressOf(), L"Camera constant buffer", sizeof(mat4) + 16);
+	renderer->CreateBuffer(rtx->cameraBuffer.getAdressOf(),
+		L"Camera constant buffer",
+		sizeof(mat4) + 16, x12::BUFFER_FLAGS::CONSTANT_BUFFER_VIEW, x12::MEMORY_TYPE::CPU);
 
 	rtx->tex = engine::GetResourceManager()->CreateStreamTexture(TEXTURES_DIR"chipped-paint-metal-albedo_3_512x512.dds", TEXTURE_CREATE_FLAGS::NONE);
 	rtx->tex.get(); // force load

@@ -408,7 +408,11 @@ Microsoft::WRL::ComPtr<ID3D12Resource> BuildTLAS(std::vector<BLAS>& blases,
 		contribIndex += blases[i].instances;
 	}
 
-	engine::GetCoreRenderer()->CreateStructuredBuffer(instanceDescsBuffer.getAdressOf(), L"instance desc for the top-level acceleration structure", sizeof(D3D12_RAYTRACING_INSTANCE_DESC), instanceDesc.size(), &instanceDesc[0], x12::BUFFER_FLAGS::NONE);
+	engine::GetCoreRenderer()->CreateBuffer(instanceDescsBuffer.getAdressOf(),
+		L"instance desc for the top-level acceleration structure",
+		sizeof(D3D12_RAYTRACING_INSTANCE_DESC),
+		x12::BUFFER_FLAGS::NONE, x12::MEMORY_TYPE::GPU_READ, &instanceDesc[0],
+		instanceDesc.size());
 
 	D3D12_RESOURCE_STATES initialResourceState = D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE;
 	AllocateUAVBuffer(m_dxrDevice, topLevelPrebuildInfo.ResultDataMaxSizeInBytes, &TLAS, initialResourceState, L"TopLevelAccelerationStructure");

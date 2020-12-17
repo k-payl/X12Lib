@@ -153,17 +153,7 @@ bool x12::VkCoreRenderer::CreateVertexBuffer(ICoreVertexBuffer** out, LPCWSTR na
 	return false;
 }
 
-bool x12::VkCoreRenderer::CreateConstantBuffer(ICoreBuffer** out, LPCWSTR name, size_t size, bool FastGPUread)
-{
-	return false;
-}
-
-bool x12::VkCoreRenderer::CreateStructuredBuffer(ICoreBuffer** out, LPCWSTR name, size_t structureSize, size_t num, const void* data, BUFFER_FLAGS flags)
-{
-	return false;
-}
-
-bool x12::VkCoreRenderer::CreateRawBuffer(ICoreBuffer** out, LPCWSTR name, size_t size, BUFFER_FLAGS flags)
+bool x12::VkCoreRenderer::CreateBuffer(ICoreBuffer** out, LPCWSTR name, size_t size, BUFFER_FLAGS flags, MEMORY_TYPE mem, const void* data, size_t num)
 {
 	return false;
 }
