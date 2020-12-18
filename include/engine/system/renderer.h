@@ -18,26 +18,25 @@ namespace engine
 	class Renderer
 	{
 		ComPtr<ID3D12Device5> dxrDevice;
-
 		ComPtr<ID3D12CommandQueue> rtxQueue;
 		ComPtr<ID3D12CommandAllocator> commandAllocators[DeferredBuffers];
 		ComPtr<ID3D12GraphicsCommandList4> dxrCommandList;
-
+		ComPtr<ID3D12DescriptorHeap> descriptorHeap;
 		ComPtr<ID3D12StateObject> dxrPrimaryStateObject;
 		ComPtr<ID3D12StateObject> dxrSecondaryStateObject;
-
 		ComPtr<ID3D12PipelineState> clearRayInfoPSO;
 		ComPtr<ID3D12PipelineState> regroupRayInfoPSO;
 		ComPtr<ID3D12PipelineState> clearHitCounterPSO;
 		ComPtr<ID3D12PipelineState> accumulationPSO;
 		ComPtr<ID3D12PipelineState> copyHitCounterPSO;
+		ComPtr<ID3D12Resource> outputTexture; // final image accumulation (2d rgba32f texture)
 
 		ComPtr<IDxcBlob> raygen;
 		ComPtr<IDxcBlob> hit;
 		ComPtr<IDxcBlob> miss;
-		ComPtr<IDxcBlob> raygen_secondary;
-		ComPtr<IDxcBlob> hit_secondary;
-		ComPtr<IDxcBlob> miss_secondary;
+		ComPtr<IDxcBlob> raygenSecondary;
+		ComPtr<IDxcBlob> hitSecondary;
+		ComPtr<IDxcBlob> missSecondary;
 
 		ComPtr<ID3D12RootSignature> raytracingGlobalRootSignature;
 		ComPtr<ID3D12RootSignature> raytracingLocalRootSignature;
@@ -46,8 +45,6 @@ namespace engine
 		ComPtr<ID3D12RootSignature> clearHitCounterRootSignature;
 		ComPtr<ID3D12RootSignature> accumulationRootSignature;
 		ComPtr<ID3D12RootSignature> copyrHitCounterRootSignature;
-
-		ComPtr<ID3D12DescriptorHeap> descriptorHeap;
 
 		intrusive_ptr<ICoreBuffer> rayInfoBuffer; // w * h * sizeof(RayInfo)
 		intrusive_ptr<ICoreBuffer> regroupedIndexesBuffer; // w * h * sizeof(uint32_t)
@@ -62,7 +59,6 @@ namespace engine
 		StreamPtr<Shader> copyShader;
 		StreamPtr<Mesh> planeMesh;
 		StreamPtr<Shader> clearRayInfoBuffer;
-		ComPtr<ID3D12Resource> outputTexture; // final image accumulation (2d rgba32f texture)
 
 		struct RTXscene
 		{

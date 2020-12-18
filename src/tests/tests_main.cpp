@@ -11,11 +11,7 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
 
-const auto api = engine::INIT_FLAGS::DIRECTX12_RENDERER;
-
 using namespace x12;
-
-class TestX12;
 
 
 class TestX12 : public ::testing::Test
@@ -23,10 +19,11 @@ class TestX12 : public ::testing::Test
 	engine::Core *core;
 
 protected:
+	const engine::INIT_FLAGS api = engine::INIT_FLAGS::DIRECTX12_RENDERER;
 	const int w = 512;
 	const int h = 512;
+	const float aspect = float(w) / h;
 	const std::string ext = ".png";
-
 	std::unique_ptr<uint8_t[]> image;
 	intrusive_ptr<ICoreTexture> colorTexture;
 	intrusive_ptr<ICoreTexture> depthTexture;
@@ -50,7 +47,8 @@ protected:
 			fclose(file);
 			return true;
 		}
-		else {
+		else
+		{
 			return false;
 		}
 	}
@@ -150,8 +148,8 @@ protected:
 	{
 		const auto flags =
 			api |
-			engine::INIT_FLAGS::NO_WINDOW | 
-			engine::INIT_FLAGS::NO_INPUT | 
+			engine::INIT_FLAGS::NO_WINDOW |
+			engine::INIT_FLAGS::NO_INPUT |
 			engine::INIT_FLAGS::NO_CONSOLE;
 
 		core = engine::CreateCore();
@@ -159,10 +157,12 @@ protected:
 
 		renderer = engine::GetCoreRenderer();
 
-		renderer->CreateTexture(colorTexture.getAdressOf(), L"target texture", nullptr, 0, w, h, 1, TEXTURE_TYPE::TYPE_2D,
+		renderer->CreateTexture(colorTexture.getAdressOf(), L"target texture",
+			nullptr, 0, w, h, 1, TEXTURE_TYPE::TYPE_2D,
 			TEXTURE_FORMAT::RGBA8, TEXTURE_CREATE_FLAGS::USAGE_RENDER_TARGET);
 
-		renderer->CreateTexture(depthTexture.getAdressOf(), L"depth texture", nullptr, 0, w, h, 1, TEXTURE_TYPE::TYPE_2D,
+		renderer->CreateTexture(depthTexture.getAdressOf(), L"depth texture",
+			nullptr, 0, w, h, 1, TEXTURE_TYPE::TYPE_2D,
 			TEXTURE_FORMAT::D32, TEXTURE_CREATE_FLAGS::USAGE_RENDER_TARGET);
 	}
 
@@ -175,151 +175,146 @@ protected:
 	}
 };
 
-
+/*
+ * Render quad to texture
+ */
 TEST_F(TestX12, X12_Texturing)
 {
+	intrusive_ptr<ICoreShader> shader;
+	intrusive_ptr<IResourceSet> resourceSet;
+	intrusive_ptr<ICoreBuffer> cameraBuffer;
+	intrusive_ptr<ICoreVertexBuffer> plane;
+	engine::StreamPtr<engine::Mesh> mesh = engine::GetResourceManager()->CreateStreamMesh("std#plane");
+	engine::StreamPtr<engine::Texture> tex = engine::GetResourceManager()->CreateStreamTexture(TEXTURES_DIR"chipped-paint-metal-albedo_3_512x512.dds", TEXTURE_CREATE_FLAGS::NONE);
+
+	engine::Camera* cam = engine::GetSceneManager()->CreateCamera();
+
 	{
-		intrusive_ptr<ICoreShader> shader;
-		intrusive_ptr<IResourceSet> resourceSet;
-		intrusive_ptr<ICoreBuffer> cameraBuffer;
-		intrusive_ptr<ICoreVertexBuffer> plane;		
-		engine::StreamPtr<engine::Mesh> mesh = engine::GetResourceManager()->CreateStreamMesh("std#plane");
-		engine::StreamPtr<engine::Texture> tex = engine::GetResourceManager()->CreateStreamTexture(TEXTURES_DIR"chipped-paint-metal-albedo_3_512x512.dds", TEXTURE_CREATE_FLAGS::NONE);
-
-		engine::Camera* cam = engine::GetSceneManager()->CreateCamera();
-
+		const ConstantBuffersDesc buffersdesc[] =
 		{
-			const ConstantBuffersDesc buffersdesc[] =
-			{
-				{"TransformCB",	CONSTANT_BUFFER_UPDATE_FRIQUENCY::PER_DRAW},
-			};
+			{"TransformCB",	CONSTANT_BUFFER_UPDATE_FRIQUENCY::PER_DRAW},
+		};
 
-			auto text = engine::GetFS()->LoadFile(SHADER_DIR "test_mesh.hlsl");
+		auto text = engine::GetFS()->LoadFile(SHADER_DIR "test_mesh.hlsl");
 
-			renderer->CreateShader(shader.getAdressOf(), L"test_mesh.hlsl", text.get(), text.get(), buffersdesc, _countof(buffersdesc));
-		}
-
-		ICoreGraphicCommandList* cmdList = renderer->GetGraphicCommandList();
-
-		cmdList->CommandsBegin();
-		cmdList->SetRenderTargets(colorTexture.getAdressOf(), 1, depthTexture.get());
-		cmdList->Clear();
-		cmdList->SetViewport(w, h);
-		cmdList->SetScissor(0, 0, w, h);
-
-		GraphicPipelineState pso{};
-		pso.shader = shader.get();
-		pso.vb = mesh.get()->RenderVertexBuffer();
-		pso.primitiveTopology = PRIMITIVE_TOPOLOGY::TRIANGLE;
-		cmdList->SetGraphicPipelineState(pso);
-
-		cmdList->SetVertexBuffer(mesh.get()->RenderVertexBuffer());
-
-		struct CamCB
-		{
-			math::mat4 MVP;
-			math::vec4 cameraPos;
-		}camc;
-
-		float aspect = float(w) / h;
-
-		cam->GetModelViewProjectionMatrix(camc.MVP, aspect);
-		camc.cameraPos = cam->GetWorldPosition();
-
-		renderer->CreateBuffer(cameraBuffer.getAdressOf(),
-			L"Camera constant buffer", sizeof(math::mat4) + 16,
-			x12::BUFFER_FLAGS::CONSTANT_BUFFER_VIEW, x12::MEMORY_TYPE::CPU, &camc);
-
-		if (!resourceSet)
-		{
-			renderer->CreateResourceSet(resourceSet.getAdressOf(), shader.get());
-			resourceSet->BindConstantBuffer("CameraCB", cameraBuffer.get());
-			resourceSet->BindTextueSRV("texture_", tex.get()->GetCoreTexture());
-			cmdList->CompileSet(resourceSet.get());
-		}
-		auto transformIdx = resourceSet->FindInlineBufferIndex("TransformCB");
-		cmdList->BindResourceSet(resourceSet.get());
-
-		struct DynamicCB
-		{
-			math::mat4 transform;
-			math::mat4 NM;
-		}cbdata;
-		cbdata.NM = cbdata.transform.Inverse().Transpose();
-		cmdList->UpdateInlineConstantBuffer(transformIdx, &cbdata, sizeof(cbdata));
-
-		cmdList->Draw(mesh.get()->RenderVertexBuffer());
-
-		cmdList->CommandsEnd();
-
-		renderer->ExecuteCommandList(cmdList);
+		renderer->CreateShader(shader.getAdressOf(), L"test_mesh.hlsl", text.get(), text.get(), buffersdesc, _countof(buffersdesc));
 	}
+
+	ICoreGraphicCommandList* cmdList = renderer->GetGraphicCommandList();
+
+	cmdList->CommandsBegin();
+	cmdList->SetRenderTargets(colorTexture.getAdressOf(), 1, depthTexture.get());
+	cmdList->Clear();
+	cmdList->SetViewport(w, h);
+	cmdList->SetScissor(0, 0, w, h);
+
+	GraphicPipelineState pso{};
+	pso.shader = shader.get();
+	pso.vb = mesh.get()->RenderVertexBuffer();
+	pso.primitiveTopology = PRIMITIVE_TOPOLOGY::TRIANGLE;
+	cmdList->SetGraphicPipelineState(pso);
+
+	cmdList->SetVertexBuffer(mesh.get()->RenderVertexBuffer());
+
+	struct
+	{
+		math::mat4 MVP;
+		math::vec4 cameraPos;
+	}camc;
+	cam->GetModelViewProjectionMatrix(camc.MVP, aspect);
+	camc.cameraPos = cam->GetWorldPosition();
+
+	renderer->CreateBuffer(cameraBuffer.getAdressOf(),
+		L"Camera constant buffer", sizeof(math::mat4) + 16,
+		BUFFER_FLAGS::CONSTANT_BUFFER_VIEW, MEMORY_TYPE::CPU, &camc);
+
+	renderer->CreateResourceSet(resourceSet.getAdressOf(), shader.get());
+	resourceSet->BindConstantBuffer("CameraCB", cameraBuffer.get());
+	resourceSet->BindTextueSRV("texture_", tex.get()->GetCoreTexture());
+	cmdList->CompileSet(resourceSet.get());
+	auto transformIdx = resourceSet->FindInlineBufferIndex("TransformCB");
+	cmdList->BindResourceSet(resourceSet.get());
+
+	struct
+	{
+		math::mat4 transform;
+		math::mat4 NM;
+	}cbdata;
+	cbdata.NM = cbdata.transform.Inverse().Transpose();
+	cmdList->UpdateInlineConstantBuffer(transformIdx, &cbdata, sizeof(cbdata));
+
+	{
+		cmdList->Draw(mesh.get()->RenderVertexBuffer());
+	}
+
+	cmdList->CommandsEnd();
+
+	renderer->ExecuteCommandList(cmdList);
 
 	CaptureImage();
 
 	ASSERT_EQ(Compare(), 0);
 }
 
-TEST_F(TestX12, X12_UAVBarrier)
+/*
+ * Calculate power of two
+ */
+TEST_F(TestX12, X12_ComputeShader)
 {
-	/*
 	constexpr UINT float4chunks = 15;
-	std::vector<float> result;
+	std::vector<float> result;	
+	intrusive_ptr<ICoreShader> shader;
+	intrusive_ptr<ICoreBuffer> buffer;
+	intrusive_ptr<IResourceSet> resources;
+
+	ICoreGraphicCommandList* cmdList = renderer->GetGraphicCommandList();
 
 	{
-		intrusive_ptr<ICoreShader> shader;
-		intrusive_ptr<ICoreBuffer> buffer;
-		intrusive_ptr<IResourceSet> resources;
+		auto text = engine::GetFS()->LoadFile(SHADER_DIR "uav.hlsl");
 
-		ICoreGraphicCommandList* cmdList = renderer->GetGraphicCommandList();
-
+		const ConstantBuffersDesc buffersdesc[] =
 		{
-			auto text = engine::GetFS()->LoadFile(SHADER_DIR "uav.hlsl");
+			{"ChunkNumber",	CONSTANT_BUFFER_UPDATE_FRIQUENCY::PER_DRAW}
+		};
 
-			const ConstantBuffersDesc buffersdesc[] =
-			{
-				{"ChunkNumber",	CONSTANT_BUFFER_UPDATE_FRIQUENCY::PER_DRAW}
-			};
-
-			renderer->CreateComputeShader(shader.getAdressOf(), L"uav.hlsl", text.get(), buffersdesc,
-				_countof(buffersdesc));
-		}
-
-		renderer->CreateStructuredBuffer(buffer.getAdressOf(), L"Unordered buffer for test barriers", 16, float4chunks, nullptr, BUFFER_FLAGS::UNORDERED_ACCESS);
-
-		renderer->CreateResourceSet(resources.getAdressOf(), shader.get());
-		resources->BindStructuredBufferUAV("tex_out", buffer.get());
-		cmdList->CompileSet(resources.get());
-		const size_t chunkIdx = resources->FindInlineBufferIndex("ChunkNumber");
-
-		cmdList->CommandsBegin();
-		ComputePipelineState cpso{};
-		cpso.shader = shader.get();
-
-		cmdList->SetComputePipelineState(cpso);
-		cmdList->BindResourceSet(resources.get());
-
-		for (UINT i = 0; i < float4chunks; ++i)
-		{
-			cmdList->UpdateInlineConstantBuffer(chunkIdx, &i, 4);
-			cmdList->Dispatch(1, 1);
-			
-			cmdList->EmitUAVBarrier(buffer.get()); // Comment this and you'll get random values
-		}
-		cmdList->CommandsEnd();
-		renderer->ExecuteCommandList(cmdList);
-
-		result.resize(4 * float4chunks);
-		buffer->GetData(result.data());
+		renderer->CreateComputeShader(shader.getAdressOf(), L"uav.hlsl", text.get(), buffersdesc,
+			_countof(buffersdesc));
 	}
 
-	long long x = 1;
+	renderer->CreateBuffer(buffer.getAdressOf(), L"Out",
+		16, BUFFER_FLAGS::UNORDERED_ACCESS_VIEW, MEMORY_TYPE::GPU_READ, nullptr, float4chunks);
+
+	renderer->CreateResourceSet(resources.getAdressOf(), shader.get());
+	resources->BindStructuredBufferUAV("powerOfTwo", buffer.get());
+	cmdList->CompileSet(resources.get());
+	const size_t chunkIdx = resources->FindInlineBufferIndex("ChunkNumber");
+
+	cmdList->CommandsBegin();
+	ComputePipelineState cpso{};
+	cpso.shader = shader.get();
+
+	cmdList->SetComputePipelineState(cpso);
+	cmdList->BindResourceSet(resources.get());
+
+	for (UINT i = 0; i < float4chunks; ++i)
+	{
+		cmdList->UpdateInlineConstantBuffer(chunkIdx, &i, 4);
+		cmdList->Dispatch(1, 1);
+		cmdList->EmitUAVBarrier(buffer.get());
+	}
+
+	cmdList->CommandsEnd();
+	renderer->ExecuteCommandList(cmdList);
+
+	result.resize(4 * float4chunks);
+	buffer->GetData(result.data());
+	
+	size_t x = 1;
 	for (size_t i = 0; i < result.size(); i+=4)
 	{
 		EXPECT_EQ(float(x), result[i]);
-		x = x == 1? 2 : x * 2;
+		x *= 2;
 	}
-	*/
 }
 
 int main(int argc, char** argv)

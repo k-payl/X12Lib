@@ -369,7 +369,7 @@ Microsoft::WRL::ComPtr<ID3D12Resource> BuildBLAS(const std::vector<engine::Mesh*
 	ID3D12CommandList* commandLists[] = { dxrCommandList };
 	commandQueue->ExecuteCommandLists(ARRAYSIZE(commandLists), commandLists);
 
-	engine::GetRender()->WaitForGpuCurrent();
+	engine::GetRenderer()->WaitForGpuCurrent();
 
 	return bottomLevelAccelerationStructure;
 }
@@ -431,7 +431,7 @@ Microsoft::WRL::ComPtr<ID3D12Resource> BuildTLAS(std::vector<BLAS>& blases,
 	ID3D12CommandList* commandLists[] = { dxrCommandList };
 	commandQueue->ExecuteCommandLists(ARRAYSIZE(commandLists), commandLists);
 
-	engine::GetRender()->WaitForGpuCurrent();
+	engine::GetRenderer()->WaitForGpuCurrent();
 
 	return TLAS; 
 }

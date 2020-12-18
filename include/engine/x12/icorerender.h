@@ -467,28 +467,6 @@ namespace x12
 		NUM
 	};
 
-	// TODO: move to private d3d namespace
-	enum RESOURCE_DEFINITION
-	{
-		RBF_NO_RESOURCE,
-
-		// Shader constants
-		RBF_UNIFORM_BUFFER = 1 << 0,
-
-		// Shader read-only resources
-		RBF_TEXTURE_SRV = 1 << 1,
-		RBF_BUFFER_SRV = 1 << 2,
-		RBF_SRV = RBF_TEXTURE_SRV | RBF_BUFFER_SRV,
-
-		// Shader unordered access resources
-		RBF_TEXTURE_UAV = 1 << 3,
-		RBF_BUFFER_UAV = 1 << 4,
-		RBF_UAV = RBF_TEXTURE_UAV | RBF_BUFFER_UAV,
-
-		RBF_SAMPLER = 1 << 5,
-	};
-	DEFINE_ENUM_OPERATORS(RESOURCE_DEFINITION)
-
 	static UINT formatInBytes(VERTEX_BUFFER_FORMAT format)
 	{
 		switch (format)

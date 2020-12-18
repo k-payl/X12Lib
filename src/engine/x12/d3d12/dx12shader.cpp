@@ -9,7 +9,7 @@
 #define HLSL_VER "5_1"
 
 using namespace x12;
-
+using namespace x12::d3d12;
 
 static D3D12_DESCRIPTOR_RANGE_TYPE ResourceToView(D3D_SHADER_INPUT_TYPE resource)
 {

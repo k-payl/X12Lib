@@ -56,7 +56,7 @@ namespace x12
 		resource_index& findResourceIndex(const char* name);
 
 		template<class TRes, class TDx12Res>
-		void Bind(const char* name, TRes* resource, RESOURCE_DEFINITION type)
+		void Bind(const char* name, TRes* resource, d3d12::RESOURCE_DEFINITION type)
 		{
 			auto dx12resource = static_cast<TDx12Res*>(resource);
 

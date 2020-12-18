@@ -42,27 +42,27 @@ Dx12ResourceSet::Dx12ResourceSet(const Dx12CoreShader* shader)
 
 void Dx12ResourceSet::BindConstantBuffer(const char* name, ICoreBuffer* buffer)
 {
-	Bind<ICoreBuffer, Dx12CoreBuffer>(name, buffer, RESOURCE_DEFINITION::RBF_UNIFORM_BUFFER);
+	Bind<ICoreBuffer, Dx12CoreBuffer>(name, buffer, d3d12::RESOURCE_DEFINITION::RBF_UNIFORM_BUFFER);
 }
 
 void Dx12ResourceSet::BindStructuredBufferSRV(const char* name, ICoreBuffer* buffer)
 {
-	Bind<ICoreBuffer, Dx12CoreBuffer>(name, buffer, RESOURCE_DEFINITION::RBF_BUFFER_SRV);
+	Bind<ICoreBuffer, Dx12CoreBuffer>(name, buffer, d3d12::RESOURCE_DEFINITION::RBF_BUFFER_SRV);
 }
 
 void Dx12ResourceSet::BindStructuredBufferUAV(const char* name, ICoreBuffer* buffer)
 {
-	Bind<ICoreBuffer, Dx12CoreBuffer>(name, buffer, RESOURCE_DEFINITION::RBF_BUFFER_UAV);
+	Bind<ICoreBuffer, Dx12CoreBuffer>(name, buffer, d3d12::RESOURCE_DEFINITION::RBF_BUFFER_UAV);
 }
 
 void Dx12ResourceSet::BindTextueSRV(const char* name, ICoreTexture* texture)
 {
-	Bind<ICoreTexture, Dx12CoreTexture>(name, texture, RESOURCE_DEFINITION::RBF_TEXTURE_SRV);
+	Bind<ICoreTexture, Dx12CoreTexture>(name, texture, d3d12::RESOURCE_DEFINITION::RBF_TEXTURE_SRV);
 }
 
 void Dx12ResourceSet::BindTextueUAV(const char* name, ICoreTexture* texture)
 {
-	Bind<ICoreTexture, Dx12CoreTexture>(name, texture, RESOURCE_DEFINITION::RBF_TEXTURE_UAV);
+	Bind<ICoreTexture, Dx12CoreTexture>(name, texture, d3d12::RESOURCE_DEFINITION::RBF_TEXTURE_UAV);
 }
 
 void x12::Dx12ResourceSet::checkResourceIsTable(const resource_index& index)

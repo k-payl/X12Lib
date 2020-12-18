@@ -237,7 +237,6 @@ void engine::Renderer::RenderFrame(const ViewportData& viewport, const CameraDat
 		// camera
 		{
 			using namespace math;
-
 			
 			float verFullFovInRadians = cam->GetFullVertFOVInRadians();
 			float aspect = float(width) / height;
@@ -881,7 +880,7 @@ void engine::Renderer::OnLoadScene()
 
 void engine::Renderer::OnSceneLoaded()
 {
-	GetRender()->OnLoadScene();
+	GetRenderer()->OnLoadScene();
 }
 
 ComPtr<ID3D12StateObject> engine::Renderer::CreatePSO(ComPtr<IDxcBlob> r, ComPtr<IDxcBlob> h, ComPtr<IDxcBlob> m)
@@ -1063,13 +1062,13 @@ void engine::Renderer::Init()
 		hit = CompileShader(L"rt_hit.hlsl", false, defines_primary);
 		miss = CompileShader(L"rt_miss.hlsl", false, defines_primary);
 
-		raygen_secondary = CompileShader(L"rt_raygen.hlsl");
-		hit_secondary = CompileShader(L"rt_hit.hlsl");
-		miss_secondary = CompileShader(L"rt_miss.hlsl");
+		raygenSecondary = CompileShader(L"rt_raygen.hlsl");
+		hitSecondary = CompileShader(L"rt_hit.hlsl");
+		missSecondary = CompileShader(L"rt_miss.hlsl");
 	}
 
 	dxrPrimaryStateObject = CreatePSO(raygen, hit, miss);
-	dxrSecondaryStateObject = CreatePSO(raygen_secondary, hit_secondary, miss_secondary);
+	dxrSecondaryStateObject = CreatePSO(raygenSecondary, hitSecondary, missSecondary);
 
 	descriptorSize = CreateDescriptorHeap(dxrDevice.Get(), descriptorHeap.GetAddressOf());
 

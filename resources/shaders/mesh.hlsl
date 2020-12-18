@@ -11,7 +11,7 @@ struct VertexShaderOutput
 	float3 cameraPos: TEXCOORD3;
 };
 
-#if VERTEX==1
+#if VERTEX
 
 	cbuffer CameraCB : register(b0)
 	{
@@ -40,6 +40,7 @@ struct VertexShaderOutput
 
 		return OUT;
 	}
+
 #else
 
     SamplerState textureSampler :register(s0);

@@ -7,8 +7,8 @@ extern engine::Core* core__;
 
 namespace engine
 {
-	X12_API Core* CreateCore();
-	X12_API void DestroyCore(Core* core);
+	X12_API Core*					CreateCore();
+	X12_API void					DestroyCore(Core* core);
 
 	X12_API x12::ICoreRenderer*		GetCoreRenderer();
 	X12_API MainWindow*				GetWindow();
@@ -18,42 +18,35 @@ namespace engine
 	X12_API ResourceManager*		GetResourceManager();
 	X12_API MaterialManager*		GetMaterialManager();
 	X12_API Console*				GetConsole();
-	X12_API Renderer*					GetRender();
+	X12_API Renderer*				GetRenderer();
 	X12_API void					Log(const char* str);
 
 	enum class INIT_FLAGS
 	{
-		NONE = 0,
-		NO_CONSOLE = 1 << 1,
-		NO_WINDOW = 1 << 2,
+		NONE,
+		NO_CONSOLE = 1 << 0,
+		NO_WINDOW = 1 << 1,
 		NO_INPUT = 1 << 2,
 		DIRECTX12_RENDERER = 1 << 3,
 		VULKAN_RENDERER = 1 << 4,
-		HIGH_LEVEL_RENDER = 1 << 5,
+		HIGH_LEVEL_RENDERER = 1 << 5,
 	};
-	inline bool operator&(INIT_FLAGS a, INIT_FLAGS b)
-	{
-		return (static_cast<int>(a) & static_cast<int>(b));
-	}
-
-	inline INIT_FLAGS operator|(INIT_FLAGS a, INIT_FLAGS b)
-	{
-		return static_cast<INIT_FLAGS>(static_cast<int>(a) | static_cast<int>(b));
-	}
+	DEFINE_ENUM_OPERATORS(INIT_FLAGS)
 
 	class Core
 	{
+		// Subsystems
 		std::unique_ptr<MainWindow> window;
 		std::unique_ptr<Input> input;
 		std::unique_ptr<Console> console;
 		std::unique_ptr<GpuProfiler> renderprofiler;
 		std::unique_ptr<GpuProfiler> memoryprofiler;
 		std::unique_ptr<FileSystem> fs;
-		std::unique_ptr<x12::ICoreRenderer> renderer;
 		std::unique_ptr<Renderer> render;
 		std::unique_ptr<SceneManager> sceneManager;
 		std::unique_ptr<ResourceManager> resourceManager;
 		std::unique_ptr<MaterialManager> matManager;
+		std::unique_ptr<x12::ICoreRenderer> renderer;
 
 		std::vector<intrusive_ptr<x12::ICoreQuery>> queries;
 
@@ -100,19 +93,17 @@ namespace engine
 		std::string workingPath_;
 		std::string dataPath_;
 
-		void X12_API Init(const char* rootPath, INIT_FLAGS flags, GpuProfiler* gpuprofiler_ = nullptr, InitRendererProcedure initRenderer = nullptr);
-		void X12_API Free();
-		void X12_API Start(Camera* cam = 0);
-
-		void X12_API AddRenderProcedure(RenderProcedure fn);
-		void X12_API AddInitProcedure(InitProcedure fn);
-		void X12_API AddUpdateProcedure(UpdateProcedure fn);
-		void X12_API AddFreeProcedure(FreeProcedure fn);
-
-		void X12_API Log(const char* str);
-		void X12_API LogProfiler(const char* key, const char* value);
-		void X12_API LogProfiler(const char* key, float value);
-		void X12_API LogProfiler(const char* key, int value);
+		X12_API void Init(const char* rootPath, INIT_FLAGS flags, GpuProfiler* gpuprofiler_ = nullptr, InitRendererProcedure initRenderer = nullptr);
+		X12_API void Free();
+		X12_API void Start(Camera* cam = 0);
+		X12_API void AddRenderProcedure(RenderProcedure fn);
+		X12_API void AddInitProcedure(InitProcedure fn);
+		X12_API void AddUpdateProcedure(UpdateProcedure fn);
+		X12_API void AddFreeProcedure(FreeProcedure fn);
+		X12_API void Log(const char* str);
+		X12_API void LogProfiler(const char* key, const char* value);
+		X12_API void LogProfiler(const char* key, float value);
+		X12_API void LogProfiler(const char* key, int value);
 
 		x12::ICoreRenderer* GetCoreRenderer() const { return renderer.get(); }
 		MainWindow* GetWindow() { return window.get(); }
@@ -122,7 +113,7 @@ namespace engine
 		ResourceManager* GetResourceManager() { return resourceManager.get(); }
 		MaterialManager* GetMaterialManager() { return matManager.get(); }
 		Console* GetConsole() { return console.get(); }
-		Renderer* GetRender() { return render.get(); }
+		Renderer* GetRenderer() { return render.get(); }
 
 		template<class T, typename... Arguments>
 		void _Log(T a, Arguments ...args)

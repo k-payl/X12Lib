@@ -107,7 +107,7 @@ engine::SceneManager::~SceneManager()
 
 void engine::SceneManager::LoadSceneCommand(const char* arg)
 {
-	GetRender()->WaitForGpuAll();
+	GetRenderer()->WaitForGpuAll();
 	engine::GetCoreRenderer()->WaitGPUAll();
 	GetSceneManager()->DestroyObjects();
 	GetSceneManager()->LoadScene(arg);

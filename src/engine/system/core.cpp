@@ -251,7 +251,7 @@ void Core::Init(const char *rootPath, INIT_FLAGS flags, GpuProfiler* gpuprofiler
 		memoryprofiler->AddRecord("peakTotalPages: %zu",			false, false);		// Peak total page count
 	}
 
-	if (FLAG(INIT_FLAGS::HIGH_LEVEL_RENDER))
+	if (FLAG(INIT_FLAGS::HIGH_LEVEL_RENDERER))
 	{
 		render = std::make_unique<Renderer>();
 		render->Init();
@@ -512,9 +512,9 @@ X12_API Console* engine::GetConsole()
 	return nullptr;
 }
 
-X12_API Renderer* engine::GetRender()
+X12_API Renderer* engine::GetRenderer()
 {
-	return core__->GetRender();
+	return core__->GetRenderer();
 }
 
 X12_API void engine::Log(const char* str)
