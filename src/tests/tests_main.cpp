@@ -157,13 +157,16 @@ protected:
 
 		renderer = engine::GetCoreRenderer();
 
-		renderer->CreateTexture(colorTexture.getAdressOf(), L"target texture",
-			nullptr, 0, w, h, 1, TEXTURE_TYPE::TYPE_2D,
-			TEXTURE_FORMAT::RGBA8, TEXTURE_CREATE_FLAGS::USAGE_RENDER_TARGET);
+		if (api != engine::INIT_FLAGS::VULKAN_RENDERER) // TODO: create vulkan texture
+		{
+			renderer->CreateTexture(colorTexture.getAdressOf(), L"target texture",
+				nullptr, 0, w, h, 1, TEXTURE_TYPE::TYPE_2D,
+				TEXTURE_FORMAT::RGBA8, TEXTURE_CREATE_FLAGS::USAGE_RENDER_TARGET);
 
-		renderer->CreateTexture(depthTexture.getAdressOf(), L"depth texture",
-			nullptr, 0, w, h, 1, TEXTURE_TYPE::TYPE_2D,
-			TEXTURE_FORMAT::D32, TEXTURE_CREATE_FLAGS::USAGE_RENDER_TARGET);
+			renderer->CreateTexture(depthTexture.getAdressOf(), L"depth texture",
+				nullptr, 0, w, h, 1, TEXTURE_TYPE::TYPE_2D,
+				TEXTURE_FORMAT::D32, TEXTURE_CREATE_FLAGS::USAGE_RENDER_TARGET);
+		}
 	}
 
 	void TearDown() override 
@@ -176,8 +179,9 @@ protected:
 };
 
 /*
- * Render quad to texture
+ * Render quad to texture.
  */
+/*
 TEST_F(TestX12, X12_Texturing)
 {
 	intrusive_ptr<ICoreShader> shader;
@@ -254,11 +258,52 @@ TEST_F(TestX12, X12_Texturing)
 	CaptureImage();
 
 	ASSERT_EQ(Compare(), 0);
+}*/
+
+/*
+ * Set and get data for buffer.
+ */
+TEST_F(TestX12, X12_BufferSetGet)
+{
+	for (int setData = 0; setData < 2; ++setData)
+	{
+		for (int fooInt = (int)MEMORY_TYPE::CPU; fooInt != (int)MEMORY_TYPE::NUM; fooInt++)
+		{
+			MEMORY_TYPE bufferMemory = static_cast<MEMORY_TYPE>(fooInt);
+			bool immidatelySetData = setData == 0;
+
+			float data[] = { 1, 55, 123.323f, 0, -3232.3f, 444 };
+
+			intrusive_ptr<ICoreBuffer> buffer;
+
+			if (immidatelySetData)
+			{
+				renderer->CreateBuffer(buffer.getAdressOf(), L"Set get buffer",
+					sizeof(data), BUFFER_FLAGS::NONE, bufferMemory, data);
+			}
+			else
+			{
+				renderer->CreateBuffer(buffer.getAdressOf(), L"Set get buffer",
+					sizeof(data), BUFFER_FLAGS::NONE, bufferMemory, nullptr);
+
+				buffer->SetData(data, sizeof(data));
+			}
+
+			decltype(data) readData{};
+			buffer->GetData(readData);
+
+			for (size_t i = 0; i < std::size(data); ++i)
+			{
+				EXPECT_EQ(readData[i], data[i]);
+			}
+		}
+	}
 }
 
 /*
- * Calculate power of two
+ * Calculate power of two.
  */
+/*
 TEST_F(TestX12, X12_ComputeShader)
 {
 	constexpr UINT float4chunks = 15;
@@ -281,7 +326,7 @@ TEST_F(TestX12, X12_ComputeShader)
 			_countof(buffersdesc));
 	}
 
-	renderer->CreateBuffer(buffer.getAdressOf(), L"Out",
+	renderer->CreateBuffer(buffer.getAdressOf(), L"Power of two result buffer",
 		16, BUFFER_FLAGS::UNORDERED_ACCESS_VIEW, MEMORY_TYPE::GPU_READ, nullptr, float4chunks);
 
 	renderer->CreateResourceSet(resources.getAdressOf(), shader.get());
@@ -316,6 +361,7 @@ TEST_F(TestX12, X12_ComputeShader)
 		x *= 2;
 	}
 }
+*/
 
 int main(int argc, char** argv)
 {

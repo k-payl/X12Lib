@@ -63,5 +63,7 @@ namespace x12
 		void StartQuery(ICoreQuery* query) override;
 		void StopQuery(ICoreQuery* query) override;
 		void* GetNativeResource() override;
+
+		VkCommandBuffer* CommandBuffer() { return &commandBuffers[frameIndex]; }
 	};
 }

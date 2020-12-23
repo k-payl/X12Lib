@@ -17,13 +17,13 @@ bool x12::Dx12CoreVertexBuffer::GetReadBarrier(UINT* numBarrires, D3D12_RESOURCE
 {
 	UINT num = 0;
 
-	if (vbState != D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER && memoryType & MEMORY_TYPE::GPU_READ)
+	if (vbState != D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER && memoryType == MEMORY_TYPE::GPU_READ)
 	{
 		barriers[num++] = CD3DX12_RESOURCE_BARRIER::Transition(vertexBuffer.Get(), vbState, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
 		vbState = D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER;
 	}
 
-	if (indexBuffer && ibState != D3D12_RESOURCE_STATE_INDEX_BUFFER && memoryType & MEMORY_TYPE::GPU_READ)
+	if (indexBuffer && ibState != D3D12_RESOURCE_STATE_INDEX_BUFFER && memoryType == MEMORY_TYPE::GPU_READ)
 	{
 		barriers[num++] = CD3DX12_RESOURCE_BARRIER::Transition(indexBuffer.Get(), ibState, D3D12_RESOURCE_STATE_INDEX_BUFFER);
 		ibState = D3D12_RESOURCE_STATE_INDEX_BUFFER;
@@ -43,19 +43,19 @@ void x12::Dx12CoreVertexBuffer::Init(LPCWSTR name_, const void* vbData, const Ve
 
 	const bool hasIndexBuffer = idxData != nullptr && idxDesc != nullptr;
 
-	UINT64 bufferSize = getBufferSize(vbDesc);
+	UINT64 bufferSize = VbSizeFromDesc(vbDesc);
 
 	UINT64 idxBufferSize;
 
 	D3D12_HEAP_TYPE d3dheapProperties;
 
-	if (memoryType & MEMORY_TYPE::GPU_READ)
+	if (memoryType == MEMORY_TYPE::GPU_READ)
 	{
 		d3dheapProperties = D3D12_HEAP_TYPE_DEFAULT;
 		vbState = D3D12_RESOURCE_STATE_COPY_DEST; // for copy cmd list
 		ibState = D3D12_RESOURCE_STATE_COPY_DEST;
 	}
-	else if (memoryType & MEMORY_TYPE::CPU)
+	else if (memoryType == MEMORY_TYPE::CPU)
 	{
 		d3dheapProperties = D3D12_HEAP_TYPE_UPLOAD;
 		vbState = D3D12_RESOURCE_STATE_GENERIC_READ; // for upload heap
@@ -121,7 +121,7 @@ void x12::Dx12CoreVertexBuffer::Init(LPCWSTR name_, const void* vbData, const Ve
 
 void x12::Dx12CoreVertexBuffer::SetData(const void* vbData, size_t vbSize, size_t vbOffset, const void* idxData, size_t idxSize, size_t idxOffset)
 {
-	if (memoryType & MEMORY_TYPE::GPU_READ)
+	if (memoryType == MEMORY_TYPE::GPU_READ)
 	{
 		assert(vbOffset == 0 && "Not impl");
 		assert(idxOffset == 0 && "Not impl");
@@ -151,7 +151,7 @@ void x12::Dx12CoreVertexBuffer::SetData(const void* vbData, size_t vbSize, size_
 
 		renderer->WaitGPUAll(); // wait GPU copying upload -> default heap
 	}
-	else if (memoryType & MEMORY_TYPE::CPU)
+	else if (memoryType == MEMORY_TYPE::CPU)
 	{
 		{
 			UINT8* pVertexDataBegin;
