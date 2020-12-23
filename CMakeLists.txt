@@ -24,12 +24,12 @@ if (VK_ENABLE)
 		message(FATAL_ERROR "Vulkan not find!")
 	else()
 		message(STATUS "Vulkan lib path: " ${Vulkan_LIBRARY})
+		message(STATUS "Vulkan include path: " ${Vulkan_INCLUDE_DIR})
 	endif()
 endif()
 
 set(CMAKE_SYSTEM_VERSION "10.0.19041.0" CACHE STRING INTERNAL FORCE)
 set(CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION "10.0.19041.0" CACHE STRING INTERNAL FORCE)
-
 
 add_definitions ( -D_UNICODE )
 add_definitions ( -DUNICODE )
@@ -52,14 +52,12 @@ file(GLOB HEADERS_3RDPARTY
     3rdparty/DirectXTK/Inc/*.h
     3rdparty/DirectXTex/*.h)
 	
-# Vulkan
 if (VK_ENABLE)
 	add_definitions(-DVK_ENABLE=1)
 	file(GLOB SOURCES_VK src/engine/x12/vk/*.cpp)
 	file(GLOB HEADERS_VK src/engine/x12/vk/*.h include/engine/x12/vk/*.h)
 	set(SOURCES_VIDEO ${SOURCES_VIDEO} ${SOURCES_VK})
 	set(HEADERS_VIDEO ${HEADERS_VIDEO} ${HEADERS_VK})
-	set(HEADERS ${HEADERS} ${Vulkan_INCLUDE_DIR}/vulkan/)
 endif()
 
 set(SOURCES ${SOURCES} ${SOURCES_SYSTEM} ${SOURCES_VIDEO} ${SOURCES_3RDPARTY})
@@ -132,6 +130,11 @@ target_include_directories(engine_main PRIVATE
 	include/math
 	resources/shaders
 	3rdparty/d3dx12)
+if (VK_ENABLE)
+	target_include_directories(engine_main PRIVATE 
+	include/engine/x12/vk
+	${Vulkan_INCLUDE_DIR}/vulkan)
+endif()
 target_link_libraries(engine_main engine)
 target_link_libraries(engine_main dxcompiler)
 target_compile_features(engine_main PRIVATE cxx_std_17)
@@ -158,6 +161,11 @@ target_include_directories(constantbuffers PRIVATE
 	include/math
 	resources/shaders
 	3rdparty/d3dx12)
+if (VK_ENABLE)
+	target_include_directories(constantbuffers PRIVATE 
+	include/engine/x12/vk
+	${Vulkan_INCLUDE_DIR}/vulkan)
+endif()
 target_include_directories(constantbuffers PRIVATE src/examples)
 target_link_libraries(constantbuffers engine)
 set_property(TARGET constantbuffers PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/build")
@@ -194,7 +202,9 @@ if (TESTS_ENABLE)
 		3rdparty/googletest/googletest/include
 		3rdparty/stb)
 	if (VK_ENABLE)
-		target_include_directories(tests PRIVATE src/engine/x12/vk)
+		target_include_directories(tests PRIVATE 
+		include/engine/x12/vk
+		${Vulkan_INCLUDE_DIR}/vulkan)
 	endif()
 	target_link_libraries(tests engine gtest_main)
 	set_target_properties(tests PROPERTIES LINK_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /SUBSYSTEM:CONSOLE")

@@ -3,6 +3,7 @@
 #include "vkcommon.h"
 #include "vkcontext.h"
 #include "vkvertexbuffer.h"
+#include "vkshader.h"
 
 x12::VkCoreRenderer::VkCoreRenderer()
 {
@@ -140,7 +141,12 @@ bool x12::VkCoreRenderer::CreateShader(ICoreShader** out, LPCWSTR name, const ch
 
 bool x12::VkCoreRenderer::CreateComputeShader(ICoreShader** out, LPCWSTR name, const char* text, const ConstantBuffersDesc* variabledesc, uint32_t varNum)
 {
-	return false;
+	auto* ptr = new VkCoreShader{};
+	ptr->InitCompute(name, text, variabledesc, varNum);
+	ptr->AddRef();
+	*out = ptr;
+
+	return ptr != nullptr;
 }
 
 bool x12::VkCoreRenderer::CreateVertexBuffer(ICoreVertexBuffer** out, LPCWSTR name, const void* vbData, const VeretxBufferDesc* vbDesc, const void* idxData, const IndexBufferDesc* idxDesc, MEMORY_TYPE mem)

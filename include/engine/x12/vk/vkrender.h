@@ -101,12 +101,12 @@ namespace x12
 
 	namespace vk
 	{
-		inline VkCoreRenderer* VkGetCoreRender() { return static_cast<VkCoreRenderer*>(_coreRender); }
-		inline VkDevice GetDevice() { return VkGetCoreRender()->Device(); }
+		inline VkCoreRenderer*	VkGetCoreRender() { return static_cast<VkCoreRenderer*>(_coreRender); }
+		inline VkDevice			GetDevice() { return VkGetCoreRender()->Device(); }
 		inline VkPhysicalDevice GetPhysicalDevice() { return VkGetCoreRender()->PhysicalDevice(); }
-		inline VkInstance GetInstance() { return VkGetCoreRender()->Instance(); }
-		inline VkCommandPool GetCommandPool() { return VkGetCoreRender()->CommandPool(); }
-		inline VkQueue GetGraphicQueue() { return VkGetCoreRender()->GraphicQueue(); }
-		inline VmaAllocator& GetAllocator() { return VkGetCoreRender()->Allocator(); }
+		inline VkInstance		GetInstance() { return VkGetCoreRender()->Instance(); }
+		inline VkCommandPool	GetCommandPool() { return VkGetCoreRender()->CommandPool(); }
+		inline VkQueue			GetGraphicQueue() { return VkGetCoreRender()->GraphicQueue(); }
+		inline VmaAllocator&	GetAllocator() { return VkGetCoreRender()->Allocator(); }
 	}
 }

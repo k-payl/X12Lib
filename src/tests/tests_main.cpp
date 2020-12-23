@@ -19,7 +19,7 @@ class TestX12 : public ::testing::Test
 	engine::Core *core;
 
 protected:
-	const engine::INIT_FLAGS api = engine::INIT_FLAGS::DIRECTX12_RENDERER;
+	const engine::INIT_FLAGS api = engine::INIT_FLAGS::VULKAN_RENDERER;
 	const int w = 512;
 	const int h = 512;
 	const float aspect = float(w) / h;
