@@ -13,13 +13,13 @@
 
 using namespace x12;
 
-
-class TestX12 : public ::testing::Test
+class TestX12 : public ::testing::TestWithParam<engine::INIT_FLAGS>
 {	
 	engine::Core *core;
 
 protected:
-	const engine::INIT_FLAGS api = engine::INIT_FLAGS::VULKAN_RENDERER;
+	engine::INIT_FLAGS api;
+
 	const int w = 512;
 	const int h = 512;
 	const float aspect = float(w) / h;
@@ -146,6 +146,8 @@ protected:
 
 	void SetUp() override 
 	{
+		api = GetParam();
+
 		const auto flags =
 			api |
 			engine::INIT_FLAGS::NO_WINDOW |
@@ -178,11 +180,14 @@ protected:
 	}
 };
 
+INSTANTIATE_TEST_SUITE_P(InstantiationName, TestX12,
+	::testing::Values(engine::INIT_FLAGS::DIRECTX12_RENDERER, engine::INIT_FLAGS::VULKAN_RENDERER));
+
 /*
  * Render quad to texture.
- */
-/*
-TEST_F(TestX12, X12_Texturing)
+ */ 
+
+TEST_P(TestX12, X12_Texturing)
 {
 	intrusive_ptr<ICoreShader> shader;
 	intrusive_ptr<IResourceSet> resourceSet;
@@ -258,12 +263,12 @@ TEST_F(TestX12, X12_Texturing)
 	CaptureImage();
 
 	ASSERT_EQ(Compare(), 0);
-}*/
+}
 
 /*
  * Set and get data for buffer.
  */
-TEST_F(TestX12, X12_BufferSetGet)
+TEST_P(TestX12, X12_BufferGetSet)
 {
 	for (int setData = 0; setData < 2; ++setData)
 	{
@@ -303,11 +308,10 @@ TEST_F(TestX12, X12_BufferSetGet)
 /*
  * Calculate power of two.
  */
-/*
-TEST_F(TestX12, X12_ComputeShader)
+TEST_P(TestX12, X12_ComputeShader)
 {
 	constexpr UINT float4chunks = 15;
-	std::vector<float> result;	
+	std::vector<float> result;
 	intrusive_ptr<ICoreShader> shader;
 	intrusive_ptr<ICoreBuffer> buffer;
 	intrusive_ptr<IResourceSet> resources;
@@ -353,15 +357,14 @@ TEST_F(TestX12, X12_ComputeShader)
 
 	result.resize(4 * float4chunks);
 	buffer->GetData(result.data());
-	
+
 	size_t x = 1;
-	for (size_t i = 0; i < result.size(); i+=4)
+	for (size_t i = 0; i < result.size(); i += 4)
 	{
 		EXPECT_EQ(float(x), result[i]);
 		x *= 2;
 	}
 }
-*/
 
 int main(int argc, char** argv)
 {

@@ -1,6 +1,6 @@
 #include "vkbuffer.h"
 #include "vkrender.h"
-#include "vkcontext.h"
+#include "vkcommandlist.h"
 #include "core.h"
 
 void x12::VkCoreBuffer::Map()
@@ -37,7 +37,7 @@ x12::VkCoreBuffer::VkCoreBuffer(size_t size_, const void* data, MEMORY_TYPE memo
 		bufferInfo.usage |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
 	if (memoryType & MEMORY_TYPE::READBACK)
 		bufferInfo.usage |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-	if (data)
+	if (memoryType & MEMORY_TYPE::GPU_READ) // for SetData()
 		bufferInfo.usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
 
 	VmaAllocationCreateInfo allocInfo = {};
