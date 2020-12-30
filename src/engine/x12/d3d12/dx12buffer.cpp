@@ -211,7 +211,7 @@ void x12::Dx12CoreBuffer::initCBV(UINT size)
 	CBVdescriptor = d3d12::D3D12GetCoreRender()->AllocateStaticDescriptor();
 
 	D3D12_CONSTANT_BUFFER_VIEW_DESC desc;
-	desc.SizeInBytes = alignConstantBufferSize(size);
+	desc.SizeInBytes = AlignConstantBufferSize(size);
 	desc.BufferLocation = resource->GetGPUVirtualAddress();
 
 	d3d12::CR_GetD3DDevice()->CreateConstantBufferView(&desc, CBVdescriptor.descriptor);

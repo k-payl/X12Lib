@@ -12,6 +12,12 @@ namespace x12
 {
 	inline constexpr size_t NumRenderDescriptors = 1'024;
 
+	template<class T>
+	inline constexpr T AlignConstantBufferSize(T size)
+	{
+		return engine::Align(size, 256);
+	}
+
 	x12::TEXTURE_FORMAT D3DToEng(DXGI_FORMAT format);
 	DXGI_FORMAT EngToD3D(x12::TEXTURE_FORMAT format);
 	size_t BitsPerPixel(DXGI_FORMAT format);

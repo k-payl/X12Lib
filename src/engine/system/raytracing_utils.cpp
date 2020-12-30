@@ -283,7 +283,7 @@ void TransformToDxr(FLOAT DXRTransform[3][4], const math::mat4& transform)
 ShaderTable::ShaderTable(ID3D12Device* device, UINT numShaderRecords, UINT shaderRecordSize, LPCWSTR resourceName)
 	: m_name(resourceName)
 {
-	m_shaderRecordSize = x12::Align(shaderRecordSize, D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT);
+	m_shaderRecordSize = engine::Align(shaderRecordSize, D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT);
 	m_shaderRecords.reserve(numShaderRecords);
 	UINT bufferSize = numShaderRecords * m_shaderRecordSize;
 	Allocate(device, bufferSize, resourceName);

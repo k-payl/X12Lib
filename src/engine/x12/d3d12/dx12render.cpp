@@ -480,7 +480,7 @@ bool x12::Dx12CoreRenderer::CreateVertexBuffer(ICoreVertexBuffer** out, LPCWSTR 
 bool x12::Dx12CoreRenderer::CreateBuffer(ICoreBuffer** out, LPCWSTR name, size_t size, BUFFER_FLAGS flags, MEMORY_TYPE mem, const void* data, size_t num)
 {
 	if (flags & BUFFER_FLAGS::CONSTANT_BUFFER_VIEW)
-		size = alignConstantBufferSize(size);
+		size = AlignConstantBufferSize(size);
 
 	auto* ptr = new Dx12CoreBuffer(size * num, data, mem, flags, name);
 

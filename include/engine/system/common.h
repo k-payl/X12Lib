@@ -153,15 +153,8 @@ inline void notImplemented()
 	throw std::runtime_error("Not implemented");
 }
 
-
-namespace x12
+namespace engine
 {
-	template<class T>
-	inline constexpr T alignConstantBufferSize(T size)
-	{
-		return (size + 255) & ~255;
-	}
-
 	inline UINT Align(UINT size, UINT alignment)
 	{
 		return (size + (alignment - 1)) & ~(alignment - 1);
