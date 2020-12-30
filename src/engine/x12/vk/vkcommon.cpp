@@ -385,5 +385,5 @@ void x12::VkWindowSurface::Present()
 
 void* x12::VkWindowSurface::GetNativeResource(int i)
 {
-	return swapChainImages[i];
+	return (void*)swapChainImages[i];
 }

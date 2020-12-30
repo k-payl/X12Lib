@@ -19,8 +19,6 @@
 #include <fstream>
 #include <algorithm>
 
-#define RAYTRACING_SHADER_DIR L"../resources/shaders/raytracing/"
-
 static ID3D12Resource* scratchResource;
 static size_t scratchSize;
 static IDxcCompiler* pCompiler = nullptr;

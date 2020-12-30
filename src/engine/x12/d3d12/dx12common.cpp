@@ -329,9 +329,9 @@ void x12::Dx12WindowSurface::Init(HWND hwnd, ICoreRenderer* render)
 
 void x12::Dx12WindowSurface::ResizeBuffers(unsigned width_, unsigned height_)
 {
-	width = math::max_(width_, 1u);
-	height = math::max_(height_, 1u);
-
+	width = std::max(width_, 1u);
+	height = std::max(height_, 1u);
+	constexpr auto s = u8"a";
 	depthBuffer.Reset();
 
 	for (int i = 0; i < DeferredBuffers; ++i)

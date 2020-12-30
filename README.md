@@ -6,9 +6,7 @@ Library for experiments with modern graphic API. Cmake 3.16, VS 2019, and window
 ![Alt text](docs/sponza_3.png?raw=true "Sponza")
 
 ## Build
-* Visual studio 2019: run generate_vs_solution.bat then open x12lib.sln<br />
-* VS code: install extensions C/C++, Cmake Tools. Open root folder in editor.<br />
-Default engine application is engine_main project.
+Visual studio 2019: run generate_vs_solution.bat then open x12lib.sln<br />
 
 ## Current progress
 * Path tracing with one bounce, area lights support

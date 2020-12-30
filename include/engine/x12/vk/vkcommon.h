@@ -2,6 +2,15 @@
 #include "common.h"
 #include "icorerender.h"
 
+// Vulkan specific headers.
+#ifdef _WIN32
+#define VK_USE_PLATFORM_WIN32_KHR
+#endif
+
+#if VK_ENABLE
+#include "vulkan.h"
+#endif
+
 #define VK_USE_PLATFORM_WIN32_KHR
 
 #if _DEBUG

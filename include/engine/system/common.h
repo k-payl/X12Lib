@@ -32,17 +32,8 @@ using namespace Microsoft::WRL;
 #include <dxgi1_6.h>
 //#include <DirectXMath.h>
 
-// Vulkan specific headers.
-#ifdef _WIN32
-#define VK_USE_PLATFORM_WIN32_KHR
-#endif
-
 // D3D12 extension library.
 #include "d3dx12.h"
-
-#if VK_ENABLE
-#include "vulkan.h"
-#endif
 
 #include <stdint.h>
 #include <cassert>
@@ -65,9 +56,10 @@ using namespace Microsoft::WRL;
 
 // TODO: split to private an public part
 
-#define DATA_DIR "..//resources//"
-#define WDATA_DIR L"..//resources//"
+#define DATA_DIR "..//..//resources//"
+#define WDATA_DIR L"..//..//resources//"
 #define SHADER_DIR "shaders//"
+#define RAYTRACING_SHADER_DIR L"..//..//resources//shaders//raytracing//"
 #define TEXTURES_DIR "textures//"
 #define MESH_DIR "meshes//"
 

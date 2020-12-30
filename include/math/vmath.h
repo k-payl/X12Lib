@@ -1,5 +1,6 @@
 #pragma once
 #include <cmath> // sqrt
+#include <algorithm> // clamp()
 #pragma warning(disable : 4201) // ignore non standard unnamed struct in union
 
 #ifdef _WIN32
@@ -973,18 +974,6 @@ namespace math
 		return a.x * b.x + a.y * b.y + a.z * b.z;
 	}
 
-	template<typename T>
-	inline T max_(T a, T b)
-	{
-		return a > b ? a : b;
-	}
-
-	template<typename T>
-	inline T min_(T a, T b)
-	{
-		return a > b ? b : a;
-	}
-
 	inline vec3 normalize(const vec3& v)
 	{
 		float len = v.Lenght();
@@ -998,7 +987,7 @@ namespace math
 
 	inline float saturate(float a)
 	{
-		return max_(min_(a, 1.0f), 0.0f);
+		return std::clamp(a, 0.0f, 1.0f);
 	}
 	inline vec3 triangle_normal(vec4 p0, vec4 p1, vec4 p2)
 	{

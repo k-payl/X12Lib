@@ -10,6 +10,7 @@ cmake_minimum_required (VERSION 3.4.3)
 project (x12lib)
 
 option(TESTS_ENABLE "" ON)
+option(VK_ENABLE "" ON)
 
 # YAML
 option(YAML_CPP_BUILD_TOOLS "" OFF)
@@ -117,7 +118,6 @@ target_link_libraries(engine ${ENGINE_LIBS})
 target_link_libraries(engine yaml-cpp)
 target_link_libraries(engine dxcompiler)
 target_compile_definitions(engine PUBLIC _DLL_EXPORTS)
-set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /SUBSYSTEM:WINDOWS")
 
 # Examples
 
@@ -138,7 +138,7 @@ endif()
 target_link_libraries(engine_main engine)
 target_link_libraries(engine_main dxcompiler)
 target_compile_features(engine_main PRIVATE cxx_std_17)
-set_property(TARGET engine_main PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/build")
+set_target_properties(engine_main PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "$<TARGET_FILE_DIR:engine_main>")
 # copy dxcompiler.dll for raytracing
 add_custom_command(TARGET engine_main POST_BUILD
 	COMMAND ${CMAKE_COMMAND} -E copy_if_different
@@ -168,7 +168,7 @@ if (VK_ENABLE)
 endif()
 target_include_directories(constantbuffers PRIVATE src/examples)
 target_link_libraries(constantbuffers engine)
-set_property(TARGET constantbuffers PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/build")
+set_target_properties(constantbuffers PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "$<TARGET_FILE_DIR:constantbuffers>")
 
 # gltf mesh exporter
 add_executable(gltfmeshexporter src/examples/gltfmeshexporter.cpp)
@@ -184,7 +184,7 @@ target_include_directories(gltfmeshexporter PRIVATE
 	resources/shaders)
 target_link_libraries(gltfmeshexporter yaml-cpp)
 target_link_libraries(gltfmeshexporter engine)
-set_property(TARGET gltfmeshexporter PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/build")
+set_target_properties(gltfmeshexporter PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "$<TARGET_FILE_DIR:gltfmeshexporter>")
 
 # test
 if (TESTS_ENABLE)
@@ -207,6 +207,5 @@ if (TESTS_ENABLE)
 		${Vulkan_INCLUDE_DIR}/vulkan)
 	endif()
 	target_link_libraries(tests engine gtest_main)
-	set_target_properties(tests PROPERTIES LINK_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /SUBSYSTEM:CONSOLE")
-	set_property(TARGET tests PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/build")
+	set_target_properties(tests PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "$<TARGET_FILE_DIR:tests>")
 endif()
