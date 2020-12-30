@@ -423,8 +423,6 @@ void Dx12GraphicCommandList::Free()
 {
 	ReleaseTrakedResources();
 
-	statesStack = {};
-
 	Release(d3dCommandAllocator);
 	Release(d3dCmdList);
 }
@@ -432,35 +430,6 @@ void Dx12GraphicCommandList::Free()
 void Dx12GraphicCommandList::FrameEnd()
 {
 	resetStatistic();
-}
-
-void Dx12GraphicCommandList::PushState()
-{
-	statesStack.push(state);
-}
-
-void Dx12GraphicCommandList::PopState()
-{
-	StateCache& state_ = statesStack.top();
-
-	if (state_.pso.isCompute)
-		SetComputePipelineState(state_.pso.computeDesc);
-	else
-		SetGraphicPipelineState(state_.pso.graphicDesc);
-
-	BindResourceSet(state_.set_.get());
-
-	if (!state_.pso.isCompute)
-	{
-		BindSurface(state_.surface);
-		SetVertexBuffer(state_.pso.graphicDesc.vb.get());
-		SetScissor(state_.scissor.left, state_.scissor.top, state_.scissor.right, state_.scissor.bottom);
-		SetViewport((unsigned)state_.viewport.Width, (unsigned)state_.viewport.Height);
-	}
-
-	state = state_;
-
-	statesStack.pop();
 }
 
 void Dx12GraphicCommandList::CommandsBegin()
@@ -548,26 +517,6 @@ void Dx12GraphicCommandList::resetFullState()
 {
 	state = {};
 }
-
-//void Dx12GraphicCommandList::transiteSurfaceToState(D3D12_RESOURCE_STATES newState)
-//{
-//	if (!state.surface)
-//		return;
-//
-//	Dx12WindowSurface* dx12surface = static_cast<Dx12WindowSurface*>(state.surface.get());
-//
-//	if (dx12surface->state == newState)
-//		return;
-//
-//	ID3D12Resource* backBuffer = resource_cast(dx12surface->colorBuffers[renderer->FrameIndex()].get())->re;
-//
-//	CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(backBuffer,
-//																			dx12surface->state, newState);
-//
-//	d3dCmdList->ResourceBarrier(1, &barrier);
-//
-//	dx12surface->state = newState;
-//}
 
 void Dx12GraphicCommandList::resetStatistic()
 {

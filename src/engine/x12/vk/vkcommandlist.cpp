@@ -85,8 +85,6 @@ void x12::VkGraphicCommandList::Free()
 {
 }
 
-void x12::VkGraphicCommandList::PushState() { notImplemented(); }
-void x12::VkGraphicCommandList::PopState() { notImplemented(); }
 void x12::VkGraphicCommandList::SetGraphicPipelineState(const GraphicPipelineState& gpso) { notImplemented(); }
 void x12::VkGraphicCommandList::SetComputePipelineState(const ComputePipelineState& cpso) { notImplemented(); }
 void x12::VkGraphicCommandList::SetVertexBuffer(ICoreVertexBuffer* vb) { notImplemented(); }

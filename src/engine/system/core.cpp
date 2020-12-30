@@ -156,7 +156,7 @@ void Core::Init(const char *rootPath, INIT_FLAGS flags, GpuProfiler* gpuprofiler
 		workingPath_ = fs->GetWorkingPath("");
 		string rootRelativeToWorking_;
 		if (strlen(rootPath) == 0)
-			rootRelativeToWorking_ = "..\\..\\";
+			rootRelativeToWorking_ = "../../";
 		else
 			rootRelativeToWorking_ = rootPath;
 		rootPath_ = fs->GetWorkingPath(rootRelativeToWorking_.c_str());;
@@ -170,7 +170,7 @@ void Core::Init(const char *rootPath, INIT_FLAGS flags, GpuProfiler* gpuprofiler
 	assert(rootPath_.size() > 0);
 
 	// data path
-	dataPath_ = rootPath_ + "\\resources\\";
+	dataPath_ = rootPath_ + "/resources/";
 
 	fs = std::make_unique<FileSystem>(dataPath_);
 	sceneManager = std::make_unique<SceneManager>();

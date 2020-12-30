@@ -62,8 +62,8 @@ protected:
 			test_info->name(),
 			test_info->test_suite_name());
 
-		auto nameRef = "..//resources//tests_ref//" + std::string(test_info->name()) + ext;
-		auto nameResult = "..//resources//tests_out//" + std::string(test_info->name());
+		auto nameRef = "../../resources/tests_ref/" + std::string(test_info->name()) + ext;
+		auto nameResult = "../../resources/tests_out/" + std::string(test_info->name());
 
 		return { nameRef, nameResult };
 	}
@@ -180,7 +180,7 @@ protected:
 	}
 };
 
-INSTANTIATE_TEST_SUITE_P(InstantiationName, TestX12,
+INSTANTIATE_TEST_SUITE_P(X12Scope, TestX12,
 	::testing::Values(engine::INIT_FLAGS::DIRECTX12_RENDERER, engine::INIT_FLAGS::VULKAN_RENDERER));
 
 /*
@@ -366,10 +366,120 @@ TEST_P(TestX12, X12_ComputeShader)
 	}
 }
 
+class TestFS : public ::testing::Test
+{
+	engine::Core* core;
+
+protected:
+	void SetUp() override
+	{
+		const auto flags =
+			engine::INIT_FLAGS::DIRECTX12_RENDERER |
+			engine::INIT_FLAGS::NO_WINDOW |
+			engine::INIT_FLAGS::NO_INPUT |
+			engine::INIT_FLAGS::NO_CONSOLE;
+
+		core = engine::CreateCore();
+		core->Init("", flags);
+	}
+
+	void TearDown() override
+	{
+		core->Free();
+		engine::DestroyCore(core);
+	}
+};
+
+TEST_F(TestFS, FileExist)
+{
+	EXPECT_TRUE(engine::GetFS()->FileExist("fs/test.txt"));
+
+	std::u8string str = u8"fs/текстовый файл";
+	EXPECT_TRUE(engine::GetFS()->FileExist((char*)str.c_str()));
+
+	str = u8"fs/糞紝.txt";
+	EXPECT_TRUE(engine::GetFS()->FileExist((char*)str.c_str()));
+
+	str = u8"fs/紝 тест/ⅳⅷ";
+	EXPECT_TRUE(engine::GetFS()->FileExist((char*)str.c_str()));
+
+	str = u8"несущствующий файл.txt";
+	EXPECT_FALSE(engine::GetFS()->FileExist((char*)str.c_str()));
+}
+
+TEST_F(TestFS, DirectoryExist)
+{
+	std::u8string str = u8"fs/紝 тест";
+	EXPECT_TRUE(engine::GetFS()->DirectoryExist((char*)str.c_str()));
+
+	str = u8"несущствующая дирекория";
+	EXPECT_FALSE(engine::GetFS()->DirectoryExist((char*)str.c_str()));
+}
+
+TEST_F(TestFS, CreateDeleteDirectory)
+{
+	std::u8string str = u8"fs/временная директория";
+	engine::GetFS()->CreateDirectory_((char*)str.c_str());
+	EXPECT_TRUE(engine::GetFS()->DirectoryExist((char*)str.c_str()));
+
+	engine::GetFS()->DeleteDirectory((char*)str.c_str());
+	EXPECT_FALSE(engine::GetFS()->DirectoryExist((char*)str.c_str()));
+}
+
+TEST_F(TestFS, RelativeDirectory)
+{
+	std::u8string str = u8"fs/ относительный путь";
+	EXPECT_TRUE(engine::GetFS()->IsRelative((char*)str.c_str()));
+	EXPECT_TRUE(engine::GetFS()->IsRelative(""));
+	EXPECT_TRUE(engine::GetFS()->IsRelative("relative"));
+
+	EXPECT_FALSE(engine::GetFS()->IsRelative("//c/programs not relative"));
+	EXPECT_FALSE(engine::GetFS()->IsRelative("//c/programs/zzzzzz"));
+	EXPECT_FALSE(engine::GetFS()->IsRelative("C:/programs/"));
+	EXPECT_FALSE(engine::GetFS()->IsRelative("C:\\programs\\"));
+	EXPECT_FALSE(engine::GetFS()->IsRelative("C:\\programs   "));
+}
+
+TEST_F(TestFS, ReadBinaryFile)
+{
+	std::u8string str = u8"fs/бинарный файл";
+	EXPECT_TRUE(engine::GetFS()->FileExist((char*)str.c_str()));
+	auto file = engine::GetFS()->OpenFile((char*)str.c_str(), engine::FILE_OPEN_MODE::BINARY | engine::FILE_OPEN_MODE::READ);
+	size_t size = file.FileSize();
+	std::unique_ptr<uint8_t[]> data(new uint8_t[size]);
+	file.Read(data.get(), size);
+	EXPECT_TRUE(data[0] == 0);
+	EXPECT_TRUE(data[1] == 1);
+	EXPECT_TRUE(data[2] == 2);
+}
+
+TEST_F(TestFS, ReadTextFile)
+{
+	std::u8string str = u8"fs/текстовый файл";
+	EXPECT_TRUE(engine::GetFS()->FileExist((char*)str.c_str()));
+	auto file = engine::GetFS()->OpenFile((char*)str.c_str(), engine::FILE_OPEN_MODE::READ);
+	size_t size = file.FileSize();
+	std::unique_ptr<uint8_t[]> data(new uint8_t[size]);
+	file.Read(data.get(), size);
+	EXPECT_TRUE(data[0] == '0');
+	EXPECT_TRUE(data[1] == '1');
+	EXPECT_TRUE(data[2] == '2');
+}
+
+TEST_F(TestFS, GetFilename)
+{
+	EXPECT_TRUE("file" == engine::GetFS()->GetFileName("F:\\file.txt", false));
+	EXPECT_TRUE("file.txt" == engine::GetFS()->GetFileName("F:\\file.txt", true));
+	EXPECT_TRUE("file" == engine::GetFS()->GetFileName("//c/dir/file.txt", false));
+	EXPECT_TRUE("file.txt" == engine::GetFS()->GetFileName("//c/dir/file.txt", true));
+	EXPECT_TRUE("file" == engine::GetFS()->GetFileName("aaa dir/file.txt", false));
+	EXPECT_TRUE("file.txt" == engine::GetFS()->GetFileName("aaa dir/file.txt", true));
+}
+
 int main(int argc, char** argv)
 {
 	::testing::InitGoogleTest(&argc, argv);
-	auto ret =  RUN_ALL_TESTS();
+	auto ret = RUN_ALL_TESTS();
 	system("pause");
 	return ret;
 }

@@ -65,9 +65,10 @@ namespace engine
 
 	public:
 		StreamPtr() = default;
-		StreamPtr(IResource<T>* resource) : resource_(resource)
+		StreamPtr(IResource<T>* resource, bool attach = false) : resource_(resource)
 		{
-			grab();
+			if (!attach)
+				grab();
 		}
 		StreamPtr(StreamPtr& r)
 		{

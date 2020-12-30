@@ -65,6 +65,7 @@ namespace engine
 		auto X12_API FileExist(const char *path) -> bool;
 		auto X12_API DirectoryExist(const char *path) -> bool;
 		auto X12_API CreateDirectory_(const char* name) -> void;
+		auto X12_API DeleteDirectory(const char* name) -> void;
 		auto X12_API GetWorkingPath(const char *path) -> std::string;
 		auto X12_API IsRelative(const char *path) -> bool;
 		auto X12_API OpenFile(const char *path, FILE_OPEN_MODE mode = FILE_OPEN_MODE::WRITE) -> File;

@@ -56,12 +56,12 @@ using namespace Microsoft::WRL;
 
 // TODO: split to private an public part
 
-#define DATA_DIR "..//..//resources//"
-#define WDATA_DIR L"..//..//resources//"
-#define SHADER_DIR "shaders//"
-#define RAYTRACING_SHADER_DIR L"..//..//resources//shaders//raytracing//"
-#define TEXTURES_DIR "textures//"
-#define MESH_DIR "meshes//"
+#define DATA_DIR "../../resources/"
+#define WDATA_DIR L"../../resources/"
+#define SHADER_DIR "shaders/"
+#define RAYTRACING_SHADER_DIR L"../../resources/shaders/raytracing/"
+#define TEXTURES_DIR "textures/"
+#define MESH_DIR "meshes/"
 
 namespace engine {
 	inline constexpr int DeferredBuffers = 3;

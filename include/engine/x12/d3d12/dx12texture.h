@@ -18,10 +18,10 @@ namespace x12
 		D3D12_CPU_DESCRIPTOR_HANDLE GetUAV() const { return UAVdescriptor.descriptor; }
 
 		void TransiteToState(D3D12_RESOURCE_STATES newState, ID3D12GraphicsCommandList* cmdList);
-
-		void* GetNativeResource() override { return resource.Get(); }
-		void GetData(void* data) override;
 		UINT WholeSize();
+
+		X12_API void* GetNativeResource() override { return resource.Get(); }
+		X12_API void GetData(void* data) override;
 
 	private:
 		TEXTURE_CREATE_FLAGS flags_;

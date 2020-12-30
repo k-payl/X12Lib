@@ -85,8 +85,6 @@ namespace x12
 		virtual ~ICoreGraphicCommandList() = default;
 		X12_API virtual void BindSurface(surface_ptr& surface_) = 0;
 		X12_API virtual void SetRenderTargets(ICoreTexture** textures, uint32_t count, ICoreTexture* depthStencil) = 0;
-		X12_API virtual void PushState() = 0;
-		X12_API virtual void PopState() = 0;
 		X12_API virtual void SetGraphicPipelineState(const GraphicPipelineState& gpso) = 0;
 		X12_API virtual void SetComputePipelineState(const ComputePipelineState& cpso) = 0;
 		X12_API virtual void SetVertexBuffer(ICoreVertexBuffer* vb) = 0;

@@ -54,11 +54,18 @@ auto X12_API engine::FileSystem::CreateDirectory_(const char* name) -> void
 	std::filesystem::create_directory(fsPath);
 }
 
+auto X12_API engine::FileSystem::DeleteDirectory(const char* name) -> void
+{
+	fs::path fsPath = fs::path(name);
+	fsPath = fs::path(dataPath) / fsPath;
+	std::filesystem::remove(fsPath);
+}
+
 std::string FileSystem::GetWorkingPath(const char *path)
 {
 	if (strlen(path)==0)
-		return fs::current_path().string();
-	return canonical(fs::path(path)).string();
+		return fs::current_path().generic_string();
+	return canonical(fs::path(path)).generic_string();
 }
 
 bool FileSystem::IsRelative(const char *path)

@@ -15,7 +15,6 @@ namespace x12
 
 		ComPtr<ID3DBlob> vs;
 		ComPtr<ID3DBlob> ps;
-
 		ComPtr<ID3DBlob> cs;
 
 		bool HasResources() { return hasResources; }

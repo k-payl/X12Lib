@@ -103,60 +103,60 @@ namespace x12
 		~Dx12CoreRenderer();
 
 		// API
-		auto Init() -> void override;
-		auto Free() -> void override;
+		X12_API auto Init() -> void override;
+		X12_API auto Free() -> void override;
 
-		auto GetGraphicCommandList()->ICoreGraphicCommandList* override;
-		auto GetGraphicCommandList(int32_t id)->ICoreGraphicCommandList* override;
-		auto GetCopyCommandContext() -> ICoreCopyCommandList* override { return (ICoreCopyCommandList*)copyCommandContext; }
+		X12_API auto GetGraphicCommandList()->ICoreGraphicCommandList* override;
+		X12_API auto GetGraphicCommandList(int32_t id)->ICoreGraphicCommandList* override;
+		X12_API auto GetCopyCommandContext() -> ICoreCopyCommandList* override { return (ICoreCopyCommandList*)copyCommandContext; }
 
-		auto _FetchSurface(HWND hwnd) -> surface_ptr override;
-		auto RecreateBuffers(HWND hwnd, UINT newWidth, UINT newHeight) -> void override;
-		auto GetWindowSurface(HWND hwnd) -> surface_ptr override;
-		auto PresentSurfaces() -> void override;
-		auto RefreshFencesStatus() -> void;
-		auto FrameEnd() -> void override;
+		X12_API auto _FetchSurface(HWND hwnd) -> surface_ptr override;
+		X12_API auto RecreateBuffers(HWND hwnd, UINT newWidth, UINT newHeight) -> void override;
+		X12_API auto GetWindowSurface(HWND hwnd) -> surface_ptr override;
+		X12_API auto PresentSurfaces() -> void override;
+		X12_API auto RefreshFencesStatus() -> void;
+		X12_API auto FrameEnd() -> void override;
 
-		auto ExecuteCommandList(ICoreCopyCommandList* cmdList) -> void override;
-		auto WaitGPU() -> void override;
-		auto WaitGPUAll() -> void override;
+		X12_API auto ExecuteCommandList(ICoreCopyCommandList* cmdList) -> void override;
+		X12_API auto WaitGPU() -> void override;
+		X12_API auto WaitGPUAll() -> void override;
 
-		auto GetStat(CoreRenderStat& stat_) -> void override {stat_ = stat; };
+		X12_API auto GetStat(CoreRenderStat& stat_) -> void override {stat_ = stat; };
 
-		auto IsVSync() -> bool  override { return Vsync; }
+		X12_API auto IsVSync() -> bool  override { return Vsync; }
 
-		bool CreateShader(ICoreShader** out, LPCWSTR name, const char* vertText,
+		X12_API bool CreateShader(ICoreShader** out, LPCWSTR name, const char* vertText,
 			const char* fragText, const ConstantBuffersDesc* variabledesc = nullptr,
 			uint32_t varNum = 0) override;
 
-		bool CreateComputeShader(ICoreShader** out, LPCWSTR name, const char* text,
+		X12_API bool CreateComputeShader(ICoreShader** out, LPCWSTR name, const char* text,
 			const ConstantBuffersDesc* variabledesc = nullptr, uint32_t varNum = 0) override;
 
-		bool CreateVertexBuffer(ICoreVertexBuffer** out, LPCWSTR name, const void* vbData,
+		X12_API bool CreateVertexBuffer(ICoreVertexBuffer** out, LPCWSTR name, const void* vbData,
 			const VeretxBufferDesc* vbDesc, const void* idxData, const IndexBufferDesc* idxDesc,
 			MEMORY_TYPE mem) override;
 
-		bool CreateBuffer(ICoreBuffer** out, LPCWSTR name, size_t size, BUFFER_FLAGS flags,
+		X12_API bool CreateBuffer(ICoreBuffer** out, LPCWSTR name, size_t size, BUFFER_FLAGS flags,
 			MEMORY_TYPE mem, const void* data, size_t bum) override;
 
-		bool CreateTexture(ICoreTexture** out, LPCWSTR name, const uint8_t* data,
+		X12_API bool CreateTexture(ICoreTexture** out, LPCWSTR name, const uint8_t* data,
 			size_t size, int32_t width, int32_t height, uint32_t mipCount,
 			TEXTURE_TYPE type, TEXTURE_FORMAT format, TEXTURE_CREATE_FLAGS flags) override;
 
-		bool CreateTextureFrom(ICoreTexture** out, LPCWSTR name,
+		X12_API bool CreateTextureFrom(ICoreTexture** out, LPCWSTR name,
 			std::vector<D3D12_SUBRESOURCE_DATA> subresources,
 			ID3D12Resource* d3dexistingtexture) override;
 
-		bool CreateTextureFrom(ICoreTexture** out, LPCWSTR name,
+		X12_API bool CreateTextureFrom(ICoreTexture** out, LPCWSTR name,
 			ID3D12Resource* existingTexture) override;
 
-		bool CreateResourceSet(IResourceSet** out, const ICoreShader* shader) override;
+		X12_API bool CreateResourceSet(IResourceSet** out, const ICoreShader* shader) override;
 
-		bool CreateQuery(ICoreQuery** out) override;
+		X12_API bool CreateQuery(ICoreQuery** out) override;
 
-		void* GetNativeDevice() override { return device; }
+		X12_API void* GetNativeDevice() override { return device; }
 
-		void* GetNativeGraphicQueue() override { return queues[QUEUE_GRAPHIC].d3dCommandQueue; }
+		X12_API void* GetNativeGraphicQueue() override { return queues[QUEUE_GRAPHIC].d3dCommandQueue; }
 
 		// API-end
 
