@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "vkcommon.h"
+#include "core.h"
 #include "vkrender.h"
 
 using namespace x12;
@@ -128,7 +129,21 @@ VkPhysicalDevice x12::vk::pickPhysicalDevice(VkPhysicalDevice* physicalDevices, 
 		VkPhysicalDeviceProperties props;
 		vkGetPhysicalDeviceProperties(physicalDevices[i], &props);
 
-		printf("GPU%d: %s\n", i, props.deviceName);
+		if (core__->IsVerboseRenderer())
+		{
+			VkPhysicalDeviceMemoryProperties memProp;
+			vkGetPhysicalDeviceMemoryProperties(physicalDevices[i], &memProp);
+
+			size_t deviceMemory = 0;
+			for (int j = 0; j < memProp.memoryTypeCount; ++j)
+			{
+				VkMemoryPropertyFlags memFlags = memProp.memoryTypes[j].propertyFlags;
+				if (memFlags & VkMemoryPropertyFlagBits::VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
+					deviceMemory = memProp.memoryHeaps[memProp.memoryTypes[j].heapIndex].size;
+			}
+
+			printf("GPU%d: '%s', dedicated memory %Iu\n", i, props.deviceName, deviceMemory);
+		}
 
 		uint32_t familyIndex = getGraphicsFamilyIndex(physicalDevices[i]);
 		if (familyIndex == VK_QUEUE_FAMILY_IGNORED)
@@ -158,7 +173,10 @@ VkPhysicalDevice x12::vk::pickPhysicalDevice(VkPhysicalDevice* physicalDevices, 
 		VkPhysicalDeviceProperties props;
 		vkGetPhysicalDeviceProperties(result, &props);
 
-		printf("Selected GPU %s\n", props.deviceName);
+		if (core__->IsVerboseRenderer())
+		{
+			printf("Selected GPU (Vulkan): %s\n", props.deviceName);
+		}
 	}
 	else
 	{

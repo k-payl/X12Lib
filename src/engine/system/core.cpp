@@ -26,6 +26,7 @@ using namespace engine;
 #define UPD_INTERVAL 0.25f
 
 static std::chrono::steady_clock::time_point start;
+bool engine::forcedVerboseRenderer = false;
 Core* core__;
 
 static ConsoleBoolVariable commandGPUProfiler("gpu_profiler", false);
@@ -146,6 +147,8 @@ void Core::Init(const char *rootPath, INIT_FLAGS flags, GpuProfiler* gpuprofiler
 {
 #define FLAG(arg) (flags & arg)
 #define NOT(arg) (!(flags & arg))
+
+	initFlags = flags;
 
 	// root path
 	if (fs->IsRelative(rootPath))
