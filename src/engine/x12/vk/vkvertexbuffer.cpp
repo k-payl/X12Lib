@@ -10,11 +10,11 @@ void x12::VkCoreVertexBuffer::Init(LPCWSTR name, const void* vbData, const Veret
 
 	{
 		VkBufferCreateInfo bufferInfo = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
-		bufferInfo.size = getBufferSize(vbDesc);
+		bufferInfo.size = VbSizeFromDesc(vbDesc);
 		bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
 
 		VmaAllocationCreateInfo allocInfo = {};
-		allocInfo.usage = VMA_MEMORY_USAGE_GPU_TO_CPU; // TODO: avoid cpu
+		allocInfo.usage = VMA_MEMORY_USAGE_CPU_TO_GPU; // TODO: avoid cpu
 
 		VmaAllocationInfo allocationInfo{};
 
@@ -34,7 +34,7 @@ void x12::VkCoreVertexBuffer::Init(LPCWSTR name, const void* vbData, const Veret
 		bufferInfo.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
 
 		VmaAllocationCreateInfo allocInfo = {};
-		allocInfo.usage = VMA_MEMORY_USAGE_GPU_TO_CPU; // TODO: avoid cpu
+		allocInfo.usage = VMA_MEMORY_USAGE_CPU_TO_GPU; // TODO: avoid cpu
 
 		VmaAllocationInfo allocationInfo{};
 
@@ -43,7 +43,7 @@ void x12::VkCoreVertexBuffer::Init(LPCWSTR name, const void* vbData, const Veret
 		indexBufferMemory = allocationInfo.deviceMemory;
 	}
 
-	SetData(vbData, getBufferSize(vbDesc), 0, idxData, idxDataSize, 0);
+	SetData(vbData, VbSizeFromDesc(vbDesc), 0, idxData, idxDataSize, 0);
 }
 
 void x12::VkCoreVertexBuffer::SetData(const void* vbData, size_t vbSize, size_t vbOffset, const void* idxData, size_t idxSize, size_t idxOffset)

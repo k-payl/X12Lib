@@ -1,5 +1,5 @@
 #include "pch.h"
-#include "vkcontext.h"
+#include "vkcommandlist.h"
 #include "vkrender.h"
 
 x12::VkGraphicCommandList::VkGraphicCommandList() : ICoreGraphicCommandList(-1)
@@ -85,38 +85,6 @@ void x12::VkGraphicCommandList::Free()
 {
 }
 
-/*
-void x12::VkGraphicCommandList::Submit()
-{
-	
-	VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
-
-	VkSubmitInfo submitInfo{};
-	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-	submitInfo.waitSemaphoreCount = 1;
-	submitInfo.pWaitSemaphores = &samaphoresImageAvailable[frameIndex];
-	submitInfo.pWaitDstStageMask = waitStages;
-	submitInfo.commandBufferCount = 1;
-	submitInfo.pCommandBuffers = &commandBuffers[frameIndex];
-	submitInfo.signalSemaphoreCount = 1;
-	submitInfo.pSignalSemaphores = &semaphoresRenderFinished[frameIndex];
-
-	VK_CHECK(vkQueueSubmit(vk::GetGraphicQueue(), 1, &submitInfo, fencesRenderFinished[frameIndex]));
-
-	VkWindowSurface* surface = static_cast<VkWindowSurface*>(state.surface.get());
-	surface->UpdateSubmitedSemaphore(semaphoresRenderFinished[frameIndex]);
-}
-void x12::VkGraphicCommandList::WaitGPUFrame()
-{
-	// Shift to next frame
-	frameIndex = (frameIndex + 1u) % DeferredBuffers;
-
-	vkWaitForFences(vk::GetDevice(), 1, &fencesRenderFinished[frameIndex], VK_TRUE, std::numeric_limits<uint64_t>::max());
-	vkResetFences(vk::GetDevice(), 1, &fencesRenderFinished[frameIndex]);
-}
-*/
-void x12::VkGraphicCommandList::PushState() { notImplemented(); }
-void x12::VkGraphicCommandList::PopState() { notImplemented(); }
 void x12::VkGraphicCommandList::SetGraphicPipelineState(const GraphicPipelineState& gpso) { notImplemented(); }
 void x12::VkGraphicCommandList::SetComputePipelineState(const ComputePipelineState& cpso) { notImplemented(); }
 void x12::VkGraphicCommandList::SetVertexBuffer(ICoreVertexBuffer* vb) { notImplemented(); }

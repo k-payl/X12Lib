@@ -1,6 +1,5 @@
 #include "dx12render.h"
-#include "dx12render.h"
-#include "dx12render.h"
+#include "core.h"
 #include "dx12shader.h"
 #include "dx12buffer.h"
 #include "dx12commandlist.h"
@@ -74,8 +73,11 @@ void x12::Dx12CoreRenderer::Init()
 			DXGI_ADAPTER_DESC1 adapterDesc;
 			dxgiAdapter1->GetDesc1(&adapterDesc);
 
-			wprintf_s(L"Adapter %d: '%s', dedicated memory %Iu, shared memory: %Iu, software %d \n", adapaterNum,
-				adapterDesc.Description, adapterDesc.DedicatedVideoMemory, adapterDesc.SharedSystemMemory, adapterDesc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE? 1 : 0);
+			if (core__->IsVerboseRenderer())
+			{
+				wprintf_s(L"GPU%d: '%s', dedicated memory %Iu, shared memory: %Iu, software %d \n", adapaterNum,
+					adapterDesc.Description, adapterDesc.DedicatedVideoMemory, adapterDesc.SharedSystemMemory, adapterDesc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE ? 1 : 0);
+			}
 
 			// Choose adapter with the largest dedicated video memory
 			if ((adapterDesc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) == 0 && 
@@ -90,6 +92,14 @@ void x12::Dx12CoreRenderer::Init()
 			}
 
 			adapaterNum++;
+		}
+
+		if (adapter && core__->IsVerboseRenderer())
+		{
+			DXGI_ADAPTER_DESC1 adapterDesc;
+			adapter->GetDesc1(&adapterDesc);
+
+			wprintf_s(L"Selected GPU (DirectX12): %s\n", adapterDesc.Description);
 		}
 	}
 
@@ -470,7 +480,7 @@ bool x12::Dx12CoreRenderer::CreateVertexBuffer(ICoreVertexBuffer** out, LPCWSTR 
 bool x12::Dx12CoreRenderer::CreateBuffer(ICoreBuffer** out, LPCWSTR name, size_t size, BUFFER_FLAGS flags, MEMORY_TYPE mem, const void* data, size_t num)
 {
 	if (flags & BUFFER_FLAGS::CONSTANT_BUFFER_VIEW)
-		size = alignConstantBufferSize(size);
+		size = AlignConstantBufferSize(size);
 
 	auto* ptr = new Dx12CoreBuffer(size * num, data, mem, flags, name);
 

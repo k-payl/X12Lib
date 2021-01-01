@@ -8,7 +8,7 @@
 // Main
 // ----------------------------
 
-int APIENTRY wWinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPWSTR, _In_ int)
+int main()
 {
 	auto core = engine::CreateCore();
 	core->Init("", engine::INIT_FLAGS::HIGH_LEVEL_RENDERER | VIDEO_API);

@@ -30,6 +30,9 @@ namespace x12
 		Dx12CoreBuffer(size_t size, const void* data, MEMORY_TYPE memory_type, BUFFER_FLAGS flags, LPCWSTR name);
 		~Dx12CoreBuffer();
 
+		X12_API void GetData(void* data) override;
+		X12_API void SetData(const void* data, size_t size) override;
+
 		D3D12_CPU_DESCRIPTOR_HANDLE GetSRV() const { return SRVdescriptor.descriptor; }
 		D3D12_CPU_DESCRIPTOR_HANDLE GetUAV() const { return UAVdescriptor.descriptor; }
 		D3D12_CPU_DESCRIPTOR_HANDLE GetCBV() const { return CBVdescriptor.descriptor; }
@@ -45,12 +48,8 @@ namespace x12
 		D3D12_RESOURCE_STATES& resourceState() { return state; }
 		D3D12_RESOURCE_STATES& stagingResourceState() { return stagingState; }
 
-		void GetData(void* data) override;
-		void SetData(const void* data, size_t size) override;
-
 		void initSRV(UINT num, UINT structireSize, bool raw);
 		void initUAV(UINT num, UINT structireSize, bool raw);
 		void initCBV(UINT size);
 	};
-
 }

@@ -21,6 +21,8 @@ namespace engine
 	X12_API Renderer*				GetRenderer();
 	X12_API void					Log(const char* str);
 
+	extern bool forcedVerboseRenderer;
+
 	enum class INIT_FLAGS
 	{
 		NONE,
@@ -30,6 +32,7 @@ namespace engine
 		DIRECTX12_RENDERER = 1 << 3,
 		VULKAN_RENDERER = 1 << 4,
 		HIGH_LEVEL_RENDERER = 1 << 5,
+		VERBOSE_RENDERER = 1 << 6,
 	};
 	DEFINE_ENUM_OPERATORS(INIT_FLAGS)
 
@@ -66,6 +69,8 @@ namespace engine
 		Signal<> onInit;
 		Signal<> onFree;
 		Signal<float> onUpdate;
+
+		INIT_FLAGS initFlags;
 
 		void setWindowCaption(int is_paused, int fps);
 		void engineUpdate();
@@ -114,6 +119,8 @@ namespace engine
 		MaterialManager* GetMaterialManager() { return matManager.get(); }
 		Console* GetConsole() { return console.get(); }
 		Renderer* GetRenderer() { return render.get(); }
+
+		bool IsVerboseRenderer() const { return forcedVerboseRenderer || (initFlags & INIT_FLAGS::VERBOSE_RENDERER); }
 
 		template<class T, typename... Arguments>
 		void _Log(T a, Arguments ...args)

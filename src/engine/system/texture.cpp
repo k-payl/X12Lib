@@ -606,8 +606,8 @@ static TextureData generateMipmapsGPU(uint32_t width, uint32_t height, const uin
 
 	while (w > 1 || h > 1)
 	{
-		w = math::max_(1u, w / 2);
-		h = math::max_(1u, h / 2);
+		w = std::max(1u, w / 2);
+		h = std::max(1u, h / 2);
 		++mipmaps;
 		bufferInBytes += (size_t)w * h * 4;
 	}

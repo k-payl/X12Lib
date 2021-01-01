@@ -103,7 +103,7 @@ X12_API auto ResourceManager::CreateStreamMesh(const char* path) -> StreamPtr<Me
 {
 	auto it = streamMeshesMap.find(path);
 	if (it != streamMeshesMap.end())
-		return StreamPtr<Mesh>(it->second);
+		return StreamPtr<Mesh>(it->second, true);
 
 	MeshResource* resource = new MeshResource(path);
 	streamMeshesMap[path] = resource;
@@ -114,7 +114,7 @@ X12_API auto ResourceManager::CreateStreamTexture(const char* path, x12::TEXTURE
 {
 	auto it = streamTexturesMap.find(path);
 	if (it != streamTexturesMap.end())
-		return StreamPtr<Texture>(it->second);
+		return StreamPtr<Texture>(it->second, true);
 
 	TextureResource* resource = new TextureResource(path, flags | x12::TEXTURE_CREATE_FLAGS::USAGE_SHADER_RESOURCE);
 	streamTexturesMap[path] = resource;
@@ -125,7 +125,7 @@ X12_API StreamPtr<Shader> engine::ResourceManager::CreateGraphicShader(const cha
 {
 	auto it = shaders.find(path);
 	if (it != shaders.end())
-		return StreamPtr<Shader>(it->second);
+		return StreamPtr<Shader>(it->second, true);
 
 	ShaderResource* resource = new ShaderResource(path, buffersdesc, numdesc, false);
 	shaders[path] = resource;
@@ -136,7 +136,7 @@ X12_API StreamPtr<Shader> engine::ResourceManager::CreateComputeShader(const cha
 {
 	auto it = shaders.find(path);
 	if (it != shaders.end())
-		return StreamPtr<Shader>(it->second);
+		return StreamPtr<Shader>(it->second, true);
 
 	ShaderResource* resource = new ShaderResource(path, buffersdesc, numdesc, true);
 	shaders[path] = resource;

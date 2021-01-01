@@ -13,13 +13,13 @@
 
 using namespace x12;
 
-
-class TestX12 : public ::testing::Test
+class TestX12 : public ::testing::TestWithParam<engine::INIT_FLAGS>
 {	
 	engine::Core *core;
 
 protected:
-	const engine::INIT_FLAGS api = engine::INIT_FLAGS::DIRECTX12_RENDERER;
+	engine::INIT_FLAGS api;
+
 	const int w = 512;
 	const int h = 512;
 	const float aspect = float(w) / h;
@@ -62,8 +62,8 @@ protected:
 			test_info->name(),
 			test_info->test_suite_name());
 
-		auto nameRef = "..//resources//tests_ref//" + std::string(test_info->name()) + ext;
-		auto nameResult = "..//resources//tests_out//" + std::string(test_info->name());
+		auto nameRef = "../../resources/tests_ref/" + std::string(test_info->name()) + ext;
+		auto nameResult = "../../resources/tests_out/" + std::string(test_info->name());
 
 		return { nameRef, nameResult };
 	}
@@ -146,6 +146,8 @@ protected:
 
 	void SetUp() override 
 	{
+		api = GetParam();
+
 		const auto flags =
 			api |
 			engine::INIT_FLAGS::NO_WINDOW |
@@ -157,13 +159,16 @@ protected:
 
 		renderer = engine::GetCoreRenderer();
 
-		renderer->CreateTexture(colorTexture.getAdressOf(), L"target texture",
-			nullptr, 0, w, h, 1, TEXTURE_TYPE::TYPE_2D,
-			TEXTURE_FORMAT::RGBA8, TEXTURE_CREATE_FLAGS::USAGE_RENDER_TARGET);
+		if (api != engine::INIT_FLAGS::VULKAN_RENDERER) // TODO: create vulkan texture
+		{
+			renderer->CreateTexture(colorTexture.getAdressOf(), L"target texture",
+				nullptr, 0, w, h, 1, TEXTURE_TYPE::TYPE_2D,
+				TEXTURE_FORMAT::RGBA8, TEXTURE_CREATE_FLAGS::USAGE_RENDER_TARGET);
 
-		renderer->CreateTexture(depthTexture.getAdressOf(), L"depth texture",
-			nullptr, 0, w, h, 1, TEXTURE_TYPE::TYPE_2D,
-			TEXTURE_FORMAT::D32, TEXTURE_CREATE_FLAGS::USAGE_RENDER_TARGET);
+			renderer->CreateTexture(depthTexture.getAdressOf(), L"depth texture",
+				nullptr, 0, w, h, 1, TEXTURE_TYPE::TYPE_2D,
+				TEXTURE_FORMAT::D32, TEXTURE_CREATE_FLAGS::USAGE_RENDER_TARGET);
+		}
 	}
 
 	void TearDown() override 
@@ -175,10 +180,14 @@ protected:
 	}
 };
 
+INSTANTIATE_TEST_SUITE_P(X12Scope, TestX12,
+	::testing::Values(engine::INIT_FLAGS::DIRECTX12_RENDERER, engine::INIT_FLAGS::VULKAN_RENDERER));
+
 /*
- * Render quad to texture
- */
-TEST_F(TestX12, X12_Texturing)
+ * Render quad to texture.
+ */ 
+
+TEST_P(TestX12, X12_Texturing)
 {
 	intrusive_ptr<ICoreShader> shader;
 	intrusive_ptr<IResourceSet> resourceSet;
@@ -257,12 +266,52 @@ TEST_F(TestX12, X12_Texturing)
 }
 
 /*
- * Calculate power of two
+ * Set and get data for buffer.
  */
-TEST_F(TestX12, X12_ComputeShader)
+TEST_P(TestX12, X12_BufferGetSet)
+{
+	for (int setData = 0; setData < 2; ++setData)
+	{
+		for (int fooInt = (int)MEMORY_TYPE::CPU; fooInt != (int)MEMORY_TYPE::NUM; fooInt++)
+		{
+			MEMORY_TYPE bufferMemory = static_cast<MEMORY_TYPE>(fooInt);
+			bool immidatelySetData = setData == 0;
+
+			float data[] = { 1, 55, 123.323f, 0, -3232.3f, 444 };
+
+			intrusive_ptr<ICoreBuffer> buffer;
+
+			if (immidatelySetData)
+			{
+				renderer->CreateBuffer(buffer.getAdressOf(), L"Set get buffer",
+					sizeof(data), BUFFER_FLAGS::NONE, bufferMemory, data);
+			}
+			else
+			{
+				renderer->CreateBuffer(buffer.getAdressOf(), L"Set get buffer",
+					sizeof(data), BUFFER_FLAGS::NONE, bufferMemory, nullptr);
+
+				buffer->SetData(data, sizeof(data));
+			}
+
+			decltype(data) readData{};
+			buffer->GetData(readData);
+
+			for (size_t i = 0; i < std::size(data); ++i)
+			{
+				EXPECT_EQ(readData[i], data[i]);
+			}
+		}
+	}
+}
+
+/*
+ * Calculate power of two.
+ */
+TEST_P(TestX12, X12_ComputeShader)
 {
 	constexpr UINT float4chunks = 15;
-	std::vector<float> result;	
+	std::vector<float> result;
 	intrusive_ptr<ICoreShader> shader;
 	intrusive_ptr<ICoreBuffer> buffer;
 	intrusive_ptr<IResourceSet> resources;
@@ -281,7 +330,7 @@ TEST_F(TestX12, X12_ComputeShader)
 			_countof(buffersdesc));
 	}
 
-	renderer->CreateBuffer(buffer.getAdressOf(), L"Out",
+	renderer->CreateBuffer(buffer.getAdressOf(), L"Power of two result buffer",
 		16, BUFFER_FLAGS::UNORDERED_ACCESS_VIEW, MEMORY_TYPE::GPU_READ, nullptr, float4chunks);
 
 	renderer->CreateResourceSet(resources.getAdressOf(), shader.get());
@@ -308,19 +357,129 @@ TEST_F(TestX12, X12_ComputeShader)
 
 	result.resize(4 * float4chunks);
 	buffer->GetData(result.data());
-	
+
 	size_t x = 1;
-	for (size_t i = 0; i < result.size(); i+=4)
+	for (size_t i = 0; i < result.size(); i += 4)
 	{
 		EXPECT_EQ(float(x), result[i]);
 		x *= 2;
 	}
 }
 
+class TestFS : public ::testing::Test
+{
+	engine::Core* core;
+
+protected:
+	void SetUp() override
+	{
+		const auto flags =
+			engine::INIT_FLAGS::DIRECTX12_RENDERER |
+			engine::INIT_FLAGS::NO_WINDOW |
+			engine::INIT_FLAGS::NO_INPUT |
+			engine::INIT_FLAGS::NO_CONSOLE;
+
+		core = engine::CreateCore();
+		core->Init("", flags);
+	}
+
+	void TearDown() override
+	{
+		core->Free();
+		engine::DestroyCore(core);
+	}
+};
+
+TEST_F(TestFS, FileExist)
+{
+	EXPECT_TRUE(engine::GetFS()->FileExist("fs/test.txt"));
+
+	std::u8string str = u8"fs/текстовый файл";
+	EXPECT_TRUE(engine::GetFS()->FileExist((char*)str.c_str()));
+
+	str = u8"fs/糞紝.txt";
+	EXPECT_TRUE(engine::GetFS()->FileExist((char*)str.c_str()));
+
+	str = u8"fs/紝 тест/ⅳⅷ";
+	EXPECT_TRUE(engine::GetFS()->FileExist((char*)str.c_str()));
+
+	str = u8"несущствующий файл.txt";
+	EXPECT_FALSE(engine::GetFS()->FileExist((char*)str.c_str()));
+}
+
+TEST_F(TestFS, DirectoryExist)
+{
+	std::u8string str = u8"fs/紝 тест";
+	EXPECT_TRUE(engine::GetFS()->DirectoryExist((char*)str.c_str()));
+
+	str = u8"несущствующая дирекория";
+	EXPECT_FALSE(engine::GetFS()->DirectoryExist((char*)str.c_str()));
+}
+
+TEST_F(TestFS, CreateDeleteDirectory)
+{
+	std::u8string str = u8"fs/временная директория";
+	engine::GetFS()->CreateDirectory_((char*)str.c_str());
+	EXPECT_TRUE(engine::GetFS()->DirectoryExist((char*)str.c_str()));
+
+	engine::GetFS()->DeleteDirectory((char*)str.c_str());
+	EXPECT_FALSE(engine::GetFS()->DirectoryExist((char*)str.c_str()));
+}
+
+TEST_F(TestFS, RelativeDirectory)
+{
+	std::u8string str = u8"fs/ относительный путь";
+	EXPECT_TRUE(engine::GetFS()->IsRelative((char*)str.c_str()));
+	EXPECT_TRUE(engine::GetFS()->IsRelative(""));
+	EXPECT_TRUE(engine::GetFS()->IsRelative("relative"));
+
+	EXPECT_FALSE(engine::GetFS()->IsRelative("//c/programs not relative"));
+	EXPECT_FALSE(engine::GetFS()->IsRelative("//c/programs/zzzzzz"));
+	EXPECT_FALSE(engine::GetFS()->IsRelative("C:/programs/"));
+	EXPECT_FALSE(engine::GetFS()->IsRelative("C:\\programs\\"));
+	EXPECT_FALSE(engine::GetFS()->IsRelative("C:\\programs   "));
+}
+
+TEST_F(TestFS, ReadBinaryFile)
+{
+	std::u8string str = u8"fs/бинарный файл";
+	EXPECT_TRUE(engine::GetFS()->FileExist((char*)str.c_str()));
+	auto file = engine::GetFS()->OpenFile((char*)str.c_str(), engine::FILE_OPEN_MODE::BINARY | engine::FILE_OPEN_MODE::READ);
+	size_t size = file.FileSize();
+	std::unique_ptr<uint8_t[]> data(new uint8_t[size]);
+	file.Read(data.get(), size);
+	EXPECT_TRUE(data[0] == 0);
+	EXPECT_TRUE(data[1] == 1);
+	EXPECT_TRUE(data[2] == 2);
+}
+
+TEST_F(TestFS, ReadTextFile)
+{
+	std::u8string str = u8"fs/текстовый файл";
+	EXPECT_TRUE(engine::GetFS()->FileExist((char*)str.c_str()));
+	auto file = engine::GetFS()->OpenFile((char*)str.c_str(), engine::FILE_OPEN_MODE::READ);
+	size_t size = file.FileSize();
+	std::unique_ptr<uint8_t[]> data(new uint8_t[size]);
+	file.Read(data.get(), size);
+	EXPECT_TRUE(data[0] == '0');
+	EXPECT_TRUE(data[1] == '1');
+	EXPECT_TRUE(data[2] == '2');
+}
+
+TEST_F(TestFS, GetFilename)
+{
+	EXPECT_TRUE("file" == engine::GetFS()->GetFileName("F:\\file.txt", false));
+	EXPECT_TRUE("file.txt" == engine::GetFS()->GetFileName("F:\\file.txt", true));
+	EXPECT_TRUE("file" == engine::GetFS()->GetFileName("//c/dir/file.txt", false));
+	EXPECT_TRUE("file.txt" == engine::GetFS()->GetFileName("//c/dir/file.txt", true));
+	EXPECT_TRUE("file" == engine::GetFS()->GetFileName("aaa dir/file.txt", false));
+	EXPECT_TRUE("file.txt" == engine::GetFS()->GetFileName("aaa dir/file.txt", true));
+}
+
 int main(int argc, char** argv)
 {
 	::testing::InitGoogleTest(&argc, argv);
-	auto ret =  RUN_ALL_TESTS();
+	auto ret = RUN_ALL_TESTS();
 	system("pause");
 	return ret;
 }

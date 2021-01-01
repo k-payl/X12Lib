@@ -1,8 +1,10 @@
 #include "pch.h"
 #include "vkrender.h"
 #include "vkcommon.h"
-#include "vkcontext.h"
+#include "vkcommandlist.h"
 #include "vkvertexbuffer.h"
+#include "vkshader.h"
+#include "vkbuffer.h"
 
 x12::VkCoreRenderer::VkCoreRenderer()
 {
@@ -60,8 +62,11 @@ auto x12::VkCoreRenderer::Init() -> void
 
 auto x12::VkCoreRenderer::Free() -> void
 {
+	delete graphicCommandContext;
+
 	vmaDestroyAllocator(allocator);
 	vkDestroyCommandPool(device, commandPool, nullptr);
+
 	vkDestroyDevice(device, 0);
 	vkDestroyInstance(instance, 0);
 }
@@ -118,29 +123,46 @@ auto x12::VkCoreRenderer::GetWindowSurface(HWND hwnd) -> surface_ptr
 
 auto x12::VkCoreRenderer::PresentSurfaces() -> void
 {
+	notImplemented();
 	return void();
 }
 
 auto x12::VkCoreRenderer::ExecuteCommandList(ICoreCopyCommandList* cmdList) -> void
 {
+	VkSubmitInfo info{ VK_STRUCTURE_TYPE_SUBMIT_INFO };
+
+	VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT };
+	info.pWaitDstStageMask = waitStages;
+	info.commandBufferCount = 1;
+	info.pCommandBuffers = static_cast<VkGraphicCommandList*>(cmdList)->CommandBuffer();
+
+	vkQueueSubmit(graphicsQueue, 1, &info, VK_NULL_HANDLE);
 }
 
 auto x12::VkCoreRenderer::WaitGPU() -> void
 {
+	vkQueueWaitIdle(graphicsQueue);
 }
 
 auto x12::VkCoreRenderer::WaitGPUAll() -> void
 {
+	notImplemented();
 }
 
 bool x12::VkCoreRenderer::CreateShader(ICoreShader** out, LPCWSTR name, const char* vertText, const char* fragText, const ConstantBuffersDesc* variabledesc, uint32_t varNum)
 {
+	notImplemented();
 	return false;
 }
 
 bool x12::VkCoreRenderer::CreateComputeShader(ICoreShader** out, LPCWSTR name, const char* text, const ConstantBuffersDesc* variabledesc, uint32_t varNum)
 {
-	return false;
+	auto* ptr = new VkCoreShader{};
+	ptr->InitCompute(name, text, variabledesc, varNum);
+	ptr->AddRef();
+	*out = ptr;
+
+	return ptr != nullptr;
 }
 
 bool x12::VkCoreRenderer::CreateVertexBuffer(ICoreVertexBuffer** out, LPCWSTR name, const void* vbData, const VeretxBufferDesc* vbDesc, const void* idxData, const IndexBufferDesc* idxDesc, MEMORY_TYPE mem)
@@ -155,26 +177,51 @@ bool x12::VkCoreRenderer::CreateVertexBuffer(ICoreVertexBuffer** out, LPCWSTR na
 
 bool x12::VkCoreRenderer::CreateBuffer(ICoreBuffer** out, LPCWSTR name, size_t size, BUFFER_FLAGS flags, MEMORY_TYPE mem, const void* data, size_t num)
 {
-	return false;
+	//if (flags & BUFFER_FLAGS::CONSTANT_BUFFER_VIEW)
+	//	size = alignConstantBufferSize(size);
+
+	auto* ptr = new VkCoreBuffer(size * num, data, mem, flags, name);
+
+	const bool rawBuffer = flags & BUFFER_FLAGS::RAW_BUFFER;
+	if (rawBuffer)
+		notImplemented();
+
+	//if (flags & BUFFER_FLAGS::SHADER_RESOURCE_VIEW)
+	//	ptr->initSRV((UINT)num, size, rawBuffer);
+
+	//if (flags & BUFFER_FLAGS::UNORDERED_ACCESS_VIEW)
+	//	ptr->initUAV((UINT)num, size, rawBuffer);
+
+	//if (flags & BUFFER_FLAGS::CONSTANT_BUFFER_VIEW)
+	//	ptr->initCBV((UINT)size);
+
+	ptr->AddRef();
+	*out = ptr;
+
+	return ptr != nullptr;
 }
 
 bool x12::VkCoreRenderer::CreateTexture(ICoreTexture** out, LPCWSTR name, const uint8_t* data, size_t size, int32_t width, int32_t height, uint32_t mipCount, TEXTURE_TYPE type, TEXTURE_FORMAT format, TEXTURE_CREATE_FLAGS flags)
 {
+	notImplemented();
 	return false;
 }
 
 bool x12::VkCoreRenderer::CreateTextureFrom(ICoreTexture** out, LPCWSTR name, ID3D12Resource* d3dexistingtexture)
 {
+	notImplemented();
 	return false;
 }
 
 bool x12::VkCoreRenderer::CreateTextureFrom(ICoreTexture** out, LPCWSTR name, std::vector<D3D12_SUBRESOURCE_DATA> subresources, ID3D12Resource* d3dexistingtexture)
 {
+	notImplemented();
 	return false;
 }
 
 bool x12::VkCoreRenderer::CreateResourceSet(IResourceSet** out, const ICoreShader* shader)
 {
+	notImplemented();
 	return false;
 }
 

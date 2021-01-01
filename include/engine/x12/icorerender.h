@@ -70,10 +70,10 @@ namespace x12
 
 	public:
 		virtual ~ICoreCopyCommandList() = default;
-		virtual X12_API void FrameEnd() = 0;
-		virtual X12_API void Free() = 0;
-		virtual X12_API void CommandsBegin() = 0;
-		virtual X12_API void CommandsEnd() = 0;
+		X12_API virtual void FrameEnd() = 0;
+		X12_API virtual void Free() = 0;
+		X12_API virtual void CommandsBegin() = 0;
+		X12_API virtual void CommandsEnd() = 0;
 	};
 
 	class ICoreGraphicCommandList : public ICoreCopyCommandList
@@ -83,26 +83,24 @@ namespace x12
 
 	public:
 		virtual ~ICoreGraphicCommandList() = default;
-		virtual X12_API void BindSurface(surface_ptr& surface_) = 0;
-		virtual X12_API void SetRenderTargets(ICoreTexture** textures, uint32_t count, ICoreTexture* depthStencil) = 0;
-		virtual X12_API void PushState() = 0;
-		virtual X12_API void PopState() = 0;
-		virtual X12_API void SetGraphicPipelineState(const GraphicPipelineState& gpso) = 0;
-		virtual X12_API void SetComputePipelineState(const ComputePipelineState& cpso) = 0;
-		virtual X12_API void SetVertexBuffer(ICoreVertexBuffer* vb) = 0;
-		virtual X12_API void SetViewport(unsigned width, unsigned heigth) = 0;
-		virtual X12_API void GetViewport(unsigned& width, unsigned& heigth) = 0;
-		virtual X12_API void SetScissor(unsigned x, unsigned y, unsigned width, unsigned heigth) = 0;
-		virtual X12_API void Draw(const ICoreVertexBuffer* vb, uint32_t vertexCount = 0, uint32_t vertexOffset = 0) = 0;
-		virtual X12_API void Dispatch(uint32_t x, uint32_t y, uint32_t z = 1) = 0;
-		virtual X12_API void Clear() = 0;
-		virtual X12_API void CompileSet(IResourceSet* set_) = 0;
-		virtual X12_API void BindResourceSet(IResourceSet* set_) = 0;
-		virtual X12_API void UpdateInlineConstantBuffer(size_t idx, const void* data, size_t size) = 0;
-		virtual X12_API void EmitUAVBarrier(ICoreBuffer* buffer) = 0;
-		virtual X12_API void StartQuery(ICoreQuery* query) = 0;
-		virtual X12_API void StopQuery(ICoreQuery* query) = 0;
-		virtual X12_API void* GetNativeResource() = 0;
+		X12_API virtual void BindSurface(surface_ptr& surface_) = 0;
+		X12_API virtual void SetRenderTargets(ICoreTexture** textures, uint32_t count, ICoreTexture* depthStencil) = 0;
+		X12_API virtual void SetGraphicPipelineState(const GraphicPipelineState& gpso) = 0;
+		X12_API virtual void SetComputePipelineState(const ComputePipelineState& cpso) = 0;
+		X12_API virtual void SetVertexBuffer(ICoreVertexBuffer* vb) = 0;
+		X12_API virtual void SetViewport(unsigned width, unsigned heigth) = 0;
+		X12_API virtual void GetViewport(unsigned& width, unsigned& heigth) = 0;
+		X12_API virtual void SetScissor(unsigned x, unsigned y, unsigned width, unsigned heigth) = 0;
+		X12_API virtual void Draw(const ICoreVertexBuffer* vb, uint32_t vertexCount = 0, uint32_t vertexOffset = 0) = 0;
+		X12_API virtual void Dispatch(uint32_t x, uint32_t y, uint32_t z = 1) = 0;
+		X12_API virtual void Clear() = 0;
+		X12_API virtual void CompileSet(IResourceSet* set_) = 0;
+		X12_API virtual void BindResourceSet(IResourceSet* set_) = 0;
+		X12_API virtual void UpdateInlineConstantBuffer(size_t idx, const void* data, size_t size) = 0;
+		X12_API virtual void EmitUAVBarrier(ICoreBuffer* buffer) = 0;
+		X12_API virtual void StartQuery(ICoreQuery* query) = 0;
+		X12_API virtual void StopQuery(ICoreQuery* query) = 0;
+		X12_API virtual void* GetNativeResource() = 0;
 	};
 
 	class IWidowSurface
@@ -145,8 +143,9 @@ namespace x12
 	enum class MEMORY_TYPE
 	{
 		CPU = 1,
-		GPU_READ = 1 << 1,
-		READBACK = 1 << 2
+		GPU_READ,
+		READBACK,
+		NUM
 	};
 	DEFINE_ENUM_OPERATORS(MEMORY_TYPE)
 
@@ -163,53 +162,53 @@ namespace x12
 		uint64_t Frame() const { return frame; }
 		uint64_t FrameIndex() const { return frameIndex; }
 
-		virtual X12_API auto Init() -> void = 0;
-		virtual X12_API auto Free() -> void = 0;
-		virtual X12_API auto GetGraphicCommandList()->ICoreGraphicCommandList* = 0;
-		virtual X12_API auto GetGraphicCommandList(int32_t id)->ICoreGraphicCommandList* = 0;
-		virtual X12_API auto GetCopyCommandContext()->ICoreCopyCommandList* = 0;
+		X12_API virtual auto Init() -> void = 0;
+		X12_API virtual auto Free() -> void = 0;
+		X12_API virtual auto GetGraphicCommandList()->ICoreGraphicCommandList* = 0;
+		X12_API virtual auto GetGraphicCommandList(int32_t id)->ICoreGraphicCommandList* = 0;
+		X12_API virtual auto GetCopyCommandContext()->ICoreCopyCommandList* = 0;
 
 		// Surfaces
-		virtual X12_API auto _FetchSurface(HWND hwnd)->surface_ptr = 0;
-		virtual X12_API auto RecreateBuffers(HWND hwnd, UINT newWidth, UINT newHeight) -> void = 0;
-		virtual X12_API auto GetWindowSurface(HWND hwnd)->surface_ptr = 0;
-		virtual X12_API auto PresentSurfaces() -> void = 0;
-		virtual X12_API auto FrameEnd() -> void = 0;
-		virtual X12_API auto ExecuteCommandList(ICoreCopyCommandList* cmdList) -> void = 0;
-		virtual X12_API auto WaitGPU() -> void = 0;
-		virtual X12_API auto WaitGPUAll() -> void = 0;
+		X12_API virtual auto _FetchSurface(HWND hwnd)->surface_ptr = 0;
+		X12_API virtual auto RecreateBuffers(HWND hwnd, UINT newWidth, UINT newHeight) -> void = 0;
+		X12_API virtual auto GetWindowSurface(HWND hwnd)->surface_ptr = 0;
+		X12_API virtual auto PresentSurfaces() -> void = 0;
+		X12_API virtual auto FrameEnd() -> void = 0;
+		X12_API virtual auto ExecuteCommandList(ICoreCopyCommandList* cmdList) -> void = 0;
+		X12_API virtual auto WaitGPU() -> void = 0;
+		X12_API virtual auto WaitGPUAll() -> void = 0;
 
-		virtual X12_API auto GetStat(CoreRenderStat& stat) -> void = 0;
+		X12_API virtual auto GetStat(CoreRenderStat& stat) -> void = 0;
 
-		virtual X12_API auto IsVSync() -> bool = 0;
+		X12_API virtual auto IsVSync() -> bool = 0;
 
 		// Resurces
-		virtual X12_API bool CreateShader(ICoreShader** out, LPCWSTR name, const char* vertText, const char* fragText,
+		X12_API virtual bool CreateShader(ICoreShader** out, LPCWSTR name, const char* vertText, const char* fragText,
 								  const ConstantBuffersDesc* variabledesc = nullptr, uint32_t varNum = 0) = 0;
 
-		virtual X12_API bool CreateComputeShader(ICoreShader** out, LPCWSTR name, const char* text,
+		X12_API virtual bool CreateComputeShader(ICoreShader** out, LPCWSTR name, const char* text,
 										 const ConstantBuffersDesc* variabledesc = nullptr, uint32_t varNum = 0) = 0;
 
-		virtual X12_API bool CreateVertexBuffer(ICoreVertexBuffer** out, LPCWSTR name, const void* vbData, const VeretxBufferDesc* vbDesc,
+		X12_API virtual bool CreateVertexBuffer(ICoreVertexBuffer** out, LPCWSTR name, const void* vbData, const VeretxBufferDesc* vbDesc,
 										const void* idxData, const IndexBufferDesc* idxDesc, MEMORY_TYPE mem) = 0;
 
-		virtual X12_API bool CreateBuffer(ICoreBuffer** out, LPCWSTR name, size_t size, BUFFER_FLAGS flags, MEMORY_TYPE mem, const void* data = nullptr, size_t num = 1) = 0;
+		X12_API virtual bool CreateBuffer(ICoreBuffer** out, LPCWSTR name, size_t size, BUFFER_FLAGS flags, MEMORY_TYPE mem, const void* data = nullptr, size_t num = 1) = 0;
 
-		virtual X12_API bool CreateTexture(ICoreTexture** out, LPCWSTR name, const uint8_t* data, size_t size, int32_t width, int32_t height, uint32_t mipCount,
+		X12_API virtual bool CreateTexture(ICoreTexture** out, LPCWSTR name, const uint8_t* data, size_t size, int32_t width, int32_t height, uint32_t mipCount,
 						   TEXTURE_TYPE type, TEXTURE_FORMAT format, TEXTURE_CREATE_FLAGS flags) = 0;
 
 		// TODO: remove d3d dependency
-		virtual X12_API bool CreateTextureFrom(ICoreTexture** out, LPCWSTR name, std::vector<D3D12_SUBRESOURCE_DATA> subresources, ID3D12Resource* d3dexistingtexture) = 0;
+		X12_API virtual bool CreateTextureFrom(ICoreTexture** out, LPCWSTR name, std::vector<D3D12_SUBRESOURCE_DATA> subresources, ID3D12Resource* d3dexistingtexture) = 0;
 
-		virtual X12_API bool CreateTextureFrom(ICoreTexture** out, LPCWSTR name, ID3D12Resource* d3dexistingtexture) = 0;
+		X12_API virtual bool CreateTextureFrom(ICoreTexture** out, LPCWSTR name, ID3D12Resource* d3dexistingtexture) = 0;
 
-		virtual X12_API bool CreateResourceSet(IResourceSet** out, const ICoreShader* shader) = 0;
+		X12_API virtual bool CreateResourceSet(IResourceSet** out, const ICoreShader* shader) = 0;
 
-		virtual X12_API bool CreateQuery(ICoreQuery** out) = 0;
+		X12_API virtual bool CreateQuery(ICoreQuery** out) = 0;
 
-		virtual X12_API void* GetNativeDevice() = 0;
+		X12_API virtual void* GetNativeDevice() = 0;
 
-		virtual X12_API void* GetNativeGraphicQueue() = 0; // Tmp
+		X12_API virtual void* GetNativeGraphicQueue() = 0; // Tmp
 	};
 
 	enum class TEXTURE_FORMAT
@@ -353,10 +352,10 @@ namespace x12
 		IResourceUnknown(uint16_t id_);
 		virtual ~IResourceUnknown() = default;
 
-		void X12_API AddRef() const { refs++; }
-		int X12_API GetRefs() { return refs; }
-		void X12_API Release();
-		uint16_t X12_API ID() const { return id; }
+		X12_API void AddRef() const { refs++; }
+		X12_API int GetRefs() { return refs; }
+		X12_API void Release();
+		X12_API uint16_t ID() const { return id; }
 		static void CheckResources();
 	};
 
@@ -374,7 +373,7 @@ namespace x12
 
 	public:
 		ICoreVertexBuffer();
-		virtual X12_API void SetData(const void* vbData, size_t vbSize, size_t vbOffset, const void* idxData, size_t idxSize, size_t idxOffset) = 0;
+		X12_API virtual void SetData(const void* vbData, size_t vbSize, size_t vbOffset, const void* idxData, size_t idxSize, size_t idxOffset) = 0;
 	};
 
 	struct ICoreTexture : public IResourceUnknown
@@ -383,8 +382,8 @@ namespace x12
 
 	public:
 		ICoreTexture();
-		virtual X12_API void* GetNativeResource() = 0;
-		virtual X12_API void GetData(void* data) = 0;
+		X12_API virtual void* GetNativeResource() = 0;
+		X12_API virtual void GetData(void* data) = 0;
 	};
 
 	struct ICoreBuffer : public IResourceUnknown
@@ -393,8 +392,8 @@ namespace x12
 
 	public:
 		ICoreBuffer();
-		virtual X12_API void GetData(void* data) = 0;
-		virtual X12_API void SetData(const void* data, size_t size) = 0;
+		X12_API virtual void GetData(void* data) = 0;
+		X12_API virtual void SetData(const void* data, size_t size) = 0;
 	};
 
 	struct IResourceSet : public IResourceUnknown
@@ -403,12 +402,12 @@ namespace x12
 
 	public:
 		IResourceSet();
-		virtual X12_API void BindConstantBuffer(const char* name, ICoreBuffer* buffer) = 0;
-		virtual X12_API void BindStructuredBufferSRV(const char* name, ICoreBuffer* buffer) = 0;
-		virtual X12_API void BindStructuredBufferUAV(const char* name, ICoreBuffer* buffer) = 0;
-		virtual X12_API void BindTextueSRV(const char* name, ICoreTexture* texture) = 0;
-		virtual X12_API void BindTextueUAV(const char* name, ICoreTexture* texture) = 0;
-		virtual X12_API size_t FindInlineBufferIndex(const char* name) = 0;
+		X12_API virtual void BindConstantBuffer(const char* name, ICoreBuffer* buffer) = 0;
+		X12_API virtual void BindStructuredBufferSRV(const char* name, ICoreBuffer* buffer) = 0;
+		X12_API virtual void BindStructuredBufferUAV(const char* name, ICoreBuffer* buffer) = 0;
+		X12_API virtual void BindTextueSRV(const char* name, ICoreTexture* texture) = 0;
+		X12_API virtual void BindTextueUAV(const char* name, ICoreTexture* texture) = 0;
+		X12_API virtual size_t FindInlineBufferIndex(const char* name) = 0;
 	};
 
 	struct ICoreQuery : public IResourceUnknown
@@ -491,7 +490,7 @@ namespace x12
 
 	psomap_checksum_t CalculateChecksum(const GraphicPipelineState& pso);
 	psomap_checksum_t CalculateChecksum(const ComputePipelineState& pso);
-	UINT64 getBufferSize(const VeretxBufferDesc* vbDesc);
+	UINT64 VbSizeFromDesc(const VeretxBufferDesc* vbDesc);
 	UINT64 getBufferStride(const VeretxBufferDesc* vbDesc);
 }
 

@@ -41,11 +41,11 @@ namespace x12
 	public:
 		Dx12ResourceSet(const Dx12CoreShader* shader);
 
-		void BindConstantBuffer(const char* name, ICoreBuffer* buffer) override;
-		void BindStructuredBufferSRV(const char* name, ICoreBuffer* buffer) override;
-		void BindStructuredBufferUAV(const char* name, ICoreBuffer* buffer) override;
-		void BindTextueSRV(const char* name, ICoreTexture* texture) override;
-		void BindTextueUAV(const char* name, ICoreTexture* texture) override;
+		X12_API void BindConstantBuffer(const char* name, ICoreBuffer* buffer) override;
+		X12_API void BindStructuredBufferSRV(const char* name, ICoreBuffer* buffer) override;
+		X12_API void BindStructuredBufferUAV(const char* name, ICoreBuffer* buffer) override;
+		X12_API void BindTextueSRV(const char* name, ICoreTexture* texture) override;
+		X12_API void BindTextueUAV(const char* name, ICoreTexture* texture) override;
 
 		size_t FindInlineBufferIndex(const char* name) override;
 

@@ -43,7 +43,7 @@ psomap_checksum_t x12::CalculateChecksum(const x12::ComputePipelineState& pso)
 	return checksum;
 }
 
-UINT64 x12::getBufferSize(const VeretxBufferDesc* vbDesc)
+UINT64 x12::VbSizeFromDesc(const VeretxBufferDesc* vbDesc)
 {
 	return getBufferStride(vbDesc) * vbDesc->vertexCount;
 }

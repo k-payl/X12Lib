@@ -21,7 +21,7 @@
 #include "yaml-cpp/yaml.h"
 
 
-int APIENTRY wWinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPWSTR, _In_ int)
+int main()
 {
 	std::string path = "..//..//sponza-gltf-pbr//sponza.glb";
 

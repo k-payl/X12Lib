@@ -39,34 +39,45 @@ void x12::Dx12CoreBuffer::_GetStagingData(void* data)
 
 void x12::Dx12CoreBuffer::Map()
 {
+	if (ptr || memoryType == MEMORY_TYPE::GPU_READ)
+		return;
+
 	resource->Map(0, nullptr, &ptr);
 }
 
 void x12::Dx12CoreBuffer::Unmap()
 {
-	if (memoryType & MEMORY_TYPE::CPU)
-	{
-		if (ptr)
-		{
-			resource->Unmap(0, nullptr);
-			ptr = 0;
-		}
-	}
+	if (!ptr || memoryType == MEMORY_TYPE::GPU_READ)
+		return;
+
+	resource->Unmap(0, nullptr);
+	ptr = 0;
 }
 
 void x12::Dx12CoreBuffer::GetData(void* data)
 {
-	ICoreRenderer* renderer = engine::GetCoreRenderer();
-	ICoreGraphicCommandList* cmdList = renderer->GetGraphicCommandList();
+	if (memoryType == MEMORY_TYPE::CPU || memoryType == MEMORY_TYPE::READBACK)
+	{
+		Map();
+		memcpy(data, ptr, size);
+		Unmap();
+	}
+	else if (memoryType == MEMORY_TYPE::GPU_READ)
+	{
+		ICoreRenderer* renderer = engine::GetCoreRenderer();
+		ICoreGraphicCommandList* cmdList = renderer->GetGraphicCommandList();
 
-	cmdList->CommandsBegin();
-	_GPUCopyToStaging(cmdList);
-	cmdList->CommandsEnd();
-	renderer->ExecuteCommandList(cmdList);
+		cmdList->CommandsBegin();
+		_GPUCopyToStaging(cmdList);
+		cmdList->CommandsEnd();
+		renderer->ExecuteCommandList(cmdList);
 
-	renderer->WaitGPUAll(); // execute current GPU work and wait
+		renderer->WaitGPUAll(); // execute current GPU work and wait
 
-	_GetStagingData(data);
+		_GetStagingData(data);
+	}
+	else
+		notImplemented();
 }
 
 void x12::Dx12CoreBuffer::SetData(const void* data, size_t dataSize)
@@ -74,13 +85,13 @@ void x12::Dx12CoreBuffer::SetData(const void* data, size_t dataSize)
 	if (!data)
 		return;
 
-	if (memoryType & MEMORY_TYPE::CPU)
+	if (memoryType == MEMORY_TYPE::CPU || memoryType == MEMORY_TYPE::READBACK)
 	{
 		Map();
 		memcpy(ptr, data, size);
 		Unmap();
 	}
-	else if (memoryType & MEMORY_TYPE::GPU_READ)
+	else if (memoryType == MEMORY_TYPE::GPU_READ)
 	{
 		stagingState = D3D12_RESOURCE_STATE_GENERIC_READ;
 
@@ -116,6 +127,8 @@ void x12::Dx12CoreBuffer::SetData(const void* data, size_t dataSize)
 
 		renderer->WaitGPUAll(); // wait GPU copying upload -> default heap
 	}
+	else
+		notImplemented();
 }
 
 x12::Dx12CoreBuffer::~Dx12CoreBuffer()
@@ -132,23 +145,23 @@ x12::Dx12CoreBuffer::Dx12CoreBuffer(size_t size_, const void* data, MEMORY_TYPE 
 	D3D12_HEAP_TYPE heap = D3D12_HEAP_TYPE_DEFAULT;
 	D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE;
 
-	state = D3D12_RESOURCE_STATE_COPY_DEST;
-
-	if (memoryType_ & MEMORY_TYPE::CPU)
+	if (memoryType == MEMORY_TYPE::CPU)
 	{
 		state = D3D12_RESOURCE_STATE_GENERIC_READ;
 		heap = D3D12_HEAP_TYPE_UPLOAD;
 	}
-	else if (memoryType_ & MEMORY_TYPE::GPU_READ)
+	else if (memoryType == MEMORY_TYPE::GPU_READ)
 	{
 		state = D3D12_RESOURCE_STATE_GENERIC_READ;
 		heap = D3D12_HEAP_TYPE_DEFAULT;
 	}
-	else if (memoryType_ & MEMORY_TYPE::READBACK)
+	else if (memoryType == MEMORY_TYPE::READBACK)
 	{
-		state = D3D12_RESOURCE_STATE_GENERIC_READ;
+		state = D3D12_RESOURCE_STATE_COPY_DEST;
 		heap = D3D12_HEAP_TYPE_READBACK;
 	}
+	else
+		notImplemented();
 
 	if (flags_ & BUFFER_FLAGS::UNORDERED_ACCESS_VIEW)
 	{
@@ -198,7 +211,7 @@ void x12::Dx12CoreBuffer::initCBV(UINT size)
 	CBVdescriptor = d3d12::D3D12GetCoreRender()->AllocateStaticDescriptor();
 
 	D3D12_CONSTANT_BUFFER_VIEW_DESC desc;
-	desc.SizeInBytes = alignConstantBufferSize(size);
+	desc.SizeInBytes = AlignConstantBufferSize(size);
 	desc.BufferLocation = resource->GetGPUVirtualAddress();
 
 	d3d12::CR_GetD3DDevice()->CreateConstantBufferView(&desc, CBVdescriptor.descriptor);
