@@ -37,7 +37,9 @@ float x12::Dx12CoreQuery::GetTime()
 	UINT64 queryTiming[2];
 	memcpy(&queryTiming[0], (uint8_t*)timingData, 16);
 
-	queryReadBackBuffer->Unmap(0, &CD3DX12_RANGE(0, 0));
+	auto range = CD3DX12_RANGE(0, 0);
+	
+	queryReadBackBuffer->Unmap(0, &range);
 
 	UINT64 start = queryTiming[0];
 	UINT64 end = queryTiming[1];

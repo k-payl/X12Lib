@@ -20,7 +20,8 @@ void x12::Dx12CoreBuffer::_GPUCopyToStaging(ICoreGraphicCommandList* cmdList)
 
 		if (resourceState() != D3D12_RESOURCE_STATE_COPY_SOURCE)
 		{
-			d3dCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(GetResource(), resourceState(), D3D12_RESOURCE_STATE_COPY_SOURCE));
+			auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(GetResource(), resourceState(), D3D12_RESOURCE_STATE_COPY_SOURCE);
+			d3dCmdList->ResourceBarrier(1, &barrier);
 			resourceState() = D3D12_RESOURCE_STATE_COPY_SOURCE;
 		}
 		d3dCmdList->CopyResource(stagingResource.Get(), GetResource());
@@ -112,13 +113,19 @@ void x12::Dx12CoreBuffer::SetData(const void* data, size_t dataSize)
 		Dx12GraphicCommandList* dx12ctx = static_cast<Dx12GraphicCommandList*>(cmdList);
 
 		if (state != D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_COPY_DEST)
-			dx12ctx->GetD3D12CmdList()->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(GetResource(), state, D3D12_RESOURCE_STATE_COPY_DEST));
+		{
+			auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(GetResource(), state, D3D12_RESOURCE_STATE_COPY_DEST);
+			dx12ctx->GetD3D12CmdList()->ResourceBarrier(1, &barrier);
+		}
 
 		UpdateSubresources<1>(dx12ctx->GetD3D12CmdList(), resource.Get(),
 							  uploadResource.Get(), 0, 0, data ? 1 : 0, data ? &initData : nullptr);
 
 		if (state != D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_COPY_DEST)
-			dx12ctx->GetD3D12CmdList()->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(GetResource(), D3D12_RESOURCE_STATE_COPY_DEST, state));
+		{
+			auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(GetResource(), D3D12_RESOURCE_STATE_COPY_DEST, state);
+			dx12ctx->GetD3D12CmdList()->ResourceBarrier(1, &barrier);
+		}
 
 		cmdList->CommandsEnd();
 

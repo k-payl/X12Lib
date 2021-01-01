@@ -361,7 +361,8 @@ Microsoft::WRL::ComPtr<ID3D12Resource> BuildBLAS(const std::vector<engine::Mesh*
 	// Reset the command list for the acceleration structure construction.
 	throwIfFailed(dxrCommandList->Reset(commandAllocator, nullptr));
 	dxrCommandList->BuildRaytracingAccelerationStructure(&bottomLevelBuildDesc, 0, nullptr);
-	dxrCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::UAV(bottomLevelAccelerationStructure.Get()));
+	auto barreier = CD3DX12_RESOURCE_BARRIER::UAV(bottomLevelAccelerationStructure.Get());
+	dxrCommandList->ResourceBarrier(1, &barreier);
 	throwIfFailed(dxrCommandList->Close());
 
 	ID3D12CommandList* commandLists[] = { dxrCommandList };

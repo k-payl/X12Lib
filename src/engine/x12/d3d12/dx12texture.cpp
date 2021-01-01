@@ -93,7 +93,8 @@ void x12::Dx12CoreTexture::_GPUCopyToStaging(ICoreGraphicCommandList* cmdList)
 		D3D12_RESOURCE_STATES oldState = state;
 		if (state != D3D12_RESOURCE_STATE_COPY_SOURCE)
 		{
-			d3dCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(resource.Get(), state, D3D12_RESOURCE_STATE_COPY_SOURCE));
+			auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(resource.Get(), state, D3D12_RESOURCE_STATE_COPY_SOURCE);
+			d3dCmdList->ResourceBarrier(1, &barrier);
 			state = D3D12_RESOURCE_STATE_COPY_SOURCE;
 		}
 		{
@@ -115,7 +116,8 @@ void x12::Dx12CoreTexture::_GPUCopyToStaging(ICoreGraphicCommandList* cmdList)
 		}
 		if (oldState != state)
 		{
-			d3dCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(resource.Get(), state, oldState));
+			auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(resource.Get(), state, oldState);
+			d3dCmdList->ResourceBarrier(1, &barrier);
 			state = oldState;
 		}
 	}

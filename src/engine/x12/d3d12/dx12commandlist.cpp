@@ -339,7 +339,8 @@ void Dx12GraphicCommandList::UpdateInlineConstantBuffer(size_t rootParameterIdx,
 void Dx12GraphicCommandList::EmitUAVBarrier(ICoreBuffer* buffer)
 {
 	auto* dx12res = resource_cast(buffer);
-	d3dCmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::UAV(dx12res->GetResource()));
+	auto barrier = CD3DX12_RESOURCE_BARRIER::UAV(dx12res->GetResource());
+	d3dCmdList->ResourceBarrier(1, &barrier);
 }
 
 void x12::Dx12GraphicCommandList::StartQuery(ICoreQuery* query)
@@ -473,7 +474,9 @@ void Dx12GraphicCommandList::BindSurface(surface_ptr& surface_)
 
 	resource_cast(dx12surface->colorBuffers[renderer->FrameIndex()].get())->TransiteToState(D3D12_RESOURCE_STATE_RENDER_TARGET, d3dCmdList);
 
-	d3dCmdList->OMSetRenderTargets(1, &resource_cast(dx12surface->colorBuffers[renderer->FrameIndex()].get())->GetRTV(), FALSE, &resource_cast(dx12surface->depthBuffer.get())->GetDSV());
+	auto dsv = resource_cast(dx12surface->depthBuffer.get())->GetDSV();
+	auto rtv = resource_cast(dx12surface->colorBuffers[renderer->FrameIndex()].get())->GetRTV();
+	d3dCmdList->OMSetRenderTargets(1, &rtv, FALSE, &dsv);
 }
 
 void x12::Dx12GraphicCommandList::SetRenderTargets(ICoreTexture** textures, uint32_t count, ICoreTexture* depthStencil)
