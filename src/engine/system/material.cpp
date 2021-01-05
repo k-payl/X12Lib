@@ -26,6 +26,7 @@ std::vector<ParamInfo> nameToIndex =
 {
 	{"base_color", engine::Material::Params::Albedo, vec4(1, 1, 1, 1)},
 	{"roughness", engine::Material::Params::Roughness, vec4(0, 0, 0, 0)},
+	{"metalness", engine::Material::Params::Metalness, vec4(0.0, 0, 0, 0)},
 };
 
 engine::Material::Material(const std::string& path) : path_(path), name_(path)

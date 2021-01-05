@@ -4,7 +4,7 @@ objects:
     id: 1
     enabled: true
     type: Light
-    worldTransform: [-0.2, -8.74227794e-07, 0, 3, 8.74227794e-07, -0.2, 0, -5, 0, 0, 10, 20, 0, 0, 0, 1]
+    worldTransform: [-0.200000003, -8.74227794e-07, 0, 3, 8.74227794e-07, -0.200000003, 0, -5, 0, 0, 10, 20, 0, 0, 0, 1]
     intensity: 5000
     light_type: 0
   - childs: 0

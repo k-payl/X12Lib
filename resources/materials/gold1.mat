@@ -1,0 +1,8 @@
+name: 'gold1'
+parameters:
+  - name: 'base_color'
+    value: [1.000, 0.766, 0.336, 1]
+  - name: 'roughness'
+    value: 0.01
+  - name: 'metalness'
+    value: 1

@@ -1,0 +1,8 @@
+name: 'floor'
+parameters:
+  - name: 'base_color'
+    value: [1, 1, 1, 1]
+  - name: 'roughness'
+    value: 0.05
+  - name: 'metalness'
+    value: 0.56

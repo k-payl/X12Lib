@@ -1,0 +1,8 @@
+name: 'chrome'
+parameters:
+  - name: 'base_color'
+    value: [0.550, 0.556, 0.554, 1]
+  - name: 'roughness'
+    value: 0.106
+  - name: 'metalness'
+    value: 1

@@ -1,26 +1,13 @@
+#pragma once
+#include "consts.h"
+#include "cpp_hlsl_shared.h"
 
-#define BRDF_MINIMUM_ALPHA 1e-3f
-#define BRDF_DOT_EPSILON 1e-5f
-#define g_dielectric_F0 0.04f
-#define g_inv_pi (1.0f / 3.1415926f)
-#define sqr(x) (x * x)
-
-// TODO: move to material.h
-struct Material
+struct SurfaceHit
 {
-	float3 m_base_color;
-	float m_roughness;
-	float m_metalness;
+	float3 albedo;
+	float3 roughness;
+	float3 metalness;
 };
-float4 srgbInv(float4 v)
-{
-	return float4(pow(v.x, 2.2), pow(v.y, 2.2), pow(v.z, 2.2), pow(v.w, 2.2));
-}
-float3 srgb(float3 v)
-{
-	return float3(pow(v.x, 0.45), pow(v.y, 0.45), pow(v.z, 0.45));
-}
-
 
 float SaturateDot(float3 a, float3 b)
 {
@@ -35,12 +22,12 @@ float3 HalfDirection(float3 d1, float3 d2)
 
 float RoughnessToAlpha(float roughness)
 {
-	return max(BRDF_MINIMUM_ALPHA, sqr(roughness));
+	return max(BRDF_MINIMUM_ALPHA, roughness);
 }
 
-float3 F0_Specular(Material material)
+float3 F0_Specular(float3 albedo, float metalness)
 {
-	return lerp(g_dielectric_F0, material.m_base_color, material.m_metalness);
+	return lerp(g_dielectric_F0, albedo, metalness);
 }
 
 /**
@@ -181,7 +168,7 @@ float D_TrowbridgeReitz(float n_dot_h, float alpha) {
 	const float n_dot_h2 = sqr(n_dot_h);
 	const float temp1 = n_dot_h2 * (alpha2 - 1.0f) + 1.0f;
 
-	return g_inv_pi * alpha2 / sqr(temp1);
+	return INVPI * alpha2 / sqr(temp1);
 }
 
 // alpha
@@ -191,15 +178,33 @@ float D_GGX(float n_dot_h, float alpha)
 	return D_TrowbridgeReitz(n_dot_h, alpha);
 }
 
-struct BRDF
-{
-	float3 m_diffuse;
-	float3 m_specular;
-};
+float D_GTR2(float n_dot_h, float alpha) {
+	return D_TrowbridgeReitz(n_dot_h, alpha);
+}
 
-BRDF CookTorranceBRDF(float3 n, float3 l, float3 v, Material material)
+float3 ToTangentSpace(float3 N, float3 vec)
 {
-	const float  alpha = RoughnessToAlpha(material.m_roughness);
+	float3 UpVector = abs(N.z) < 0.9999 ? float3(0, 0, 1) : float3(1, 0, 0);
+	float3 TangentX = normalize(cross(UpVector, N));
+	float3 TangentY = cross(N, TangentX);
+	return normalize(TangentX * vec.x + TangentY * vec.y + N * vec.z);
+}
+
+float3 rayCosine(float3 N, float u1, float u2)
+{
+	float3 dir;
+	float r = sqrt(u1);
+	float phi = 2.0 * PI * u2;
+	dir.x = r * cos(phi);
+	dir.y = r * sin(phi);
+	dir.z = sqrt(max(0.0, 1.0 - dir.x * dir.x - dir.y * dir.y));
+
+	return ToTangentSpace(N, dir);
+}
+
+float3 CookTorranceBRDF(float3 n, float3 l, float3 v, SurfaceHit surface)
+{
+	const float  alpha = RoughnessToAlpha(surface.roughness.x);
 	const float  n_dot_l = SaturateDot(n, l) + BRDF_DOT_EPSILON;
 	const float  n_dot_v = SaturateDot(n, v) + BRDF_DOT_EPSILON;
 	const float3 h = HalfDirection(l, v);
@@ -208,12 +213,63 @@ BRDF CookTorranceBRDF(float3 n, float3 l, float3 v, Material material)
 
 	const float  D = D_GGX(n_dot_h, alpha);
 	const float  V = V_GGX(n_dot_v, n_dot_l, n_dot_h, v_dot_h, alpha);
-	const float3 F_specular = F_Schlick(v_dot_h, F0_Specular(material));
-	const float3 F_diffuse = (1.0f - F_specular) * (1.0f - material.m_metalness);
+	const float3 F_specular = F_Schlick(v_dot_h, F0_Specular(surface.albedo, surface.metalness.x));
+	const float3 F_diffuse = /*(1.0f - F_specular) **/ (1.0f - surface.metalness);
 
-	BRDF brdf;
-	brdf.m_diffuse = F_diffuse * material.m_base_color * g_inv_pi;
-	brdf.m_specular = F_specular * 0.25f * D * V;
+	float3 brdf = F_diffuse * surface.albedo * INVPI + F_specular * 0.25f * D * V;
 
 	return brdf;
+}
+
+float CookTorranceBRDFPdf(float3 N, float3 L, float3 V, SurfaceHit surface)
+{
+	float specularAlpha = RoughnessToAlpha(surface.roughness.x);
+
+	float diffuseRatio = 0.5 * (1.0 - surface.metalness.x);
+	float specularRatio = 1.0 - diffuseRatio;
+
+	float3 halfVec = normalize(L + V);
+
+	float cosTheta = abs(dot(halfVec, N));
+	float pdfGTR2 = D_GTR2(cosTheta, specularAlpha) * cosTheta;
+
+	// calculate diffuse and specular pdfs and mix ratio
+	float pdfSpec = pdfGTR2 / (4.0 * abs(dot(L, halfVec)));
+	float pdfDiff = abs(dot(L, N)) * INVPI;
+
+	// weight pdfs according to ratios
+	return diffuseRatio * pdfDiff + specularRatio * pdfSpec;
+}
+
+float3 CookTorranceBRDFSample(float3 N, float3 V, SurfaceHit surface, float r1, float r2, out bool specular)
+{
+	float3 dir;
+
+	float diffuseRatio = 0.5 * (1.0 - surface.metalness.x);
+
+	if (r1 < diffuseRatio) // sample diffuse
+	{
+		dir = rayCosine(N, r1, r2);
+		specular = false;
+	}
+	else
+	{
+		float a = RoughnessToAlpha(surface.roughness.x);
+		float phi = r1 * _2PI;
+
+		float cosTheta = sqrt((1.0 - r2) / (1.0 + (a*a - 1.0) *r2));
+		float sinTheta = clamp(sqrt(1.0 - (cosTheta * cosTheta)), 0.0, 1.0);
+		float sinPhi = sin(phi);
+		float cosPhi = cos(phi);
+
+		float3 h = float3(sinTheta * cosPhi, sinTheta * sinPhi, cosTheta);
+
+		h = ToTangentSpace(N, h);
+
+		dir = reflect(-V, h);
+
+		specular = surface.roughness.x <= 1e-5f;
+	}
+
+	return dir;
 }

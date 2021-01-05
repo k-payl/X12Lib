@@ -23,6 +23,7 @@ namespace engine
 		{
 			Albedo,
 			Roughness,
+			Metalness,
 			Num
 		};
 

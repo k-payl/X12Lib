@@ -35,7 +35,7 @@ void RayGen()
 #endif
 
     ray.TMin = 0;
-    ray.TMax = 100000;
+    ray.TMax = 1000;
 
     // Trace the ray
     TraceRay(

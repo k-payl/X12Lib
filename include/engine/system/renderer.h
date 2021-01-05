@@ -105,7 +105,7 @@ namespace engine
 		void InitFence(Fence& fence);
 		void SignalFence(ID3D12CommandQueue* ToQueue, Fence& fence);
 		void Sync(ID3D12CommandQueue* fromQueue, ID3D12CommandQueue* ToQueue, Fence& fence);
-		void OnLoadScene();
+		void OnSceneChanged();
 		void CreateShaderBindingTable(ComPtr<ID3D12StateObject> state, UINT totalInstances, ComPtr<ID3D12Resource>& r, ComPtr<ID3D12Resource>& h, ComPtr<ID3D12Resource>& m);
 		auto CreatePSO(ComPtr<IDxcBlob> r, ComPtr<IDxcBlob> h, ComPtr<IDxcBlob> m) -> ComPtr<ID3D12StateObject>;
 		void CreateRaytracingOutputResource(UINT width, UINT height);

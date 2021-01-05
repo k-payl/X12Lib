@@ -688,7 +688,7 @@ void engine::Renderer::Free()
 	::CloseHandle(event);
 }
 
-void engine::Renderer::OnLoadScene()
+void engine::Renderer::OnSceneChanged()
 {
 	rtxScene = std::make_unique<Renderer::RTXscene>();
 
@@ -713,7 +713,6 @@ void engine::Renderer::OnLoadScene()
 		};
 
 		std::vector<BLASmesh> ms;
-		std::vector<Material*> sceneMaterials;
 
 		for (size_t i = 0; i < models.size(); ++i)
 		{
@@ -727,10 +726,12 @@ void engine::Renderer::OnLoadScene()
 		std::vector<Mesh*> blas_meshes;
 		std::vector<Material*> blas_materials;
 		std::vector<D3D12_GPU_VIRTUAL_ADDRESS> blas_meshesh_vb;
+		std::vector<math::vec3> emisssions;
 
 		blas_meshes.push_back(ms[0].mesh);
 		blas_meshesh_vb.push_back(reinterpret_cast<x12::Dx12CoreBuffer*>(ms[0].mesh->VertexBuffer())->GPUAddress());
 		blas_materials.push_back(ms[0].material ? ms[0].material : GetMaterialManager()->GetDefaultMaterial());
+		emisssions.push_back(vec3());
 
 		assert(ms.size() > 0);
 
@@ -743,12 +744,13 @@ void engine::Renderer::OnLoadScene()
 				// Create BLAS
 				auto resource = BuildBLAS(blas_meshes, dxrDevice.Get(), rtxQueue.Get(), dxrCommandList.Get(), commandAllocators[backBufferIndex].Get());
 
-				rtxScene->blases.push_back({ ms[i].transform, (UINT)blas_meshes.size(), resource, blas_meshesh_vb, blas_materials });
+				rtxScene->blases.push_back({ ms[i].transform, (UINT)blas_meshes.size(), resource, blas_meshesh_vb, blas_materials, emisssions });
 				rtxScene->totalInstances += (UINT)blas_meshes.size();
 
 				blas_meshes.clear();
 				blas_meshesh_vb.clear();
 				blas_materials.clear();
+				emisssions.clear();
 			}
 
 			if (i < ms.size() - 1)
@@ -758,8 +760,24 @@ void engine::Renderer::OnLoadScene()
 				blas_meshes.push_back(mesh);
 				blas_meshesh_vb.push_back(reinterpret_cast<x12::Dx12CoreBuffer*>(mesh->VertexBuffer())->GPUAddress());
 				blas_materials.push_back(ms[i + 1].material ? ms[i + 1].material : GetMaterialManager()->GetDefaultMaterial());
+				emisssions.push_back(vec3());
 			}
 		}
+	}
+
+	for (int i = 0; i < areaLights.size(); i++)
+	{
+		engine::Mesh* m = planeMesh.get();
+		std::vector<Mesh*> blas_meshes = {m};
+		std::vector<Material*> blas_materials = { GetMaterialManager()->GetDefaultMaterial() };
+		std::vector<D3D12_GPU_VIRTUAL_ADDRESS> blas_meshesh_vb = { reinterpret_cast<x12::Dx12CoreBuffer*>(m->VertexBuffer())->GPUAddress() };
+		std::vector<math::vec3> emisssions{vec3(areaLights[i]->GetIntensity())};
+
+		// Create BLAS
+		auto resource = BuildBLAS(blas_meshes, dxrDevice.Get(), rtxQueue.Get(), dxrCommandList.Get(), commandAllocators[backBufferIndex].Get());
+
+		rtxScene->blases.push_back({ areaLights[i]->GetWorldTransform(), (UINT)blas_meshes.size(), resource, blas_meshesh_vb, blas_materials, emisssions });
+		rtxScene->totalInstances += 1;
 	}
 
 	// TLAS
@@ -790,6 +808,7 @@ void engine::Renderer::OnLoadScene()
 					Shaders::Material gpuMaterial{};
 					gpuMaterial.albedo = mat->GetValue(Material::Params::Albedo);
 					gpuMaterial.shading.x = mat->GetValue(Material::Params::Roughness).x;
+					gpuMaterial.shading.y = mat->GetValue(Material::Params::Metalness).x;
 
 					Texture* texture = mat->GetTexture(Material::Params::Albedo);
 
@@ -844,9 +863,15 @@ void engine::Renderer::OnLoadScene()
 			for (size_t j = 0; j < rtxScene->blases[i].instances; ++j)
 			{
 				math::mat4 transform = rtxScene->blases[i].transform;
+				vec3 pos, scale;
+				quat rot;
+				math::decompositeTransform(transform, pos, rot, scale);
+				//transform = transform * mat4(1 / scale.x, 1 / scale.y, 1 / scale.z);
 				instancesData[offset].transform = transform;
 				instancesData[offset].normalTransform = transform.Inverse().Transpose();
-				instancesData[offset].emission = 0;
+				math::compositeTransform(transform, vec3(0, 0, 0), rot, vec3(1, 1, 1));
+
+				instancesData[offset].emission = rtxScene->blases[i].emissions[j].x;
 				instancesData[offset].materialIndex = materialToIndex[rtxScene->blases[i].materials[j]];
 				offset++;
 			}
@@ -880,7 +905,7 @@ void engine::Renderer::OnLoadScene()
 
 void engine::Renderer::OnSceneLoaded()
 {
-	GetRenderer()->OnLoadScene();
+	GetRenderer()->OnSceneChanged();
 }
 
 ComPtr<ID3D12StateObject> engine::Renderer::CreatePSO(ComPtr<IDxcBlob> r, ComPtr<IDxcBlob> h, ComPtr<IDxcBlob> m)

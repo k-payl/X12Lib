@@ -320,7 +320,9 @@ void engine::SceneManager::createLightsGPUBuffer()
 
 		lightsData[i].color = math::vec4(1, 1, 1, 1) * lights[i]->GetIntensity();
 		lightsData[i].size = math::vec4(1, 1, 1, 1);
-		lightsData[i].normal = math::triangle_normal(p0, p1, p2);
+		math::vec3 T = math::vec3(lightsData[i].T_world.x, lightsData[i].T_world.y, lightsData[i].T_world.z);
+		math::vec3 B = math::vec3(lightsData[i].B_world.x, lightsData[i].B_world.y, lightsData[i].B_world.z);
+		lightsData[i].normal = normalize(cross(T, B));
 	}
 
 	if (!lights.empty())

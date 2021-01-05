@@ -1,37 +1,74 @@
-roots: 5
+roots: 10
 objects:
   - childs: 0
     id: 845369033
     enabled: true
     type: Light
-    worldTransform: [0.0, 0.7658789, 0.6431055, 0.4008741, -7.15256e-07, 0.0, 0.7658836, 5.98241, 2.000001, -4.172638e-07, 0.0, 2.915319, 0, 0, 0, 1]
-    intensity: 15.0
+    worldTransform: [0, 1, 0, 0.5, 0, 0, -1, 6, 6, 0, 0, 3, 0, 0, 0, 1]
+    intensity: 17
     light_type: 1
   - childs: 0
     id: 36578474
     enabled: true
     type: Model
-    worldTransform: [15, 0, 0, 1.796759, 0, 15, 0, 0, 0, 0, 1, -0.3079884, 0, 0, 0, 1]
+    worldTransform: [15, 0, 0, 1.79675901, 0, 15, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
     mesh: std#plane
-    material: material_59
+    material: floor
   - childs: 0
     id: 2076238944
     enabled: true
     type: Model
-    worldTransform: [1, 0, 0, -3, 0, 1, 0, -0.01566553, 0, 0, 1, 1.553444, 0, 0, 0, 1]
+    worldTransform: [1, 0, 0, -3, 0, 1, 0, 0, 0, 0, 1, 1.65344403, 0, 0, 0, 1]
     mesh: Cube.mesh
-    material: material_59
+    material: teapot
   - childs: 0
     id: 2076238943
     enabled: true
     type: Model
-    worldTransform: [1, 0, 0, 3, 0, 1, 0, -0.01566553, 0, 0, 1, 1.553444, 0, 0, 0, 1]
+    worldTransform: [1, 0, 0, 3, 0, 1, 0, 0, 0, 0, 1, 1.65344403, 0, 0, 0, 1]
     mesh: meshes/Teapot.002.mesh
-    material: material_59
+    material: gold
   - childs: 0
     id: 2076238943
     enabled: true
     type: Model
-    worldTransform: [1, 0, 0, 9, 0, 1, 0, -0.01566553, 0, 0, 1, 1.553444, 0, 0, 0, 1]
+    worldTransform: [1, 0, 0, 9, 0, 1, 0, -2, 0, 0, 1, 1.55344403, 0, 0, 0, 1]
     mesh: meshes/Teapot.002.mesh
-    material: material_59
+    material: chrome
+  - childs: 0
+    id: 6
+    enabled: true
+    type: Camera
+    worldTransform: [5.96046448e-08, 0, 0.99999994, 10, 0.99999994, 5.96046448e-08, 0, 0, 0, 0.99999994, 5.96046448e-08, 1, 0, 0, 0, 1]
+    zNear: 0.100000001
+    zFar: 1000
+    fovAngle: 60
+  - childs: 0
+    id: 7
+    enabled: true
+    type: Model
+    worldTransform: [0, 0, 10, -10, 0, 10, 0, 0, 10, 0, 0, 10, 0, 0, 0, 1]
+    mesh: std#plane
+    material: wall
+  - childs: 0
+    id: 9
+    enabled: true
+    type: Model
+    worldTransform: [0, 0, -10, 15, 0, 10, 0, 0, -10, 0, 0, 10, 0, 0, 0, 1]
+    mesh: std#plane
+    material: wall1
+  - childs: 0
+    id: 93
+    enabled: true
+    type: Model
+    worldTransform: [1, 0, 0, 0.5, 0, 1, 0, -5, 0, 0, 1, 1, 0, 0, 0, 1]
+    mesh: std#plane
+    material: gold
+  - childs: 0
+    id: 923
+    enabled: true
+    type: Model
+    worldTransform: [1, 0, 0, -1.5, 0, 1, 0, -5, 0, 0, 1, 1, 0, 0, 0, 1]
+    mesh: std#plane
+    material: gold1
+

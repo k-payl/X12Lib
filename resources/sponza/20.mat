@@ -5,3 +5,5 @@ parameters:
     texture: sponza//52.dds
   - name: roughness
     value: [1, 1, 1, 1]
+  - name: metalness
+    value: [1, 1, 1, 1]

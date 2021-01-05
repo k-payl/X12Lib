@@ -1,0 +1,8 @@
+name: 'wall'
+parameters:
+  - name: 'base_color'
+    value: [1, 0, 0, 0]
+  - name: 'roughness'
+    value: 0.1
+  - name: 'metalness'
+    value: 0.1

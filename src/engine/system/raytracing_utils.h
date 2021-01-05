@@ -26,6 +26,7 @@ struct BLAS
 	Microsoft::WRL::ComPtr<ID3D12Resource> resource;
 	std::vector<D3D12_GPU_VIRTUAL_ADDRESS> vbs;
 	std::vector<engine::Material*> materials;
+	std::vector<math::vec3> emissions;
 };
 
 

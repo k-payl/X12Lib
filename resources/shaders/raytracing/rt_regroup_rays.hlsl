@@ -1,4 +1,5 @@
 #include "../cpp_hlsl_shared.h"
+#include "rt_common.h"
 
 RWStructuredBuffer<uint> gHitCounter : register(u0);
 RWStructuredBuffer<uint> gRegroupedRayIndexes : register(u1);
@@ -18,7 +19,7 @@ void main(uint3 globalThreadId : SV_DispatchThreadID, uint3 localThreadId : SV_G
 	if (globalThreadId.x >= maxSize_x)
 		return;
 
-	bool hit = gRayInfo[globalThreadId.x].origin.w == 1.0f;
+	bool hit = asuint(gRayInfo[globalThreadId.x].origin.w) & RAY_FLAG_HIT;
 
 	if (globalThreadId.x == 0)
 	{

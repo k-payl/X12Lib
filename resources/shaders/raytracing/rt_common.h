@@ -1,4 +1,9 @@
 #pragma once
+#include "../consts.h"
+
+#define RAY_FLAG_HIT (1 << 0)
+#define RAY_FLAG_SPECULAR_BOUNCE (1 << 1)
+
 // Hit information, aka ray payload
 // This sample only carries a shading color and hit distance.
 // Note that the payload should be kept as small as possible,
@@ -21,10 +26,6 @@ float3 GetWorldRay(float2 ndc, float3 forwardWS, float3 rightWS, float3 upWS)
 
 static float3 SkyColor = float3(0.0f, 0.2f, 0.7f);
 
-#define PI (3.1415926f)
-#define _2PI (2.0f * PI)
-#define INV2PI (rcp(_2PI))
-#define INVPI (rcp(PI))
 
 // Load three 16 bit indices from a byte addressed buffer.
 //uint3 Load3x16BitIndices(uint offsetBytes)
