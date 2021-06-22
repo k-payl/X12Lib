@@ -33,10 +33,31 @@ static HRESULT FillInitData(_In_ size_t width,
 void x12::Dx12CoreTexture::InitFromExisting(LPCWSTR name_, ID3D12Resource* resource_)
 {
 	name = name_;
+	type_ = TEXTURE_TYPE::TYPE_2D;
+
 	resource.Attach(resource_);
+
 	x12::d3d12::set_name(resource.Get(), name_);
 
 	desc = resource->GetDesc();
+
+	// How extract texture type from resource?
+	// TODO
+
+	switch (desc.Dimension)
+	{
+		case D3D12_RESOURCE_DIMENSION_TEXTURE2D:
+		{
+			if (desc.DepthOrArraySize > 1)
+				type_ = TEXTURE_TYPE::TYPE_2D_ARRAY;
+			else
+				type_ = TEXTURE_TYPE::TYPE_2D;
+		}break;
+
+	default:
+		abort();
+		break;
+	}
 
 	format_ = D3DToEng(desc.Format);
 
@@ -164,9 +185,26 @@ void x12::Dx12CoreTexture::InitSRV()
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
 	srvDesc.Format = desc.Format;
-	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D; // TODO
-	srvDesc.Texture2D.MipLevels = desc.MipLevels;
+
+	switch (type_)
+	{
+		case x12::TEXTURE_TYPE::TYPE_2D: srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D; break;
+		case x12::TEXTURE_TYPE::TYPE_CUBE: srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE; break;
+		case x12::TEXTURE_TYPE::TYPE_2D_ARRAY: srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2DARRAY; break;
+		default: abort(); break;
+	}
+
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+
+	if (type_ == TEXTURE_TYPE::TYPE_2D)
+	{
+		srvDesc.Texture2D.MipLevels = desc.MipLevels;
+	}
+	else if (type_ == TEXTURE_TYPE::TYPE_2D_ARRAY)
+	{
+		srvDesc.Texture2DArray.ArraySize = desc.DepthOrArraySize;
+		srvDesc.Texture2DArray.MipLevels = desc.MipLevels;
+	}
 
 	d3d12::CR_GetD3DDevice()->CreateShaderResourceView(resource.Get(), &srvDesc, SRVdescriptor.descriptor);
 }
@@ -182,17 +220,31 @@ void x12::Dx12CoreTexture::InitRTV()
 
 void x12::Dx12CoreTexture::InitUAV()
 {
-	if (flags_ & TEXTURE_CREATE_FLAGS::USAGE_UNORDRED_ACCESS)
+	if (!(flags_ & TEXTURE_CREATE_FLAGS::USAGE_UNORDRED_ACCESS))
+		return;
+
+	UAVdescriptor = d3d12::D3D12GetCoreRender()->AllocateStaticDescriptor();
+
+	D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+	uavDesc.Format = desc.Format;
+	switch (type_)
 	{
-		UAVdescriptor = d3d12::D3D12GetCoreRender()->AllocateStaticDescriptor();
-
-		D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
-		uavDesc.Format = desc.Format;
-		uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D; // TODO
-		uavDesc.Texture2D.MipSlice = 0; // TODO
-
-		d3d12::CR_GetD3DDevice()->CreateUnorderedAccessView(resource.Get(), nullptr, &uavDesc, UAVdescriptor.descriptor);
+		case x12::TEXTURE_TYPE::TYPE_2D: uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D; break;
+		case x12::TEXTURE_TYPE::TYPE_2D_ARRAY: uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2DARRAY; break;
+		default: abort(); break;
 	}
+
+	if (type_ == TEXTURE_TYPE::TYPE_2D)
+	{
+		uavDesc.Texture2D.MipSlice = 0;
+	}
+	else if (type_ == TEXTURE_TYPE::TYPE_2D_ARRAY)
+	{
+		uavDesc.Texture2DArray.MipSlice = 0;
+		uavDesc.Texture2DArray.ArraySize = desc.DepthOrArraySize;
+	}
+
+	d3d12::CR_GetD3DDevice()->CreateUnorderedAccessView(resource.Get(), nullptr, &uavDesc, UAVdescriptor.descriptor);
 }
 
 void x12::Dx12CoreTexture::InitDSV()
@@ -212,19 +264,22 @@ void x12::Dx12CoreTexture::InitDSV()
 }
 
 void x12::Dx12CoreTexture::Init(LPCWSTR name_, const uint8_t* data, size_t size,
-	int32_t width, int32_t height, uint32_t mipCount, TEXTURE_TYPE type, TEXTURE_FORMAT format, TEXTURE_CREATE_FLAGS flags)
+	int32_t width, int32_t height, uint32_t mipCount, uint32_t layerCount, TEXTURE_TYPE type, TEXTURE_FORMAT format, TEXTURE_CREATE_FLAGS flags)
 {
 	name = name_;
 	flags_ = flags;
 	format_ = format;
+	type_ = type;
 
-	const UINT arraySize = (type == TEXTURE_TYPE::TYPE_CUBE) ? 6 : 1;
+	if (mipCount == 0)
+		mipCount = 1;
+
 	const UINT depth = 1;
 
 	desc.Width = static_cast<UINT>(width);
 	desc.Height = static_cast<UINT>(height);
 	desc.MipLevels = static_cast<UINT16>(mipCount);
-	desc.DepthOrArraySize = arraySize;
+	desc.DepthOrArraySize = layerCount;
 	desc.Format = EngToD3D(format);
 
 	desc.Flags = D3D12_RESOURCE_FLAG_NONE;
@@ -284,7 +339,7 @@ void x12::Dx12CoreTexture::Init(LPCWSTR name_, const uint8_t* data, size_t size,
 		size_t theight = 0;
 		size_t tdepth = 0;
 		const auto numberOfPlanes = 1;
-		throwIfFailed(FillInitData(width, height, depth, mipCount, arraySize,
+		throwIfFailed(FillInitData(width, height, depth, mipCount, layerCount,
 			numberOfPlanes, desc.Format,
 			maxsize, bitSize, data,
 			twidth, theight, tdepth, skipMip, subresources));
@@ -293,7 +348,7 @@ void x12::Dx12CoreTexture::Init(LPCWSTR name_, const uint8_t* data, size_t size,
 		Dx12GraphicCommandList* dx12ctx = static_cast<Dx12GraphicCommandList*>(cmdList);
 		cmdList->CommandsBegin();
 
-		UpdateSubresources(dx12ctx->GetD3D12CmdList(), resource.Get(), uploadResource.Get(), 0, 0, 1, &subresources[0]);
+		UpdateSubresources(dx12ctx->GetD3D12CmdList(), resource.Get(), uploadResource.Get(), 0, 0, subresources.size(), &subresources[0]);
 
 		cmdList->CommandsEnd();
 

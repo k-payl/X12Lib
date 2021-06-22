@@ -228,12 +228,12 @@ static RECT centerWindow(HWND parent_window, int width, int height)
 
 void engine::MainWindow::Create()
 {
-#if 1
+#if 0
 	const int width = 3840;
 	const int height = 2160;
 #else
-	const int width = 1920;
-	const int height = 1080;
+	const int width = 1280;
+	const int height = 768;
 #endif
 	WNDCLASSEXW wcex = {};
 

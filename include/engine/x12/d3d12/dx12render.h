@@ -140,7 +140,7 @@ namespace x12
 			MEMORY_TYPE mem, const void* data, size_t bum) override;
 
 		X12_API bool CreateTexture(ICoreTexture** out, LPCWSTR name, const uint8_t* data,
-			size_t size, int32_t width, int32_t height, uint32_t mipCount,
+			size_t size, int32_t width, int32_t height, uint32_t mipCount, uint32_t layerCount,
 			TEXTURE_TYPE type, TEXTURE_FORMAT format, TEXTURE_CREATE_FLAGS flags) override;
 
 		X12_API bool CreateTextureFrom(ICoreTexture** out, LPCWSTR name,

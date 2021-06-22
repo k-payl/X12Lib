@@ -59,6 +59,7 @@ namespace engine
 		StreamPtr<Shader> copyShader;
 		StreamPtr<Mesh> planeMesh;
 		StreamPtr<Shader> clearRayInfoBuffer;
+		StreamPtr<Texture> blueNoise;
 
 		struct RTXscene
 		{
@@ -92,6 +93,7 @@ namespace engine
 		HANDLE event;
 		D3D12_GPU_DESCRIPTOR_HANDLE raytracingOutputResourceUAVGpuDescriptor;
 		D3D12_GPU_DESCRIPTOR_HANDLE texturesHandle;
+		D3D12_GPU_DESCRIPTOR_HANDLE blueNoiseHandle;
 
 		struct Fence
 		{
@@ -123,5 +125,6 @@ namespace engine
 		void WaitForGpu(UINT index);
 		void WaitForGpuAll();
 		void Resize(UINT w, UINT h);
+		void CompileRTShaders();
 	};
 }

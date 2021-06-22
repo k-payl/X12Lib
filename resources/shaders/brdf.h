@@ -22,7 +22,7 @@ float3 HalfDirection(float3 d1, float3 d2)
 
 float RoughnessToAlpha(float roughness)
 {
-	return max(BRDF_MINIMUM_ALPHA, roughness);
+	return max(BRDF_MINIMUM_ALPHA, roughness /** roughness*/);
 }
 
 float3 F0_Specular(float3 albedo, float metalness)
@@ -202,7 +202,30 @@ float3 rayCosine(float3 N, float u1, float u2)
 	return ToTangentSpace(N, dir);
 }
 
-float3 CookTorranceBRDF(float3 n, float3 l, float3 v, SurfaceHit surface)
+#if 0
+float3 CookTorranceBRDF(float3 n, float3 l, float3 v, SurfaceHit surface, bool specularBounce)
+{
+	float3 brdf = surface.albedo * INVPI;
+	return brdf;
+}
+
+float CookTorranceBRDFPdf(float3 N, float3 L, float3 V, SurfaceHit surface, bool specularBounce)
+{
+	float pdfDiff = abs(dot(L, N)) * INVPI;
+	return pdfDiff;
+}
+
+float3 CookTorranceBRDFSample(float3 N, float3 V, SurfaceHit surface, float r1, float r2, out bool specular)
+{
+	float3 dir;
+	dir = rayCosine(N, r1, r2);
+	specular = false;
+
+	return dir;
+}
+#else
+
+float3 CookTorranceBRDF(float3 n, float3 l, float3 v, SurfaceHit surface, uint raytype)
 {
 	const float  alpha = RoughnessToAlpha(surface.roughness.x);
 	const float  n_dot_l = SaturateDot(n, l) + BRDF_DOT_EPSILON;
@@ -216,12 +239,20 @@ float3 CookTorranceBRDF(float3 n, float3 l, float3 v, SurfaceHit surface)
 	const float3 F_specular = F_Schlick(v_dot_h, F0_Specular(surface.albedo, surface.metalness.x));
 	const float3 F_diffuse = /*(1.0f - F_specular) **/ (1.0f - surface.metalness);
 
-	float3 brdf = F_diffuse * surface.albedo * INVPI + F_specular * 0.25f * D * V;
+	float3 s = F_specular * 0.25f * D * V;
+	float3 d = F_diffuse * surface.albedo * INVPI;
 
-	return brdf;
+	if (raytype == RAY_TYPE_DIFFUSE)
+		return d;
+	else if (raytype == RAY_TYPE_ROUGH_SPECULAR)
+		return s;
+	else if (raytype == RAY_TYPE_SPECULAR)
+		return F_specular;
+
+	return d + s;
 }
 
-float CookTorranceBRDFPdf(float3 N, float3 L, float3 V, SurfaceHit surface)
+float CookTorranceBRDFPdf(float3 N, float3 L, float3 V, SurfaceHit surface, uint raytype)
 {
 	float specularAlpha = RoughnessToAlpha(surface.roughness.x);
 
@@ -237,11 +268,20 @@ float CookTorranceBRDFPdf(float3 N, float3 L, float3 V, SurfaceHit surface)
 	float pdfSpec = pdfGTR2 / (4.0 * abs(dot(L, halfVec)));
 	float pdfDiff = abs(dot(L, N)) * INVPI;
 
-	// weight pdfs according to ratios
-	return diffuseRatio * pdfDiff + specularRatio * pdfSpec;
+	float3 s = specularRatio * pdfSpec;
+	float3 d = diffuseRatio * pdfDiff;
+
+	if (raytype == RAY_TYPE_DIFFUSE)
+		return d;
+	else if (raytype == RAY_TYPE_ROUGH_SPECULAR)
+		return s;
+	else if (raytype == RAY_TYPE_SPECULAR)
+		return specularRatio;
+
+	return d + s;
 }
 
-float3 CookTorranceBRDFSample(float3 N, float3 V, SurfaceHit surface, float r1, float r2, out bool specular)
+float3 CookTorranceBRDFSample(float3 N, float3 V, SurfaceHit surface, float r1, float r2, out uint raytype)
 {
 	float3 dir;
 
@@ -250,7 +290,7 @@ float3 CookTorranceBRDFSample(float3 N, float3 V, SurfaceHit surface, float r1, 
 	if (r1 < diffuseRatio) // sample diffuse
 	{
 		dir = rayCosine(N, r1, r2);
-		specular = false;
+		raytype = RAY_TYPE_DIFFUSE;
 	}
 	else
 	{
@@ -268,8 +308,12 @@ float3 CookTorranceBRDFSample(float3 N, float3 V, SurfaceHit surface, float r1, 
 
 		dir = reflect(-V, h);
 
-		specular = surface.roughness.x <= 1e-5f;
+		if (surface.roughness.x == 0)
+			raytype = RAY_TYPE_SPECULAR;
+		else
+			raytype = RAY_TYPE_ROUGH_SPECULAR;
 	}
 
 	return dir;
 }
+#endif

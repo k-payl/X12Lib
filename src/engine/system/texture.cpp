@@ -205,32 +205,46 @@ x12::ICoreTexture* createFromDDS(std::unique_ptr<uint8_t[]> dataPtr, size_t size
 
 		switch (d3d10ext->dxgiFormat)
 		{
-		case DXGI_FORMAT_AI44:
-		case DXGI_FORMAT_IA44:
-		case DXGI_FORMAT_P8:
-		case DXGI_FORMAT_A8P8:
-			abort();
+			case DXGI_FORMAT_AI44:
+			case DXGI_FORMAT_IA44:
+			case DXGI_FORMAT_P8:
+			case DXGI_FORMAT_A8P8:
+				abort();
 
-		default: break;
+			default: break;
 		}
 
 		format = x12::D3DToEng(d3d10ext->dxgiFormat);
 
 		switch (d3d10ext->resourceDimension)
 		{
-		case 2:// D3D11_RESOURCE_DIMENSION_TEXTURE1D:
-		case 4: //D3D11_RESOURCE_DIMENSION_TEXTURE3D:
-			abort(); // not impl
-			break;
+			case 2:// D3D11_RESOURCE_DIMENSION_TEXTURE1D:
+			case 4: //D3D11_RESOURCE_DIMENSION_TEXTURE3D:
+				abort(); // not impl
+				break;
 
-		case 3:// D3D11_RESOURCE_DIMENSION_TEXTURE2D:
-			if (d3d10ext->miscFlag & 4 /*D3D11_RESOURCE_MISC_TEXTURECUBE*/)
-				type = TEXTURE_TYPE::TYPE_CUBE;
-			break;
+			case 3:// D3D11_RESOURCE_DIMENSION_TEXTURE2D:
+				if (d3d10ext->miscFlag & 4 /*D3D11_RESOURCE_MISC_TEXTURECUBE*/)
+					type = TEXTURE_TYPE::TYPE_CUBE;
+				else
+					type = x12::TEXTURE_TYPE::TYPE_2D_ARRAY;
+				break;
 
-		default:
-			abort(); // not impl
+			default:
+				abort(); // not impl
 		}
+
+		ICoreTexture* ret;
+		engine::GetCoreRenderer()->CreateTexture(&ret, L"", imageData, size, width, height, header->mipMapCount, d3d10ext->arraySize, type, format, flags);
+
+		if (!ret)
+		{
+			LogCritical("ResourceManager::loadDDS(): failed to create texture");
+			return nullptr;
+		}
+
+		return ret;
+
 	}
 	else
 	{
@@ -533,7 +547,7 @@ x12::ICoreTexture* createFromDDS(std::unique_ptr<uint8_t[]> dataPtr, size_t size
 	}
 
 	ICoreTexture* ret;
-	engine::GetCoreRenderer()->CreateTexture(&ret, L"", imageData, size, width, height, header->mipMapCount, type, format, flags);
+	engine::GetCoreRenderer()->CreateTexture(&ret, L"", imageData, size, width, height, header->mipMapCount, 1, type, format, flags);
 
 	if (!ret)
 	{

@@ -14,7 +14,7 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
 	if (dispatchThreadId.x >= maxSize_x)
 		return;
 
-	gRayInfo[dispatchThreadId.x].origin = 0;
+	gRayInfo[dispatchThreadId.x].originFlags = 0;
 	gRayInfo[dispatchThreadId.x].direction = 0;
 	gIterationBuffer[dispatchThreadId.x] = 0;
 }

@@ -52,6 +52,7 @@ namespace GlobalRootSignatureParams {
 		TLASPerInstanceBuffer,
 		Materials,
 		RegroupedIndexes,
+		BlueNoiseTexture,
 		Textures,
 		Count
 	};
@@ -128,9 +129,10 @@ void engine::Renderer::BindRaytracingResources()
 	dx12buffer = static_cast<x12::Dx12CoreBuffer*>(regroupedIndexesBuffer.get());
 	dxrCommandList->SetComputeRootShaderResourceView(GlobalRootSignatureParams::RegroupedIndexes, dx12buffer->GPUAddress());
 
+	dxrCommandList->SetComputeRootDescriptorTable(GlobalRootSignatureParams::BlueNoiseTexture, blueNoiseHandle);
+
 	if (texturesHandle.ptr)
 		dxrCommandList->SetComputeRootDescriptorTable(GlobalRootSignatureParams::Textures, texturesHandle);
-
 }
 
 void engine::Renderer::CreateBuffers(UINT w, UINT h)
@@ -840,17 +842,22 @@ void engine::Renderer::OnSceneChanged()
 
 		// Textures
 		{
+			// blue noise 2d array (8 layers)
+			blueNoiseHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(descriptorHeap->GetGPUDescriptorHandleForHeapStart(), 1, descriptorSize);
+			auto dx12tex = static_cast<x12::Dx12CoreTexture*>(blueNoise.get()->GetCoreTexture());
+			D3D12_CPU_DESCRIPTOR_HANDLE destCPU = CD3DX12_CPU_DESCRIPTOR_HANDLE(descriptorHeap->GetCPUDescriptorHandleForHeapStart(), 1, descriptorSize);
+			dxrDevice->CopyDescriptorsSimple(1, destCPU, dx12tex->GetSRV(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+			texturesHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(descriptorHeap->GetGPUDescriptorHandleForHeapStart(), 1 + 1, descriptorSize);
+
 			for (int i = 0; i < sceneTextures.size(); i++)
 			{
 				auto coreTexture = sceneTextures[i]->GetCoreTexture();
 				Dx12CoreTexture* dx12CoreTexure = static_cast<x12::Dx12CoreTexture*>(coreTexture);
 				D3D12_CPU_DESCRIPTOR_HANDLE cputextureHandle = dx12CoreTexure->GetSRV();
-				D3D12_CPU_DESCRIPTOR_HANDLE destCPU = CD3DX12_CPU_DESCRIPTOR_HANDLE(descriptorHeap->GetCPUDescriptorHandleForHeapStart(), 1 + i, descriptorSize);
+				D3D12_CPU_DESCRIPTOR_HANDLE destCPU = CD3DX12_CPU_DESCRIPTOR_HANDLE(descriptorHeap->GetCPUDescriptorHandleForHeapStart(), 1 + 1 + i, descriptorSize);
 
 				dxrDevice->CopyDescriptorsSimple(1, destCPU, cputextureHandle, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-
-				if (!texturesHandle.ptr)
-					texturesHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(descriptorHeap->GetGPUDescriptorHandleForHeapStart(), 1, descriptorSize);
 			}
 		}
 
@@ -1052,8 +1059,12 @@ void engine::Renderer::Init()
 		rootParameters[GlobalRootSignatureParams::RegroupedIndexes].InitAsShaderResourceView(5);
 
 		CD3DX12_DESCRIPTOR_RANGE ranges;
-		ranges.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 100, 6);  // array of textures
-		rootParameters[GlobalRootSignatureParams::Textures].InitAsDescriptorTable(1, &ranges);
+		ranges.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 6);  // 2d array
+		rootParameters[GlobalRootSignatureParams::BlueNoiseTexture].InitAsDescriptorTable(1, &ranges);
+
+		CD3DX12_DESCRIPTOR_RANGE ranges1;
+		ranges1.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 100, 7);  // array of textures
+		rootParameters[GlobalRootSignatureParams::Textures].InitAsDescriptorTable(1, &ranges1);
 
 		D3D12_STATIC_SAMPLER_DESC sampler{};
 		sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
@@ -1080,6 +1091,50 @@ void engine::Renderer::Init()
 		SerializeAndCreateRaytracingRootSignature(dxrDevice.Get(), desc, &raytracingLocalRootSignature);
 	}
 
+	descriptorSize = CreateDescriptorHeap(dxrDevice.Get(), descriptorHeap.GetAddressOf());
+
+	int w, h;
+	window->GetClientSize(w, h);
+	width = w;
+	height = h;
+	CreateRaytracingOutputResource(w, h);
+	CreateBuffers(w, h);
+
+	CompileRTShaders();
+
+	{
+		float planeVert[6 * 2] =
+		{
+			-1, -1,
+			1, 1,
+			-1, 1,
+			-1, -1,
+			1, -1,
+			1, 1
+		};
+
+		VertexAttributeDesc attr;
+		attr.format = VERTEX_BUFFER_FORMAT::FLOAT2;
+		attr.offset = 0;
+		attr.semanticName = "POSITION";
+
+		VeretxBufferDesc desc{};
+		desc.vertexCount = 6;
+		desc.attributesCount = 1;
+		desc.attributes = &attr;
+
+		GetCoreRenderer()->CreateVertexBuffer(plane.getAdressOf(), L"plane", planeVert, &desc, nullptr, nullptr, MEMORY_TYPE::GPU_READ);
+	}
+
+	blueNoise = engine::GetResourceManager()->CreateStreamTexture("textures/LDR_RGBA_0.dds", x12::TEXTURE_CREATE_FLAGS::USAGE_SHADER_RESOURCE);
+	blueNoise.get();
+
+}
+
+void engine::Renderer::CompileRTShaders()
+{
+	WaitForGpuAll();
+
 	{
 		std::vector<std::pair<std::wstring, std::wstring>> defines_primary = { { L"PRIMARY_RAY", L"1" } };
 
@@ -1094,15 +1149,6 @@ void engine::Renderer::Init()
 
 	dxrPrimaryStateObject = CreatePSO(raygen, hit, miss);
 	dxrSecondaryStateObject = CreatePSO(raygenSecondary, hitSecondary, missSecondary);
-
-	descriptorSize = CreateDescriptorHeap(dxrDevice.Get(), descriptorHeap.GetAddressOf());
-
-	int w, h;
-	window->GetClientSize(w, h);
-	width = w;
-	height = h;
-	CreateRaytracingOutputResource(w, h);
-	CreateBuffers(w, h);
 
 	// Clear RayInfo
 	{
@@ -1225,29 +1271,6 @@ void engine::Renderer::Init()
 		throwIfFailed(dxrDevice->CreateComputePipelineState(&desc, IID_PPV_ARGS(copyHitCounterPSO.GetAddressOf())));
 	}
 
-	{
-		float planeVert[6 * 2] =
-		{
-			-1, -1,
-			1, 1,
-			-1, 1,
-			-1, -1,
-			1, -1,
-			1, 1
-		};
-
-		VertexAttributeDesc attr;
-		attr.format = VERTEX_BUFFER_FORMAT::FLOAT2;
-		attr.offset = 0;
-		attr.semanticName = "POSITION";
-
-		VeretxBufferDesc desc{};
-		desc.vertexCount = 6;
-		desc.attributesCount = 1;
-		desc.attributes = &attr;
-
-		GetCoreRenderer()->CreateVertexBuffer(plane.getAdressOf(), L"plane", planeVert, &desc, nullptr, nullptr, MEMORY_TYPE::GPU_READ);
-	}
 }
 
 void engine::Renderer::CreateRaytracingOutputResource(UINT width, UINT height)

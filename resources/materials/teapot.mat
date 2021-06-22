@@ -1,9 +1,9 @@
 name: 'teapot'
 parameters:
   - name: 'base_color'
-    value: [0.550, 0.556, 0.554, 1]
+    value: [1, 0.556, 0, 1]
     texture: 'textures/chipped-paint-metal-albedo_3_512x512.dds'
   - name: 'roughness'
-    value: 0.000
+    value: 0.1
   - name: 'metalness'
-    value: 0.0
+    value: 0.9

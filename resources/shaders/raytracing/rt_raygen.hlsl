@@ -8,7 +8,7 @@ void RayGen()
 
     // Initialize the ray payload
     HitInfo payload;
-    payload.colorAndDistance = float4(0, 0, 0, gFrame.frame); // for seed
+    payload.colorAndDistance = float4(0, 0, 0, 0);
 
     RayDesc ray;
 
@@ -22,15 +22,15 @@ void RayGen()
     jitter -= float2(0.5, 0.5);
 
     float2 ndc = float2(
-        float(launchIndex.x + 0.5f + jitter.x) / dims.x * 2 - 1,
-        float(dims.y - launchIndex.y - 1 + 0.5 + jitter.y) / dims.y * 2 - 1);
+        float(launchIndex.x + jitter.x) / dims.x * 2 - 1,
+        float(dims.y - launchIndex.y - 1 + jitter.y) / dims.y * 2 - 1);
     
     ray.Origin = gCamera.origin.xyz;
     ray.Direction = GetWorldRay(ndc, gCamera.forward.xyz, gCamera.right.xyz, gCamera.up.xyz);
 #else
     pixelNum = gRegroupedIndexes[pixelNum];
 
-    ray.Origin = gRayInfo[pixelNum].origin.xyz;
+    ray.Origin = gRayInfo[pixelNum].originFlags.xyz;
     ray.Direction = gRayInfo[pixelNum].direction.xyz;
 #endif
 

@@ -1,5 +1,7 @@
 #include "resourcemanager.h"
 #include "console.h"
+#include "core.h"
+#include "renderer.h"
 
 using namespace engine;
 
@@ -82,6 +84,9 @@ static void ShadersReloadCommand(const char* arg)
 {
 	for (auto& s : shaders)
 		s.second->Reload();
+
+	// Temp
+	engine::GetRenderer()->CompileRTShaders(); // TODO: wrap dx12 raytracing shader to ShaderResource
 }
 
 void engine::ResourceManager::Free()

@@ -26,6 +26,36 @@ float3 GetWorldRay(float2 ndc, float3 forwardWS, float3 rightWS, float3 upWS)
 
 static float3 SkyColor = float3(0.0f, 0.2f, 0.7f);
 
+float3 srgbInv(float3 v)
+{
+	return pow(v, 2.2);
+}
+
+float powerHeuristic(float a, float b)
+{
+	float t = a * a;
+	return t / (b * b + t);
+}
+
+float3 rayUniform(float3 N, float u1, float u2, out float pdf)
+{
+	float3 UpVector = abs(N.z) < 0.9999 ? float3(0, 0, 1) : float3(1, 0, 0);
+	float3 TangentX = normalize(cross(UpVector, N));
+	float3 TangentY = cross(N, TangentX);
+
+	float z = u1;
+	float r = sqrt(max(0.f, 1.0 - z * z));
+	float phi = _2PI * u2;
+	float x = r * cos(phi);
+	float y = r * sin(phi);
+
+	pdf = 1 / _2PI;
+
+	float3 H = normalize(TangentX * x + TangentY * y + N * z);
+
+	return H;
+}
+
 
 // Load three 16 bit indices from a byte addressed buffer.
 //uint3 Load3x16BitIndices(uint offsetBytes)

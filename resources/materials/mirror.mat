@@ -1,8 +1,8 @@
-name: 'wall'
+name: 'mirror'
 parameters:
   - name: 'base_color'
-    value: [1, 0, 0, 0]
+    value: [1, 1, 1, 1]
   - name: 'roughness'
-    value: 0.02
+    value: 0.0
   - name: 'metalness'
-    value: 0.1
+    value: 1

@@ -194,8 +194,9 @@ namespace x12
 
 		X12_API virtual bool CreateBuffer(ICoreBuffer** out, LPCWSTR name, size_t size, BUFFER_FLAGS flags, MEMORY_TYPE mem, const void* data = nullptr, size_t num = 1) = 0;
 
-		X12_API virtual bool CreateTexture(ICoreTexture** out, LPCWSTR name, const uint8_t* data, size_t size, int32_t width, int32_t height, uint32_t mipCount,
-						   TEXTURE_TYPE type, TEXTURE_FORMAT format, TEXTURE_CREATE_FLAGS flags) = 0;
+		X12_API virtual bool CreateTexture(ICoreTexture** out, LPCWSTR name, const uint8_t* data, size_t size,
+							int32_t width, int32_t height, uint32_t mipCount, uint32_t layerCount,
+							TEXTURE_TYPE type, TEXTURE_FORMAT format, TEXTURE_CREATE_FLAGS flags) = 0;
 
 		// TODO: remove d3d dependency
 		X12_API virtual bool CreateTextureFrom(ICoreTexture** out, LPCWSTR name, std::vector<D3D12_SUBRESOURCE_DATA> subresources, ID3D12Resource* d3dexistingtexture) = 0;
@@ -290,7 +291,7 @@ namespace x12
 		TYPE_2D = 0x00000001,
 		//TYPE_3D					= 0x00000001,
 		TYPE_CUBE = 0x00000002,
-		//TYPE_2D_ARRAY			= 0x00000003,
+		TYPE_2D_ARRAY = 0x00000003,
 		//TYPE_CUBE_ARRAY			= 0x00000004
 	};
 

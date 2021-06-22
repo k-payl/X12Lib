@@ -50,38 +50,12 @@ float rnd(inout uint seed)
 	return ((float)(seed & 0x00FFFFFF) / (float)0x01000000);
 }
 
-float3 rayCosine(float3 N, float u1, float u2, out float pdf)
-{
-	float3 UpVector = abs(N.z) < 0.9999 ? float3(0, 0, 1) : float3(1, 0, 0);
-	float3 TangentX = normalize(cross(UpVector, N));
-	float3 TangentY = cross(N, TangentX);
-
-	float3 dir;
-	float r = sqrt(u1);
-	float phi = 2.0 * PI * u2;
-	dir.x = r * cos(phi);
-	dir.y = r * sin(phi);
-	dir.z = sqrt(max(0.0, 1.0 - dir.x * dir.x - dir.y * dir.y));
-
-	pdf = dir.z / PI;
-
-	float3 H = normalize(TangentX * dir.x + TangentY * dir.y + N * dir.z);
-
-	return H;
-}
-
-float powerHeuristic(float a, float b)
-{
-	float t = a * a;
-	return t / (b * b + t);
-}
-
 
 [shader("closesthit")]
 void ClosestHit(inout HitInfo payload, Attributes attrib)
 {
 	uint pixelNum = DispatchRaysIndex().x;
-	ComputeRngSeed(pixelNum, uint(payload.colorAndDistance.w), 0);
+	//ComputeRngSeed(pixelNum, uint(payload.colorAndDistance.w), 0);
 
 	float3 barycentrics = float3(1.f - attrib.bary.x - attrib.bary.y, attrib.bary.x, attrib.bary.y);
 
@@ -129,7 +103,7 @@ void ClosestHit(inout HitInfo payload, Attributes attrib)
 		vertexUV[1] * barycentrics.y +
 		vertexUV[2] * barycentrics.z;
 
-	objectPosition += objectNormal * 0.001f;
+	objectPosition += objectNormal * 0.005f;
 
 	float4 worldPosition = mul(float4(objectPosition, 1), gInstances[lInstanceData.offset].transform);
 	float4 worldNormal =  mul(float4(objectNormal, 0), gInstances[lInstanceData.offset].normalTransform);
@@ -137,59 +111,61 @@ void ClosestHit(inout HitInfo payload, Attributes attrib)
 
 	float3 directLighting = 0;
 
-	float u1 = Uniform01();
-	float u2 = Uniform01();
-	float tt = lerp(-1, 1, u1);
-	float bb = lerp(-1, 1, u2);
+	float4 bn = gBlueNoise.Load(uint4((pixelNum % gCamera.width) % 64, (pixelNum / gCamera.width) % 64, gFrame.frame % 64, 0));
+	float u1 = bn.x;
+	float u2 = bn.y;
+	float tt = bn.x * 2 - 1;
+	float bb = bn.y * 2 - 1;
 
 #if PRIMARY_RAY
-	float3 V = normalize(gCamera.origin.xyz - worldPosition.xyz);
+	const float3 V = normalize(gCamera.origin.xyz - worldPosition.xyz);
+	const float3 throughput = 1;
 #else
-	float3 V = -normalize(gRayInfo[gRegroupedIndexes[pixelNum]].direction.xyz);
+	const float3 V = -normalize(gRayInfo[gRegroupedIndexes[pixelNum]].direction.xyz);
+	const float3 throughput = gRayInfo[gRegroupedIndexes[pixelNum]].throughput.xyz;
 #endif
 
 	const bool hitLight = gInstances[lInstanceData.offset].emission != 0;
 
-	float3 prevbrdf = gRayInfo[gRegroupedIndexes[pixelNum]].hitbrdf.xyz;
-	payload.colorAndDistance.rgb = 0;
 	if (hitLight)
 	{
 		float NdotV = dot(V, worldNormal.xyz);
-			
-#if PRIMARY_RAY
-		payload.colorAndDistance.rgb = float3(1, 1, 1) * gInstances[lInstanceData.offset].emission;
-#else
-		bool prevspecular = asuint(gRayInfo[gRegroupedIndexes[pixelNum]].origin.w) & RAY_FLAG_SPECULAR_BOUNCE;
+		float mis = 1;
+		float4 prevOriginFlags = gRayInfo[gRegroupedIndexes[pixelNum]].originFlags;
 
-		payload.colorAndDistance.rgb = gInstances[lInstanceData.offset].emission * prevbrdf;
-		if (!prevspecular) // in prevspecular==true brdfPdf==inf
+#if !PRIMARY_RAY
+		if (!(asuint(prevOriginFlags.w) & RAY_FLAG_SPECULAR_BOUNCE))
 		{
-			float brdfPdf = gRayInfo[gRegroupedIndexes[pixelNum]].hitbrdf.w;
-			float3 distToLight = length(worldPosition.xyz - gRayInfo[gRegroupedIndexes[pixelNum]].origin.xyz);
+			float brdfPdf = gRayInfo[gRegroupedIndexes[pixelNum]].throughput.w;
+			float3 distToLight = length(worldPosition.xyz - prevOriginFlags.xyz);
 			float lightPdf = distToLight * distToLight / NdotV;
-
-			payload.colorAndDistance.rgb *= powerHeuristic(brdfPdf, lightPdf);
+			mis = powerHeuristic(brdfPdf, lightPdf);
 		}
 #endif
-		float isForward = float(NdotV > 0);
-		payload.colorAndDistance.rgb *= isForward;
-		gRayInfo[pixelNum].origin.w = asfloat(0);
+
+		// Add light hit emission
+		payload.colorAndDistance.rgb = mis * gInstances[lInstanceData.offset].emission * throughput * float(NdotV > 0);
+		gRayInfo[pixelNum].originFlags.w = asfloat(0);
 		return;
 	}
-
-
-	engine::Shaders::Material mat = gMaterials[gInstances[lInstanceData.offset].materialIndex];
-	float3 albedo = mat.albedo;
-	if (mat.albedoIndex != uint(-1))
+	else
 	{
-		float3 textureAlbedo = gTxMats[mat.albedoIndex].SampleLevel(gSampler, UV, 0).rgb;
-		albedo *= textureAlbedo;
+		payload.colorAndDistance.rgb = 0;
 	}
 
+	engine::Shaders::Material mat = gMaterials[gInstances[lInstanceData.offset].materialIndex];
+
 	SurfaceHit surface;
-	surface.albedo = albedo;
 	surface.roughness = mat.shading.x;
 	surface.metalness = mat.shading.y;
+	surface.albedo = mat.albedo.xyz;
+
+	if (mat.albedoIndex != uint(-1))
+	{
+		float3 textureAlbedo = srgbInv(gTxMats[mat.albedoIndex].SampleLevel(gSampler, UV, 0).rgb);
+		surface.albedo *= textureAlbedo;
+	}
+	
 
 	// Shadow rays (Next event estimation)
 
@@ -203,12 +179,17 @@ void ClosestHit(inout HitInfo payload, Attributes attrib)
 		L /= Ldist;
 
 		float lightPdf = (Ldist * Ldist) / dot(L, gLights[i].normal.xyz);
+		float brdfPdf = CookTorranceBRDFPdf(worldNormal.xyz, L, V, surface, RAY_TYPE_NONE);
+		float3 brdf = CookTorranceBRDF(worldNormal.xyz, L, V, surface, RAY_TYPE_NONE);
+		float3 e = powerHeuristic(lightPdf, brdfPdf) * gLights[i].color * brdf / lightPdf;
+		float luma = length(e * throughput);
 
-		float3 brdf = CookTorranceBRDF(worldNormal.xyz, L, V, surface);
-
-		float brdfPdf = CookTorranceBRDFPdf(worldNormal.xyz, L, V, surface);
-
-		float3 directRadiance = lightPdf > 0 ? (powerHeuristic(lightPdf, brdfPdf) * brdf * gLights[i].color / lightPdf) : 0;
+		const float maxLuma = 1;
+		if (luma > maxLuma) // Fix fireflies
+		{
+			float ratio = luma / maxLuma;
+			e = min(float3(maxLuma, maxLuma, maxLuma), luma / 3);
+		}
 
 		RayDesc ray;
 		ray.Origin = worldPosition.xyz;
@@ -234,56 +215,68 @@ void ClosestHit(inout HitInfo payload, Attributes attrib)
 		// Was a hit committed?
 		float isShadow = float(q.CommittedStatus() == COMMITTED_TRIANGLE_HIT);
 
-		directLighting += directRadiance * (1 - isShadow);
+		directLighting += e * (1 - isShadow) * (lightPdf > 0);
 	}
 
-	directLighting *= albedo;
+	//{
+	//	float pdf;
+	//	float3 L = rayUniform(worldNormal.xyz, u1, u2, pdf);
+	//
+	//	float lightPdf = 1 / _2PI;
+	//	float brdfPdf = CookTorranceBRDFPdf(worldNormal.xyz, L, V, surface, RAY_TYPE_NONE);
+	//	float3 brdf = CookTorranceBRDF(worldNormal.xyz, L, V, surface, RAY_TYPE_NONE);
+	//	float3 e = powerHeuristic(lightPdf, brdfPdf) * SkyColor * brdf / lightPdf;
+	//
+	//	RayDesc ray;
+	//	ray.Origin = worldPosition.xyz;
+	//	ray.Direction = L;
+	//	ray.TMin = 0;
+	//	ray.TMax = 1000;
+	//
+	//	RayQuery<RAY_FLAG_CULL_NON_OPAQUE |
+	//		RAY_FLAG_SKIP_PROCEDURAL_PRIMITIVES |
+	//		RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH> q;
+	//
+	//	// Set up shadow ray. No work is done yet.
+	//	q.TraceRayInline(
+	//		gSceneBVH,
+	//		0,
+	//		0xFF,
+	//		ray);
+	//
+	//	// Trace ray
+	//	q.Proceed();
+	//
+	//	// Examine and act on the result of the traversal.
+	//	// Was a hit committed?
+	//	float isShadow = float(q.CommittedStatus() == COMMITTED_TRIANGLE_HIT);
+	//
+	//	directLighting += e * (1 - isShadow);
+	//}
 
-	#if !PRIMARY_RAY
-		// BRDF multiplication for secondary hit
-		directLighting *= prevbrdf;
-	#endif
+	payload.colorAndDistance.rgb += directLighting * throughput;
 
 	// Prepare new ray after first bounce
 	// TODO: second bounce
 #if PRIMARY_RAY
-	gRayInfo[pixelNum].origin.xyz = worldPosition.xyz;
-
-	bool specular;
-
-	float3 nextDirection;
-	float pdf;
-	{
-		nextDirection = CookTorranceBRDFSample(worldNormal, V, surface, Uniform01(), Uniform01(), specular);
-		pdf = CookTorranceBRDFPdf(worldNormal, nextDirection, V, surface);
-	}
-
+	uint raytype;
+	float3 nextDirection = CookTorranceBRDFSample(worldNormal, V, surface, u1, u2, raytype);
 	gRayInfo[pixelNum].direction.xyz = nextDirection;
 
-	// Hit
-	if (hitLight)
-	{
-		gRayInfo[pixelNum].origin.w = asfloat(0);
-	}
-	else
-	{
-		uint hitFlags = RAY_FLAG_HIT;
-		if (specular)
-			hitFlags |= RAY_FLAG_SPECULAR_BOUNCE;
-		gRayInfo[pixelNum].origin.w = asfloat(hitFlags);
-	}
+	uint hitFlags = RAY_FLAG_HIT;
+	if (raytype == RAY_TYPE_SPECULAR)
+		hitFlags |= RAY_FLAG_SPECULAR_BOUNCE;
+	gRayInfo[pixelNum].originFlags = float4(worldPosition.xyz, asfloat(hitFlags));
 
-	float3 brdf = CookTorranceBRDF(worldNormal.xyz, nextDirection, V, surface);
+	float pdf = CookTorranceBRDFPdf(worldNormal, nextDirection, V, surface, raytype);
 
-	// Save BRDF
-	gRayInfo[pixelNum].hitbrdf.xyz = albedo * max(dot(nextDirection, worldNormal.xyz), 0) ;
-	if (!specular)
-		gRayInfo[pixelNum].hitbrdf.xyz *= brdf / pdf;
-
-	gRayInfo[pixelNum].hitbrdf.w = pdf;
+	float3 brdf = CookTorranceBRDF(worldNormal.xyz, nextDirection, V, surface, raytype);
+	if (raytype != RAY_TYPE_SPECULAR)
+		brdf *= max(dot(nextDirection, worldNormal.xyz), 0);
+	pdf = max(pdf, float3(0.001, 0.001, 0.001)); // Fix black dots
+	gRayInfo[pixelNum].throughput.xyz = float4(brdf / pdf > 10? 0 : brdf / pdf, pdf); // Fix fireflies
 #endif
 
-	payload.colorAndDistance.rgb += directLighting;
 	//payload.colorAndDistance.xyz = float3(0.5, 0.5f, 0.5) * worldNormal.xyz + float3(0.5, 0.5f, 0.5);
 	//payload.colorAndDistance.xyz = float3(gInstances[lInstanceData.offset].normalTransform[0][0], gInstances[lInstanceData.offset].normalTransform[0][1], gInstances[lInstanceData.offset].normalTransform[0][2]);
 }

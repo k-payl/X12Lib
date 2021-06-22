@@ -19,7 +19,7 @@ void main(uint3 globalThreadId : SV_DispatchThreadID, uint3 localThreadId : SV_G
 	if (globalThreadId.x >= maxSize_x)
 		return;
 
-	bool hit = asuint(gRayInfo[globalThreadId.x].origin.w) & RAY_FLAG_HIT;
+	bool hit = asuint(gRayInfo[globalThreadId.x].originFlags.w) & RAY_FLAG_HIT;
 
 	if (globalThreadId.x == 0)
 	{

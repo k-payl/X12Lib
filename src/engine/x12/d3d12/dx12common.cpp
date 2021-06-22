@@ -350,7 +350,7 @@ void x12::Dx12WindowSurface::ResizeBuffers(unsigned width_, unsigned height_)
 		x12::GetCoreRender()->CreateTextureFrom(colorBuffers[i].getAdressOf(), L"swapchain texture", color);
 	}
 
-	x12::GetCoreRender()->CreateTexture(depthBuffer.getAdressOf(), L"depth texture", nullptr, 0, width, height, 0, TEXTURE_TYPE::TYPE_2D, TEXTURE_FORMAT::D32, TEXTURE_CREATE_FLAGS::USAGE_RENDER_TARGET);
+	x12::GetCoreRender()->CreateTexture(depthBuffer.getAdressOf(), L"depth texture", nullptr, 0, width, height, 0, 1, TEXTURE_TYPE::TYPE_2D, TEXTURE_FORMAT::D32, TEXTURE_CREATE_FLAGS::USAGE_RENDER_TARGET);
 }
 
 void x12::Dx12WindowSurface::Present()

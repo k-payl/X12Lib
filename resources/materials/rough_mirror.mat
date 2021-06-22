@@ -1,8 +1,8 @@
-name: 'gold1'
+name: 'rough_mirror'
 parameters:
   - name: 'base_color'
-    value: [1.000, 0.766, 0.336, 1]
+    value: [1, 1, 1, 1]
   - name: 'roughness'
-    value: 0.01
+    value: 0.1
   - name: 'metalness'
     value: 1

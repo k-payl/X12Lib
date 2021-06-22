@@ -17,9 +17,9 @@ namespace engine
 	{
 		struct RayInfo
 		{
-			float4 origin;
 			float4 direction;
-			float4 hitbrdf;
+			float4 originFlags;
+			float4 throughput;
 		};
 
 		struct Frame

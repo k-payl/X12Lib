@@ -8,7 +8,7 @@ namespace x12
 	{
 	public:
 		void Init(LPCWSTR name, const uint8_t* data, size_t size,
-			int32_t width, int32_t height, uint32_t mipCount, TEXTURE_TYPE type, TEXTURE_FORMAT format, TEXTURE_CREATE_FLAGS flags);
+			int32_t width, int32_t height, uint32_t mipCount, uint32_t layerCount, TEXTURE_TYPE type, TEXTURE_FORMAT format, TEXTURE_CREATE_FLAGS flags);
 		void InitFromExisting(
 			LPCWSTR name, ID3D12Resource* resource_);
 
@@ -19,6 +19,7 @@ namespace x12
 
 		void TransiteToState(D3D12_RESOURCE_STATES newState, ID3D12GraphicsCommandList* cmdList);
 		UINT WholeSize();
+		D3D12_GPU_VIRTUAL_ADDRESS GPUAddress() { return resource->GetGPUVirtualAddress(); }
 
 		X12_API void* GetNativeResource() override { return resource.Get(); }
 		X12_API void GetData(void* data) override;
@@ -26,6 +27,7 @@ namespace x12
 	private:
 		TEXTURE_CREATE_FLAGS flags_;
 		TEXTURE_FORMAT format_;
+		TEXTURE_TYPE type_;
 
 		void InitSRV();
 		void InitRTV();

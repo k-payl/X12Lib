@@ -3,6 +3,6 @@ parameters:
   - name: 'base_color'
     value: [1, 1, 1, 1]
   - name: 'roughness'
-    value: 0.05
+    value: 0.3
   - name: 'metalness'
-    value: 0.56
+    value: 0

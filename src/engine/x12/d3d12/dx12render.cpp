@@ -502,10 +502,10 @@ bool x12::Dx12CoreRenderer::CreateBuffer(ICoreBuffer** out, LPCWSTR name, size_t
 }
 
 bool x12::Dx12CoreRenderer::CreateTexture(ICoreTexture** out, LPCWSTR name, const uint8_t* data, size_t size,
-	int32_t width, int32_t height, uint32_t mipCount, TEXTURE_TYPE type, TEXTURE_FORMAT format, TEXTURE_CREATE_FLAGS flags)
+	int32_t width, int32_t height, uint32_t mipCount, uint32_t layerCount, TEXTURE_TYPE type, TEXTURE_FORMAT format, TEXTURE_CREATE_FLAGS flags)
 {
 	auto ptr = new Dx12CoreTexture();
-	ptr->Init(name, data, size, width, height, mipCount, type, format, flags);
+	ptr->Init(name, data, size, width, height, mipCount, layerCount, type, format, flags);
 
 	ptr->AddRef();
 	*out = ptr;
