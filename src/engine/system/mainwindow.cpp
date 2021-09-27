@@ -228,9 +228,11 @@ static RECT centerWindow(HWND parent_window, int width, int height)
 
 void engine::MainWindow::Create()
 {
-#if 0
-	const int width = 3840;
-	const int height = 2160;
+	//const int width = 3840;
+	//const int height = 2160;
+#if 1
+	const int width = 1920;
+	const int height = 1080;
 #else
 	const int width = 1280;
 	const int height = 768;

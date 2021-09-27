@@ -10,7 +10,7 @@ cmake_minimum_required (VERSION 3.4.3)
 project (x12lib)
 
 option(TESTS_ENABLE "" ON)
-option(VK_ENABLE "" ON)
+option(VK_ENABLE "" OFF)
 
 # YAML
 option(YAML_CPP_BUILD_TOOLS "" OFF)
