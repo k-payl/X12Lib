@@ -400,6 +400,8 @@ void x12::Dx12CoreRenderer::RecreateBuffers(HWND hwnd, UINT newWidth, UINT newHe
 	surface_ptr surf = _FetchSurface(hwnd);
 	surf->ResizeBuffers(newWidth, newHeight);
 
+	surfacesForPresenting.clear();
+
 	// after recreating swapchain's buffers frameIndex should be 0??
 	frameIndex = 0; // TODO: make frameIndex private
 }

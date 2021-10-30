@@ -88,6 +88,8 @@ namespace engine
 		bool needClearBackBuffer = true;
 		size_t cameraBufferIndex;
 		math::mat4 cameraTransform;
+		uint32_t cameraData_width;
+		uint32_t cameraData_height;
 		uint32_t descriptorSize;
 		uint32_t descriptorsAllocated;
 		HANDLE event;

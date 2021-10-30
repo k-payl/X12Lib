@@ -250,7 +250,9 @@ void engine::Renderer::RenderFrame(const ViewportData& viewport, const CameraDat
 			vec3 rightWS = ViewInvMat_.Column3(0).Normalized() * tan(verFullFovInRadians * 0.5f) * aspect;
 			vec3 upWS = ViewInvMat_.Column3(1).Normalized() * tan(verFullFovInRadians * 0.5f);
 
-			if (memcmp(&cameraTransform, &ViewInvMat_, sizeof(ViewInvMat_)) != 0)
+			if (memcmp(&cameraTransform, &ViewInvMat_, sizeof(ViewInvMat_)) != 0 ||
+				cameraData_width != width ||
+				cameraData_height != height)
 			{
 				cameraTransform = ViewInvMat_;
 
@@ -261,6 +263,8 @@ void engine::Renderer::RenderFrame(const ViewportData& viewport, const CameraDat
 				memcpy(&cameraData.origin.x, &origin, sizeof(vec4));
 				cameraData.width = width;
 				cameraData.height = height;
+				cameraData_height = height;
+				cameraData_width = width;
 
 				cameraBuffer->SetData(&cameraData, sizeof(cameraData));
 
@@ -1291,4 +1295,7 @@ void engine::Renderer::CreateRaytracingOutputResource(UINT width, UINT height)
 	raytracingOutputResourceUAVGpuDescriptor = CD3DX12_GPU_DESCRIPTOR_HANDLE(descriptorHeap->GetGPUDescriptorHandleForHeapStart(), m_raytracingOutputResourceUAVDescriptorHeapIndex, descriptorSize);
 
 	GetCoreRenderer()->CreateTextureFrom(outputRGBA32fcoreWeakPtr.getAdressOf(), L"Raytracing output", outputTexture.Get());
+
+	copyResourceSet = 0;
+	clearResources = 0;
 }

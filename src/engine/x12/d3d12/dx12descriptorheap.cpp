@@ -167,6 +167,7 @@ bool Page::HasSpace(uint32_t numDescriptors) const
 
 void Page::AddNewBlock(uint32_t offset, uint32_t numDescriptors)
 {
+	assert(offset < numDescriptorsInPage);
 	auto offsetIt = freeListByOffset.emplace(offset, numDescriptors);
 	auto sizeIt = freeListBySize.emplace(numDescriptors, offsetIt.first);
 	offsetIt.first->second.FreeListBySizeIt = sizeIt;
@@ -212,14 +213,7 @@ Alloc Page::Allocate(uint32_t numDescriptors)
 	// Decrement free handles.
 	numFreeHandles -= numDescriptors;
 
-	UINT descriptorSize;
-	switch (heapType)
-	{
-		case D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV: descriptorSize = d3d12::CR_CBSRV_DescriptorsSize(); break;
-		case D3D12_DESCRIPTOR_HEAP_TYPE_RTV: descriptorSize = d3d12::CR_RTV_DescriptorsSize(); break;
-		case D3D12_DESCRIPTOR_HEAP_TYPE_DSV: descriptorSize = d3d12::CR_DSV_DescriptorsSize(); break;
-		default: unreacheble();
-	}
+	UINT descriptorSize = DescriptorSize();
 
 	return Alloc(
 		CD3DX12_CPU_DESCRIPTOR_HANDLE(baseDescriptor, blockOffset, descriptorSize),
@@ -228,7 +222,20 @@ Alloc Page::Allocate(uint32_t numDescriptors)
 
 uint32_t Page::ComputeOffset(D3D12_CPU_DESCRIPTOR_HANDLE handle)
 {
-	return static_cast<uint32_t>(handle.ptr - baseDescriptor.ptr) / d3d12::CR_CBSRV_DescriptorsSize();
+	return static_cast<uint32_t>(handle.ptr - baseDescriptor.ptr) / DescriptorSize();
+}
+
+UINT Page::DescriptorSize()
+{
+	UINT descriptorSize;
+	switch (heapType)
+	{
+	case D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV: descriptorSize = d3d12::CR_CBSRV_DescriptorsSize(); break;
+	case D3D12_DESCRIPTOR_HEAP_TYPE_RTV: descriptorSize = d3d12::CR_RTV_DescriptorsSize(); break;
+	case D3D12_DESCRIPTOR_HEAP_TYPE_DSV: descriptorSize = d3d12::CR_DSV_DescriptorsSize(); break;
+	default: unreacheble();
+	}
+	return descriptorSize;
 }
 
 void Page::Free(const Alloc& alloc)

@@ -100,6 +100,7 @@ namespace x12::descriptorheap
 		uint32_t ComputeOffset(D3D12_CPU_DESCRIPTOR_HANDLE handle);
 		void AddNewBlock(uint32_t offset, uint32_t numDescriptors);
 		void FreeBlock(uint32_t offset, uint32_t numDescriptors);
+		UINT DescriptorSize();
 
 	public:
 		Page(D3D12_DESCRIPTOR_HEAP_TYPE type, uint32_t numDescriptors, Allocator& parent_);
