@@ -22,8 +22,11 @@ void RayGen()
     jitter -= float2(0.5, 0.5);
 
     float2 ndc = float2(
-        float(launchIndex.x + jitter.x) / dims.x * 2 - 1,
-        float(dims.y - launchIndex.y - 1 + jitter.y) / dims.y * 2 - 1);
+        float(launchIndex.x + jitter.x) / dims.x,
+        float(dims.y - launchIndex.y - 1 + jitter.y) / dims.y);
+        
+    payload.colorAndDistance.xy = ndc;
+    ndc = ndc * 2 - float2(1, 1);
     
     ray.Origin = gCamera.origin.xyz;
     ray.Direction = GetWorldRay(ndc, gCamera.forward.xyz, gCamera.right.xyz, gCamera.up.xyz);

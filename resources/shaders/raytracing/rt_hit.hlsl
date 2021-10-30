@@ -125,6 +125,31 @@ void ClosestHit(inout HitInfo payload, Attributes attrib)
 	const float3 throughput = gRayInfo[gRegroupedIndexes[pixelNum]].throughput.xyz;
 #endif
 
+    RayDiff diff;
+    float2 ddx_uv = float2(0, 0);
+    float2 ddy_uv = float2(0, 0);
+    {
+        diff.dOdx = float3(0,0,0);
+        diff.dOdy = float3(0,0,0);
+        float3 r = GetWorldRay(payload.colorAndDistance.xy * 2 - 1, gCamera.forward.xyz, gCamera.right.xyz, gCamera.up.xyz);
+        float3 rx = GetWorldRay((payload.colorAndDistance.xy + float2(1.0f/ gCamera.width, 0))* 2 - 1, gCamera.forward.xyz, gCamera.right.xyz, gCamera.up.xyz);
+        float3 ry = GetWorldRay((payload.colorAndDistance.xy + float2(0, 1.0f/gCamera.height))* 2 - 1, gCamera.forward.xyz, gCamera.right.xyz, gCamera.up.xyz);
+        diff.dDdx = rx - r;
+        diff.dDdy = ry - r;
+        
+        float3 edge01 = mul((vertextPositions[1] - vertextPositions[0]).xyz, (float3x3)gInstances[lInstanceData.offset].transform);
+        float3 edge02 = mul((vertextPositions[2] - vertextPositions[0]).xyz, (float3x3)gInstances[lInstanceData.offset].transform);
+        float3 triNormalW = cross(edge01, edge02);
+
+        propagate(diff, r, length(gCamera.origin.xyz - worldPosition.xyz), worldNormal.xyz);
+        
+        float2 dBarydx;
+        float2 dBarydy;
+        computeBarycentricDifferentials(diff, r, edge01, edge02, triNormalW, dBarydx, dBarydy);
+        
+        interpolateDifferentials(dBarydx, dBarydy, vertexUV, ddx_uv, ddy_uv);
+    }
+
 	const bool hitLight = gInstances[lInstanceData.offset].emission != 0;
 
 	if (hitLight)
@@ -162,7 +187,7 @@ void ClosestHit(inout HitInfo payload, Attributes attrib)
 
 	if (mat.albedoIndex != uint(-1))
 	{
-		float3 textureAlbedo = srgbInv(gTxMats[mat.albedoIndex].SampleLevel(gSampler, UV, 0).rgb);
+		float3 textureAlbedo = srgbInv(gTxMats[mat.albedoIndex].SampleGrad(gSampler, UV, ddx_uv, ddy_uv).rgb);
 		surface.albedo *= textureAlbedo;
 	}
 	

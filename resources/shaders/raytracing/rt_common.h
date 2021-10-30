@@ -57,6 +57,53 @@ float3 rayUniform(float3 N, float u1, float u2, out float pdf)
 }
 
 
+
+ struct RayDiff
+{
+    float3 dOdx;
+    float3 dOdy;
+    float3 dDdx;
+    float3 dDdy;
+ };
+    
+// Implements Equation 6.1 of this chapter.
+void propagate(inout RayDiff rayDiff, float3 D, float t, float3 N)
+{
+    float3 dodx = rayDiff.dOdx + t * rayDiff.dDdx; // Igehy Equation 10
+    float3 dody = rayDiff.dOdy + t * rayDiff.dDdy;
+    float rcpDN = 1.0f / dot(D, N); // Igehy Eqns 10 & 12
+    float dtdx = -dot(dodx, N) * rcpDN;
+    float dtdy = -dot(dody, N) * rcpDN;
+    rayDiff.dOdx += D * dtdx;
+    rayDiff.dOdy += D * dtdy;
+}
+
+ // Implements Equation 6.10 of this chapter.
+ void interpolateDifferentials(float2 dBarydx , float2 dBarydy ,
+    float2 vertexValues[3], out float2 dx, out float2 dy)
+ {
+     float2 delta1 = vertexValues[1] - vertexValues[0];
+     float2 delta2 = vertexValues[2] - vertexValues[0];
+     dx = dBarydx.x * delta1 + dBarydx.y * delta2;
+     dy = dBarydy.x * delta1 + dBarydy.y * delta2;
+ }
+
+ // Implements Equation 6.9 of this chapter.
+ void computeBarycentricDifferentials(RayDiff rayDiff,
+    float3 rayDir, float3 edge01, float3 edge02,
+    float3 triNormalW , out float2 dBarydx , out float2 dBarydy)
+ {
+     float3 Nu = cross(edge02, triNormalW);
+     float3 Nv = cross(edge01, triNormalW);
+     float3 Lu = Nu / (dot(Nu, edge01));
+     float3 Lv = Nv / (dot(Nv, edge02));
+
+     dBarydx.x = dot(Lu, rayDiff.dOdx); // du / dx
+     dBarydx.y = dot(Lv, rayDiff.dOdx); // dv / dx
+     dBarydy.x = dot(Lu, rayDiff.dOdy); // du / dy
+     dBarydy.y = dot(Lv, rayDiff.dOdy); // dv / dy
+ }
+
 // Load three 16 bit indices from a byte addressed buffer.
 //uint3 Load3x16BitIndices(uint offsetBytes)
 //{
