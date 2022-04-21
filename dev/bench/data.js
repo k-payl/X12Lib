@@ -1,44 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1632763956637,
+  "lastUpdate": 1650571604015,
   "repoUrl": "https://github.com/k-payl/X12Lib",
   "entries": {
     "C++ Benchmark": [
-      {
-        "commit": {
-          "author": {
-            "email": "k-payl@yandex.ru",
-            "name": "Konstantin Pail",
-            "username": "k-payl"
-          },
-          "committer": {
-            "email": "k-payl@yandex.ru",
-            "name": "Konstantin Pail",
-            "username": "k-payl"
-          },
-          "distinct": true,
-          "id": "56d1a628aee630d794c399264d380bec281211c0",
-          "message": "vk, graph records",
-          "timestamp": "2020-09-12T21:40:06+04:00",
-          "tree_id": "a5352b7790792b2e3aa477123e53e500534b00c6",
-          "url": "https://github.com/k-payl/X12Lib/commit/56d1a628aee630d794c399264d380bec281211c0"
-        },
-        "date": 1599936091766,
-        "tool": "googlecpp",
-        "benches": [
-          {
-            "name": "mat4_mult",
-            "value": 18026998.384615265,
-            "unit": "ns/iter",
-            "extra": "iterations: 39\ncpu: 18024400.897435896 ns\nthreads: 1"
-          },
-          {
-            "name": "mat4_inv",
-            "value": 114008898.33333375,
-            "unit": "ns/iter",
-            "extra": "iterations: 6\ncpu: 113614195.83333336 ns\nthreads: 1"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -1080,6 +1044,42 @@ window.BENCHMARK_DATA = {
             "value": 109356737.83333282,
             "unit": "ns/iter",
             "extra": "iterations: 6\ncpu: 109353436 ns\nthreads: 1"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "k-payl@yandex.ru",
+            "name": "Konstantin Pail",
+            "username": "k-payl"
+          },
+          "committer": {
+            "email": "k-payl@yandex.ru",
+            "name": "Konstantin Pail",
+            "username": "k-payl"
+          },
+          "distinct": false,
+          "id": "24cc90fddff6da895c98d08ee2c03cf5f353e48d",
+          "message": "fix crash on window resize",
+          "timestamp": "2021-10-31T00:24:51+03:00",
+          "tree_id": "f30afed7a559c75baf045b2e55c5f46416945454",
+          "url": "https://github.com/k-payl/X12Lib/commit/24cc90fddff6da895c98d08ee2c03cf5f353e48d"
+        },
+        "date": 1650571602079,
+        "tool": "googlecpp",
+        "benches": [
+          {
+            "name": "mat4_mult",
+            "value": 52618959.923078224,
+            "unit": "ns/iter",
+            "extra": "iterations: 13\ncpu: 52595446.15384615 ns\nthreads: 1"
+          },
+          {
+            "name": "mat4_inv",
+            "value": 106559886.14285709,
+            "unit": "ns/iter",
+            "extra": "iterations: 7\ncpu: 106549642.85714285 ns\nthreads: 1"
           }
         ]
       }
