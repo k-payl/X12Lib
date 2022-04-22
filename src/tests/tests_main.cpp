@@ -162,11 +162,11 @@ protected:
 		if (api != engine::INIT_FLAGS::VULKAN_RENDERER) // TODO: create vulkan texture
 		{
 			renderer->CreateTexture(colorTexture.getAdressOf(), L"target texture",
-				nullptr, 0, w, h, 1, TEXTURE_TYPE::TYPE_2D,
+				nullptr, 0, w, h, 1, 1, TEXTURE_TYPE::TYPE_2D,
 				TEXTURE_FORMAT::RGBA8, TEXTURE_CREATE_FLAGS::USAGE_RENDER_TARGET);
 
 			renderer->CreateTexture(depthTexture.getAdressOf(), L"depth texture",
-				nullptr, 0, w, h, 1, TEXTURE_TYPE::TYPE_2D,
+				nullptr, 0, w, h, 1, 1, TEXTURE_TYPE::TYPE_2D,
 				TEXTURE_FORMAT::D32, TEXTURE_CREATE_FLAGS::USAGE_RENDER_TARGET);
 		}
 	}

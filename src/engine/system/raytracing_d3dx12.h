@@ -599,42 +599,6 @@ private:
 	void* Data() noexcept override { return &m_Desc; }
 	D3D12_RAYTRACING_PIPELINE_CONFIG m_Desc;
 };
-
-//------------------------------------------------------------------------------------------------
-class CD3DX12_RAYTRACING_PIPELINE_CONFIG1_SUBOBJECT
-	: public CD3DX12_STATE_OBJECT_DESC::SUBOBJECT_HELPER_BASE
-{
-public:
-	CD3DX12_RAYTRACING_PIPELINE_CONFIG1_SUBOBJECT() noexcept
-	{
-		Init();
-	}
-	CD3DX12_RAYTRACING_PIPELINE_CONFIG1_SUBOBJECT(CD3DX12_STATE_OBJECT_DESC& ContainingStateObject)
-	{
-		Init();
-		AddToStateObject(ContainingStateObject);
-	}
-	void Config(UINT MaxTraceRecursionDepth, D3D12_RAYTRACING_PIPELINE_FLAGS Flags) noexcept
-	{
-		m_Desc.MaxTraceRecursionDepth = MaxTraceRecursionDepth;
-		m_Desc.Flags = Flags;
-	}
-	D3D12_STATE_SUBOBJECT_TYPE Type() const noexcept override
-	{
-		return D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_PIPELINE_CONFIG1;
-	}
-	operator const D3D12_STATE_SUBOBJECT& () const noexcept { return *m_pSubobject; }
-	operator const D3D12_RAYTRACING_PIPELINE_CONFIG1& () const noexcept { return m_Desc; }
-private:
-	void Init() noexcept
-	{
-		SUBOBJECT_HELPER_BASE::Init();
-		m_Desc = {};
-	}
-	void* Data() noexcept override { return &m_Desc; }
-	D3D12_RAYTRACING_PIPELINE_CONFIG1 m_Desc;
-};
-
 //------------------------------------------------------------------------------------------------
 class CD3DX12_GLOBAL_ROOT_SIGNATURE_SUBOBJECT
 	: public CD3DX12_STATE_OBJECT_DESC::SUBOBJECT_HELPER_BASE

@@ -170,7 +170,7 @@ void engine::Renderer::CreateBuffers(UINT w, UINT h)
 void engine::Renderer::CreateIndirectBuffer(UINT w, UINT h)
 {
 	D3D12_INDIRECT_ARGUMENT_DESC arg{};
-	arg.Type = D3D12_INDIRECT_ARGUMENT_TYPE::D3D12_INDIRECT_ARGUMENT_TYPE_DISPATCH_RAYS;
+	arg.Type = (D3D12_INDIRECT_ARGUMENT_TYPE)9;// ::D3D12_INDIRECT_ARGUMENT_TYPE_DISPATCH_RAYS;
 
 	D3D12_COMMAND_SIGNATURE_DESC desc{};
 	desc.NumArgumentDescs = 1;
@@ -1004,7 +1004,7 @@ void engine::Renderer::Init()
 	D3D12_FEATURE_DATA_D3D12_OPTIONS5 opt5{};
 	throwIfFailed(dxrDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS5, &opt5, sizeof(opt5)));
 
-	bool tier11 = opt5.RaytracingTier >= D3D12_RAYTRACING_TIER::D3D12_RAYTRACING_TIER_1_1;
+	bool tier11 = opt5.RaytracingTier >= D3D12_RAYTRACING_TIER_1_0;
 	if (opt5.RaytracingTier == D3D12_RAYTRACING_TIER_NOT_SUPPORTED)
 		abort();
 
